@@ -1,13 +1,35 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Minus, DollarSign, CreditCard } from 'lucide-react';
 import FinanceCard from '@/components/FinanceCard';
+import { useState } from 'react';
 
 const Budget = () => {
+  const [selectedMonth, setSelectedMonth] = useState('12');
+  const [selectedYear, setSelectedYear] = useState('2024');
+
   // Примерные данные
   const income = 150000;
   const expenses = 89500;
   const balance = income - expenses;
+
+  const months = [
+    { value: '1', label: 'Январь' },
+    { value: '2', label: 'Февраль' },
+    { value: '3', label: 'Март' },
+    { value: '4', label: 'Апрель' },
+    { value: '5', label: 'Май' },
+    { value: '6', label: 'Июнь' },
+    { value: '7', label: 'Июль' },
+    { value: '8', label: 'Август' },
+    { value: '9', label: 'Сентябрь' },
+    { value: '10', label: 'Октябрь' },
+    { value: '11', label: 'Ноябрь' },
+    { value: '12', label: 'Декабрь' },
+  ];
+
+  const years = ['2022', '2023', '2024', '2025'];
 
   const categories = [
     { name: 'Еда', amount: 25000, budget: 30000, color: 'bg-blue-500' },
@@ -66,6 +88,32 @@ const Budget = () => {
                   Добавить
                 </Button>
               </CardTitle>
+              <div className="flex gap-3 mt-4">
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Месяц" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map((month) => (
+                      <SelectItem key={month.value} value={month.value}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger className="w-[100px]">
+                    <SelectValue placeholder="Год" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {years.map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {categories.map((category, index) => {
