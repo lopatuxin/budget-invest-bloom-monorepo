@@ -1,13 +1,24 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Plus, Minus, DollarSign, CreditCard } from 'lucide-react';
 import FinanceCard from '@/components/FinanceCard';
 import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 const Budget = () => {
+  const { toast } = useToast();
   const [selectedMonth, setSelectedMonth] = useState('12');
   const [selectedYear, setSelectedYear] = useState('2024');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [expenseForm, setExpenseForm] = useState({
+    amount: '',
+    category: '',
+    description: ''
+  });
 
   // Примерные данные
   const income = 150000;
@@ -42,6 +53,25 @@ const Budget = () => {
 
   const getProgressPercentage = (amount: number, budget: number) => {
     return Math.min((amount / budget) * 100, 100);
+  };
+
+  const handleAddExpense = () => {
+    if (!expenseForm.amount || !expenseForm.category) {
+      toast({
+        title: "Ошибка",
+        description: "Заполните обязательные поля",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    toast({
+      title: "Расход добавлен",
+      description: `Добавлен расход ${expenseForm.amount}₽ в категорию "${expenseForm.category}"`,
+    });
+
+    setExpenseForm({ amount: '', category: '', description: '' });
+    setIsDialogOpen(false);
   };
 
   return (
@@ -83,10 +113,73 @@ const Budget = () => {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span>Категории расходов</span>
-                <Button size="sm" className="bg-gradient-primary hover:opacity-90">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Добавить
-                </Button>
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="bg-gradient-primary hover:opacity-90">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Добавить
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Добавить расход</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="amount">Сумма *</Label>
+                        <Input
+                          id="amount"
+                          type="number"
+                          placeholder="0"
+                          value={expenseForm.amount}
+                          onChange={(e) => setExpenseForm(prev => ({...prev, amount: e.target.value}))}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="category">Категория *</Label>
+                        <Select 
+                          value={expenseForm.category} 
+                          onValueChange={(value) => setExpenseForm(prev => ({...prev, category: value}))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Выберите категорию" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.map((category) => (
+                              <SelectItem key={category.name} value={category.name}>
+                                {category.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="description">Описание</Label>
+                        <Input
+                          id="description"
+                          placeholder="Описание расхода (необязательно)"
+                          value={expenseForm.description}
+                          onChange={(e) => setExpenseForm(prev => ({...prev, description: e.target.value}))}
+                        />
+                      </div>
+                      <div className="flex gap-2 pt-4">
+                        <Button 
+                          variant="outline" 
+                          className="flex-1"
+                          onClick={() => setIsDialogOpen(false)}
+                        >
+                          Отмена
+                        </Button>
+                        <Button 
+                          className="flex-1 bg-gradient-primary hover:opacity-90"
+                          onClick={handleAddExpense}
+                        >
+                          Добавить
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </CardTitle>
               <div className="flex gap-3 mt-4">
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
