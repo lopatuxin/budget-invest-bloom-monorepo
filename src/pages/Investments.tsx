@@ -150,13 +150,22 @@ const Investments = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {Object.entries(holdingsBySector).map(([sectorName, sectorHoldings]) => (
+                  {Object.entries(holdingsBySector).map(([sectorName, sectorHoldings]) => {
+                    const sectorValue = sectorHoldings.reduce((sum, holding) => sum + holding.value, 0);
+                    const sectorPercentage = ((sectorValue / totalValue) * 100).toFixed(1);
+                    
+                    return (
                     <div key={sectorName} className="space-y-3">
                       <div className="flex items-center justify-between border-b border-muted pb-2">
                         <h3 className="font-semibold text-primary">{sectorName}</h3>
-                        <span className="text-sm text-muted-foreground">
-                          {sectorHoldings.length} активов
-                        </span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-foreground">
+                            {sectorPercentage}%
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            {sectorHoldings.length} активов
+                          </span>
+                        </div>
                       </div>
                       <div className="space-y-3">
                         {sectorHoldings.map((holding, index) => (
@@ -192,7 +201,8 @@ const Investments = () => {
                         ))}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
