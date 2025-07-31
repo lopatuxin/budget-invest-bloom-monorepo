@@ -48,12 +48,19 @@ const Navigation = () => {
                 <span>{label}</span>
               </Link>
             ))}
-            <Link to="/register">
-              <Button variant="outline" size="sm" className="ml-4">
-                <UserPlus className="w-4 h-4 mr-2" />
-                Регистрация
-              </Button>
-            </Link>
+            <div className="flex items-center space-x-2">
+              <Link to="/login">
+                <Button variant="ghost" size="sm">
+                  Войти
+                </Button>
+              </Link>
+              <Link to="/register">
+                <Button variant="outline" size="sm">
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Регистрация
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* Mobile menu button */}
