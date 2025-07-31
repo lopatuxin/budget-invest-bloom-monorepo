@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Wallet, TrendingUp, Menu, X } from 'lucide-react';
+import { Home, Wallet, TrendingUp, Menu, X, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -48,6 +48,12 @@ const Navigation = () => {
                 <span>{label}</span>
               </Link>
             ))}
+            <Link to="/register">
+              <Button variant="outline" size="sm" className="ml-4">
+                <UserPlus className="w-4 h-4 mr-2" />
+                Регистрация
+              </Button>
+            </Link>
           </div>
 
           {/* Mobile menu button */}
