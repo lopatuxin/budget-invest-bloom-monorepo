@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Wallet, TrendingUp, Menu, X, UserPlus } from 'lucide-react';
+import { Home, Wallet, TrendingUp, Menu, X, UserPlus, User, LogOut } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { isAuthenticated, user, logout } = useAuth();
 
   const navItems = [
     { href: '/', label: 'Главная', icon: Home },
@@ -49,17 +51,32 @@ const Navigation = () => {
               </Link>
             ))}
             <div className="flex items-center space-x-2">
-              <Link to="/login">
-                <Button variant="ghost" size="sm">
-                  Войти
-                </Button>
-              </Link>
-              <Link to="/register">
-                <Button variant="outline" size="sm">
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Регистрация
-                </Button>
-              </Link>
+              {isAuthenticated ? (
+                <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 px-3 py-2 bg-muted rounded-md">
+                    <User className="w-4 h-4" />
+                    <span className="text-sm font-medium">{user?.name}</span>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={logout}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Выйти
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Link to="/login">
+                    <Button variant="ghost" size="sm">
+                      Войти
+                    </Button>
+                  </Link>
+                  <Link to="/register">
+                    <Button variant="outline" size="sm">
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Регистрация
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
 
@@ -95,6 +112,34 @@ const Navigation = () => {
                   <span>{label}</span>
                 </Link>
               ))}
+              <div className="px-3 py-2 border-t border-border mt-2 pt-2">
+                {isAuthenticated ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2 px-3 py-2 bg-muted rounded-md">
+                      <User className="w-4 h-4" />
+                      <span className="text-sm font-medium">{user?.name}</span>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={logout} className="w-full justify-start">
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Выйти
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Link to="/login" onClick={() => setIsOpen(false)}>
+                      <Button variant="ghost" size="sm" className="w-full justify-start">
+                        Войти
+                      </Button>
+                    </Link>
+                    <Link to="/register" onClick={() => setIsOpen(false)}>
+                      <Button variant="outline" size="sm" className="w-full justify-start">
+                        <UserPlus className="w-4 h-4 mr-2" />
+                        Регистрация
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +18,8 @@ const Login = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,8 +46,9 @@ const Login = () => {
         description: "Добро пожаловать в FinanceApp",
       });
       
-      // Здесь будет редирект на главную страницу
-      // navigate('/');
+      // Устанавливаем состояние авторизации и делаем редирект
+      login(formData.email);
+      navigate('/');
     } catch (error) {
       toast({
         title: "Ошибка входа",
