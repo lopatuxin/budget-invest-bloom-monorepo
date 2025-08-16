@@ -1,0 +1,63 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-create-email-verification-tokens-table
+      author: system
+      comment: Создание таблицы токенов для подтверждения email адресов при регистрации
+      changes:
+        - createTable:
+            tableName: email_verification_tokens
+            remarks: Токены для подтверждения email адресов при регистрации
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  remarks: Уникальный идентификатор токена
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: uuid
+                  remarks: Пользователь для верификации
+                  constraints:
+                    nullable: false
+              - column:
+                  name: token_hash
+                  type: varchar(255)
+                  remarks: Хэш токена верификации
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expires_at
+                  type: timestamp
+                  remarks: Время истечения (обычно 24 часа)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_used
+                  type: boolean
+                  remarks: Флаг использования токена
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  remarks: Время создания
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: email_verification_tokens
+            baseColumnNames: user_id
+            constraintName: fk_email_verification_tokens_user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+            onUpdate: CASCADE
+      rollback:
+        - dropForeignKeyConstraint:
+            baseTableName: email_verification_tokens
+            constraintName: fk_email_verification_tokens_user_id
+        - dropTable:
+            tableName: email_verification_tokens
