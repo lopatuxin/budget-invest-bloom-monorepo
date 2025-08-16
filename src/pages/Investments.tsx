@@ -130,23 +130,21 @@ const Investments = () => {
             trend={{ value: "+8.5%", isPositive: true }}
             gradient="secondary"
           />
-          <div className="flex justify-center items-center">
-            <Button 
-              className="bg-gradient-primary hover:opacity-90 h-16 px-8"
-              size="lg"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Добавить актив
-            </Button>
-          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Портфель */}
           <div className="lg:col-span-2">
             <Card className="shadow-card border-0">
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Мои активы</CardTitle>
+                <Button 
+                  className="bg-gradient-primary hover:opacity-90"
+                  size="sm"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Добавить актив
+                </Button>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
