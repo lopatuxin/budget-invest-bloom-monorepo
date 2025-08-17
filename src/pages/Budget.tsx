@@ -8,9 +8,11 @@ import { Plus, Minus, DollarSign, CreditCard } from 'lucide-react';
 import FinanceCard from '@/components/FinanceCard';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 const Budget = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [selectedMonth, setSelectedMonth] = useState('12');
   const [selectedYear, setSelectedYear] = useState('2024');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -214,7 +216,11 @@ const Budget = () => {
                 const isOverBudget = category.amount > category.budget;
                 
                 return (
-                  <div key={index} className="relative space-y-2 p-4 rounded-lg transition-all duration-300 hover:shadow-card hover:scale-105 cursor-pointer border border-transparent hover:border-border/20 overflow-hidden">
+                  <div 
+                    key={index} 
+                    className="relative space-y-2 p-4 rounded-lg transition-all duration-300 hover:shadow-card hover:scale-105 cursor-pointer border border-transparent hover:border-border/20 overflow-hidden"
+                    onClick={() => navigate(`/budget/category/${encodeURIComponent(category.name)}`)}
+                  >
                     <div className="absolute inset-0 bg-gradient-primary opacity-5" />
                     <div className="relative z-10 flex justify-between items-center">
                       <div className="flex items-center space-x-3">
