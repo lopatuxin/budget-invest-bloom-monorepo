@@ -214,8 +214,9 @@ const Budget = () => {
                 const isOverBudget = category.amount > category.budget;
                 
                 return (
-                  <div key={index} className="space-y-2 p-4 rounded-lg transition-all duration-300 hover:shadow-card hover:scale-105 cursor-pointer border border-transparent hover:border-border/20">
-                    <div className="flex justify-between items-center">
+                  <div key={index} className="relative space-y-2 p-4 rounded-lg transition-all duration-300 hover:shadow-card hover:scale-105 cursor-pointer border border-transparent hover:border-border/20 overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-primary opacity-5" />
+                    <div className="relative z-10 flex justify-between items-center">
                       <div className="flex items-center space-x-3">
                         <div className={`w-3 h-3 rounded-full ${category.color}`} />
                         <span className="font-medium">{category.name}</span>
@@ -229,7 +230,7 @@ const Budget = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="w-full bg-muted rounded-full h-2">
+                    <div className="relative z-10 w-full bg-muted rounded-full h-2">
                       <div
                         className={`h-2 rounded-full transition-all duration-500 ${
                           isOverBudget ? 'bg-destructive' : 'bg-gradient-primary'
