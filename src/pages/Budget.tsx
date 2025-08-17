@@ -16,9 +16,15 @@ const Budget = () => {
   const [selectedMonth, setSelectedMonth] = useState('12');
   const [selectedYear, setSelectedYear] = useState('2024');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedOperationType, setSelectedOperationType] = useState<'expense' | 'income' | null>(null);
   const [expenseForm, setExpenseForm] = useState({
     amount: '',
     category: '',
+    description: ''
+  });
+  const [incomeForm, setIncomeForm] = useState({
+    amount: '',
+    source: '',
     description: ''
   });
 
@@ -57,6 +63,8 @@ const Budget = () => {
     return Math.min((amount / budget) * 100, 100);
   };
 
+  const incomeSources = ['Зарплата', 'Фриланс', 'Инвестиции', 'Подарки', 'Прочее'];
+
   const handleAddExpense = () => {
     if (!expenseForm.amount || !expenseForm.category) {
       toast({
@@ -73,6 +81,30 @@ const Budget = () => {
     });
 
     setExpenseForm({ amount: '', category: '', description: '' });
+    resetDialog();
+  };
+
+  const handleAddIncome = () => {
+    if (!incomeForm.amount || !incomeForm.source) {
+      toast({
+        title: "Ошибка",
+        description: "Заполните обязательные поля",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    toast({
+      title: "Доход добавлен",
+      description: `Добавлен доход ${incomeForm.amount}₽ из источника "${incomeForm.source}"`,
+    });
+
+    setIncomeForm({ amount: '', source: '', description: '' });
+    resetDialog();
+  };
+
+  const resetDialog = () => {
+    setSelectedOperationType(null);
     setIsDialogOpen(false);
   };
 
@@ -124,61 +156,147 @@ const Budget = () => {
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
-                      <DialogTitle>Добавить расход</DialogTitle>
+                      <DialogTitle>
+                        {!selectedOperationType 
+                          ? "Выберите тип операции" 
+                          : selectedOperationType === 'expense' 
+                            ? "Добавить расход" 
+                            : "Добавить доход"
+                        }
+                      </DialogTitle>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="amount">Сумма *</Label>
-                        <Input
-                          id="amount"
-                          type="number"
-                          placeholder="0"
-                          value={expenseForm.amount}
-                          onChange={(e) => setExpenseForm(prev => ({...prev, amount: e.target.value}))}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="category">Категория *</Label>
-                        <Select 
-                          value={expenseForm.category} 
-                          onValueChange={(value) => setExpenseForm(prev => ({...prev, category: value}))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Выберите категорию" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categories.map((category) => (
-                              <SelectItem key={category.name} value={category.name}>
-                                {category.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="description">Описание</Label>
-                        <Input
-                          id="description"
-                          placeholder="Описание расхода (необязательно)"
-                          value={expenseForm.description}
-                          onChange={(e) => setExpenseForm(prev => ({...prev, description: e.target.value}))}
-                        />
-                      </div>
-                      <div className="flex gap-2 pt-4">
-                        <Button 
-                          variant="outline" 
-                          className="flex-1"
-                          onClick={() => setIsDialogOpen(false)}
-                        >
-                          Отмена
-                        </Button>
-                        <Button 
-                          className="flex-1 bg-gradient-primary hover:opacity-90"
-                          onClick={handleAddExpense}
-                        >
-                          Добавить
-                        </Button>
-                      </div>
+                      {!selectedOperationType ? (
+                        // Выбор типа операции
+                        <div className="grid gap-3">
+                          <Button 
+                            className="w-full bg-gradient-primary hover:opacity-90 justify-start h-12"
+                            onClick={() => setSelectedOperationType('expense')}
+                          >
+                            <Minus className="w-5 h-5 mr-3" />
+                            Добавить расход
+                          </Button>
+                          <Button 
+                            className="w-full bg-gradient-success hover:opacity-90 justify-start h-12"
+                            onClick={() => setSelectedOperationType('income')}
+                          >
+                            <Plus className="w-5 h-5 mr-3" />
+                            Добавить доход
+                          </Button>
+                        </div>
+                      ) : selectedOperationType === 'expense' ? (
+                        // Форма добавления расхода
+                        <>
+                          <div className="grid gap-2">
+                            <Label htmlFor="expense-amount">Сумма *</Label>
+                            <Input
+                              id="expense-amount"
+                              type="number"
+                              placeholder="0"
+                              value={expenseForm.amount}
+                              onChange={(e) => setExpenseForm(prev => ({...prev, amount: e.target.value}))}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="expense-category">Категория *</Label>
+                            <Select 
+                              value={expenseForm.category} 
+                              onValueChange={(value) => setExpenseForm(prev => ({...prev, category: value}))}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Выберите категорию" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {categories.map((category) => (
+                                  <SelectItem key={category.name} value={category.name}>
+                                    {category.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="expense-description">Описание</Label>
+                            <Input
+                              id="expense-description"
+                              placeholder="Описание расхода (необязательно)"
+                              value={expenseForm.description}
+                              onChange={(e) => setExpenseForm(prev => ({...prev, description: e.target.value}))}
+                            />
+                          </div>
+                          <div className="flex gap-2 pt-4">
+                            <Button 
+                              variant="outline" 
+                              className="flex-1"
+                              onClick={() => setSelectedOperationType(null)}
+                            >
+                              Назад
+                            </Button>
+                            <Button 
+                              className="flex-1 bg-gradient-primary hover:opacity-90"
+                              onClick={handleAddExpense}
+                            >
+                              Добавить
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        // Форма добавления дохода
+                        <>
+                          <div className="grid gap-2">
+                            <Label htmlFor="income-amount">Сумма *</Label>
+                            <Input
+                              id="income-amount"
+                              type="number"
+                              placeholder="0"
+                              value={incomeForm.amount}
+                              onChange={(e) => setIncomeForm(prev => ({...prev, amount: e.target.value}))}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="income-source">Источник *</Label>
+                            <Select 
+                              value={incomeForm.source} 
+                              onValueChange={(value) => setIncomeForm(prev => ({...prev, source: value}))}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Выберите источник" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {incomeSources.map((source) => (
+                                  <SelectItem key={source} value={source}>
+                                    {source}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="income-description">Описание</Label>
+                            <Input
+                              id="income-description"
+                              placeholder="Описание дохода (необязательно)"
+                              value={incomeForm.description}
+                              onChange={(e) => setIncomeForm(prev => ({...prev, description: e.target.value}))}
+                            />
+                          </div>
+                          <div className="flex gap-2 pt-4">
+                            <Button 
+                              variant="outline" 
+                              className="flex-1"
+                              onClick={() => setSelectedOperationType(null)}
+                            >
+                              Назад
+                            </Button>
+                            <Button 
+                              className="flex-1 bg-gradient-success hover:opacity-90"
+                              onClick={handleAddIncome}
+                            >
+                              Добавить
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </DialogContent>
                 </Dialog>
