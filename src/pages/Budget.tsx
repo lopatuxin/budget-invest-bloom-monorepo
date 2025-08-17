@@ -214,7 +214,7 @@ const Budget = () => {
                 const isOverBudget = category.amount > category.budget;
                 
                 return (
-                  <div key={index} className="space-y-2">
+                  <div key={index} className="space-y-2 p-4 rounded-lg transition-all duration-300 hover:shadow-card hover:scale-105 cursor-pointer border border-transparent hover:border-border/20">
                     <div className="flex justify-between items-center">
                       <div className="flex items-center space-x-3">
                         <div className={`w-3 h-3 rounded-full ${category.color}`} />
