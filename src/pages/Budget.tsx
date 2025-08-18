@@ -149,42 +149,40 @@ const Budget = () => {
                 <span>Категории расходов</span>
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" className="bg-gradient-primary hover:opacity-90">
+                    <Button 
+                      size="sm" 
+                      className="bg-gradient-primary hover:opacity-90"
+                      onClick={() => setSelectedOperationType('expense')}
+                    >
                       <Plus className="w-4 h-4 mr-2" />
                       Добавить
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
-                      <DialogTitle>
-                        {!selectedOperationType 
-                          ? "Выберите тип операции" 
-                          : selectedOperationType === 'expense' 
-                            ? "Добавить расход" 
-                            : "Добавить доход"
-                        }
-                      </DialogTitle>
+                      <div className="flex gap-2 justify-center">
+                        <Button 
+                          variant={selectedOperationType === 'expense' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedOperationType('expense')}
+                          className={selectedOperationType === 'expense' ? 'bg-gradient-primary hover:opacity-90' : ''}
+                        >
+                          <Minus className="w-4 h-4 mr-2" />
+                          Добавить расход
+                        </Button>
+                        <Button 
+                          variant={selectedOperationType === 'income' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedOperationType('income')}
+                          className={selectedOperationType === 'income' ? 'bg-gradient-success hover:opacity-90' : ''}
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Добавить доход
+                        </Button>
+                      </div>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
-                      {!selectedOperationType ? (
-                        // Выбор типа операции
-                        <div className="grid gap-3">
-                          <Button 
-                            className="w-full bg-gradient-primary hover:opacity-90 justify-start h-12"
-                            onClick={() => setSelectedOperationType('expense')}
-                          >
-                            <Minus className="w-5 h-5 mr-3" />
-                            Добавить расход
-                          </Button>
-                          <Button 
-                            className="w-full bg-gradient-success hover:opacity-90 justify-start h-12"
-                            onClick={() => setSelectedOperationType('income')}
-                          >
-                            <Plus className="w-5 h-5 mr-3" />
-                            Добавить доход
-                          </Button>
-                        </div>
-                      ) : selectedOperationType === 'expense' ? (
+                      {selectedOperationType === 'expense' ? (
                         // Форма добавления расхода
                         <>
                           <div className="grid gap-2">
@@ -228,9 +226,9 @@ const Budget = () => {
                             <Button 
                               variant="outline" 
                               className="flex-1"
-                              onClick={() => setSelectedOperationType(null)}
+                              onClick={() => resetDialog()}
                             >
-                              Назад
+                              Отмена
                             </Button>
                             <Button 
                               className="flex-1 bg-gradient-primary hover:opacity-90"
@@ -284,9 +282,9 @@ const Budget = () => {
                             <Button 
                               variant="outline" 
                               className="flex-1"
-                              onClick={() => setSelectedOperationType(null)}
+                              onClick={() => resetDialog()}
                             >
-                              Назад
+                              Отмена
                             </Button>
                             <Button 
                               className="flex-1 bg-gradient-success hover:opacity-90"
