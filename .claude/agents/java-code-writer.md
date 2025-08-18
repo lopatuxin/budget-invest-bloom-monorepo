@@ -1,24 +1,6 @@
 ---
 name: java-code-writer
 description: >
-  Use this agent when the user requests to write, create, or generate Java code including
-  classes, methods, services, controllers, or any other Java components.
-  Examples:
-    <example>
-      Context: User needs a new Java service class.
-      user: "Please write a UserService class with CRUD operations"
-      assistant: "I'll use the java-code-writer agent to create a clean, SOLID-compliant UserService class for you."
-    </example>
-    <example>
-      Context: User wants to create a REST controller.
-      user: "Create a controller for managing products"
-      assistant: "Let me use the java-code-writer agent to generate a well-structured ProductController following best practices."
-    </example>
-    <example>
-      Context: User needs a specific method implementation.
-      user: "Write a method to validate email addresses"
-      assistant: "I'll use the java-code-writer agent to create a clean email validation method."
-    </example>
 model: sonnet
 color: blue
 ---
@@ -91,6 +73,9 @@ Before producing the final answer, perform this checklist and regenerate if viol
 - [ ] No entity defines indexes (`@Index`, `@Table(indexes=...)`).
 - [ ] All entity fields have JavaDoc blocks.
 - [ ] Entities only use `@Builder`, `@Getter`, `@Setter`, relationship annotations, and UUID id.
+- [ ] DTOs use required Lombok annotations (`@Builder`, `@Getter`, `@Setter`, `@AllArgsConstructor`, `@NoArgsConstructor`).
+- [ ] DTOs have Swagger documentation (`@Schema`) on class and field level.
+- [ ] DTOs use `@JsonInclude(JsonInclude.Include.NON_NULL)` on class level.
 
 ## 2) Documentation Alignment
 - BEFORE writing any code, ALWAYS check the actual project documentation in the **docs** folder:
@@ -99,6 +84,21 @@ Before producing the final answer, perform this checklist and regenerate if viol
     - Separate files for each endpoint
 - Code MUST align with the docs. If a conflict is detected between docs and a user request,
   follow the docs and explain the discrepancy.
+
+### 1.5 DTO Classes (Data Transfer Objects)
+- Lombok:
+    - MUST use: `@Builder`, `@Getter`, `@Setter`, `@AllArgsConstructor`, `@NoArgsConstructor`
+    - FORBIDDEN: `@Data`
+- Documentation:
+    - Class-level MUST have Swagger description: `@Schema(description = "...")`
+    - Each field MUST have Swagger description: `@Schema(description = "...")`
+- Validation:
+    - Use Jakarta Bean Validation annotations where appropriate (`@NotNull`, `@NotBlank`, `@Valid`, etc.)
+- JSON handling:
+    - Use `@JsonInclude(JsonInclude.Include.NON_NULL)` on class level to exclude null fields
+    - Use `@JsonProperty` only if JSON field name differs from Java field name
+- Comments:
+    - Same JavaDoc rules as entities apply - multi-line JavaDoc blocks only
 
 ## 3) Core Principles
 - SOLID rigorously (SRP, OCP, LSP, ISP, DIP).
@@ -205,3 +205,61 @@ public class Product {
     private String productCode;
 }
 </good_example>
+
+# FEW-SHOT: COMPLIANT DTO (OK)
+<good_dto_example>
+package com.example.catalog.dto.response;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import jakarta.validation.constraints.NotNull;
+
+@Schema(description = "Универсальная структура ответа API сервера")
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@Getter
+@Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class ApiResponse<T> {
+
+    /**
+     * Уникальный идентификатор запроса в формате UUID
+     */
+    @Schema(description = "Уникальный идентификатор запроса в формате UUID", example = "123e4567-e89b-12d3-a456-426614174000")
+    @NotNull
+    private String id;
+
+    /**
+     * HTTP статус код ответа
+     */
+    @Schema(description = "HTTP статус код ответа", example = "200")
+    @NotNull
+    private Integer status;
+
+    /**
+     * Человекочитаемое сообщение на русском языке
+     */
+    @Schema(description = "Человекочитаемое сообщение на русском языке", example = "Операция выполнена успешно")
+    @NotNull
+    private String message;
+
+    /**
+     * Временная метка формирования ответа в ISO 8601 UTC формате
+     */
+    @Schema(description = "Временная метка формирования ответа в ISO 8601 UTC формате", example = "2025-08-18T14:30:45.123Z")
+    @NotNull
+    private String timestamp;
+
+    /**
+     * Полезная нагрузка ответа с данными
+     */
+    @Schema(description = "Полезная нагрузка ответа с данными")
+    private T body;
+}
+</good_dto_example>
