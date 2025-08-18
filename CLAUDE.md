@@ -82,11 +82,6 @@ This is a Spring Boot 3.5.4 authentication service using Java 24. It's configure
 - Actuator endpoints exposed: health, info, metrics, env (for monitoring)
 - Debug logging enabled for security and SQL in development profile
 
-## Java Code Generation
-- **ОБЯЗАТЕЛЬНО используй агента java-code-writer для любого запроса на создание Java кода, КРОМЕ тестов, создания Entity**
-- Агент должен вызываться для создания классов, сервисов, контроллеров, entity, DTO и любых других Java компонентов
-- Все требования к Entity и стандарты комментариев описаны в конфигурации агента
-
 ## Project Structure and Important Files
 
 ### Key Directories
