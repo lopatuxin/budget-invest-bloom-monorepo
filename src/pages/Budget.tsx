@@ -141,23 +141,22 @@ const Budget = () => {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Категории расходов */}
-          <Card className="shadow-card border-0">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Категории расходов</span>
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button 
-                      size="sm" 
-                      className="bg-gradient-primary hover:opacity-90"
-                      onClick={() => setSelectedOperationType('expense')}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Добавить
-                    </Button>
-                  </DialogTrigger>
+        {/* Категории расходов */}
+        <Card className="shadow-card border-0">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Категории расходов</span>
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button 
+                    size="sm" 
+                    className="bg-gradient-primary hover:opacity-90"
+                    onClick={() => setSelectedOperationType('expense')}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Добавить
+                  </Button>
+                </DialogTrigger>
                   <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
                       <div className="flex gap-2 justify-center">
@@ -365,39 +364,6 @@ const Budget = () => {
               })}
             </CardContent>
           </Card>
-
-          {/* Быстрые действия */}
-          <Card className="shadow-card border-0">
-            <CardHeader>
-              <CardTitle>Быстрые действия</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button 
-                className="w-full bg-gradient-success hover:opacity-90 justify-start h-12"
-                size="lg"
-              >
-                <Plus className="w-5 h-5 mr-3" />
-                Добавить доход
-              </Button>
-              <Button 
-                variant="outline" 
-                className="w-full justify-start h-12 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                size="lg"
-              >
-                <Minus className="w-5 h-5 mr-3" />
-                Добавить расход
-              </Button>
-              <Button 
-                variant="outline" 
-                className="w-full justify-start h-12"
-                size="lg"
-              >
-                <CreditCard className="w-5 h-5 mr-3" />
-                Настроить бюджет
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </div>
   );
