@@ -334,7 +334,7 @@ const Budget = () => {
                 return (
                   <div 
                     key={index} 
-                    className="relative space-y-2 p-3 rounded-lg transition-all duration-300 hover:shadow-card hover:scale-105 cursor-pointer border border-transparent hover:border-border/20 overflow-hidden"
+                    className="relative space-y-2 p-2 rounded-lg transition-all duration-300 hover:shadow-card hover:scale-105 cursor-pointer border border-transparent hover:border-border/20 overflow-hidden"
                     onClick={() => navigate(`/budget/category/${encodeURIComponent(category.name)}`)}
                   >
                     <div className="absolute inset-0 bg-gradient-primary opacity-5" />
