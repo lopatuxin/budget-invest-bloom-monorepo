@@ -89,7 +89,7 @@ const CategoryExpenses = () => {
           <Button
             variant="ghost"
             onClick={() => navigate('/budget')}
-            className="mb-4 hover:bg-muted"
+            className="mb-4 text-muted-foreground hover:text-foreground hover:bg-muted"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Назад к бюджету
