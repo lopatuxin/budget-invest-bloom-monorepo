@@ -141,8 +141,9 @@ const Budget = () => {
           />
         </div>
 
-        {/* Категории расходов */}
-        <Card className="shadow-card border-0">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Категории расходов */}
+          <Card className="shadow-card border-0">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Категории расходов</span>
@@ -364,6 +365,7 @@ const Budget = () => {
               })}
             </CardContent>
           </Card>
+        </div>
       </div>
     </div>
   );
