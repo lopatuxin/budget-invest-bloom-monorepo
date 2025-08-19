@@ -81,6 +81,7 @@ This is a Spring Boot 3.5.4 authentication service using Java 24. It's configure
 - Application endpoints are available at `http://localhost:8080/auth/`
 - Actuator endpoints exposed: health, info, metrics, env (for monitoring)
 - Debug logging enabled for security and SQL in development profile
+- **IMPORTANT**: Before writing any code, always check the relevant documentation in the `docs/` folder to ensure new code fully complies with the technical specifications and project requirements
 
 ## Project Structure and Important Files
 
