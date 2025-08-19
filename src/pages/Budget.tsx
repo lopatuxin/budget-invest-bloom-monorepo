@@ -111,7 +111,7 @@ const Budget = () => {
   };
 
   return (
-    <div className="h-screen bg-gradient-background overflow-hidden">
+    <div className="h-[calc(100vh-4rem)] bg-gradient-background overflow-hidden">
       <div className="max-w-7xl mx-auto p-6">
 
         {/* Карточки обзора */}
