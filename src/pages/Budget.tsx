@@ -111,7 +111,7 @@ const Budget = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-background">
+    <div className="h-screen bg-gradient-background overflow-hidden">
       <div className="max-w-7xl mx-auto p-6">
 
         {/* Карточки обзора */}
@@ -338,7 +338,7 @@ const Budget = () => {
                 </Select>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto">
               {categories.map((category, index) => {
                 const percentage = getProgressPercentage(category.amount, category.budget);
                 const isOverBudget = category.amount > category.budget;
