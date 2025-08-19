@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Minus, DollarSign, CreditCard } from 'lucide-react';
+import { Plus, Minus, DollarSign, CreditCard, Wallet, TrendingUp } from 'lucide-react';
 import FinanceCard from '@/components/FinanceCard';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +32,8 @@ const Budget = () => {
   const income = 150000;
   const expenses = 89500;
   const balance = income - expenses;
+  const capital = 875000; // Общий капитал (инвестиции + остаток + другие активы)
+  const personalInflation = 6.8; // Личная инфляция в процентах
 
   const months = [
     { value: '1', label: 'Январь' },
@@ -117,7 +119,7 @@ const Budget = () => {
         </div>
 
         {/* Карточки обзора */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
           <FinanceCard
             title="Доходы"
             value={`₽${income.toLocaleString()}`}
@@ -138,6 +140,20 @@ const Budget = () => {
             icon={<DollarSign className="w-5 h-5" />}
             trend={{ value: "+12.8%", isPositive: true }}
             gradient="primary"
+          />
+          <FinanceCard
+            title="Капитал"
+            value={`₽${capital.toLocaleString()}`}
+            icon={<Wallet className="w-5 h-5" />}
+            trend={{ value: "+15.4%", isPositive: true }}
+            gradient="primary"
+          />
+          <FinanceCard
+            title="Личная инфляция"
+            value={`${personalInflation}%`}
+            icon={<TrendingUp className="w-5 h-5" />}
+            trend={{ value: "+0.3%", isPositive: false }}
+            gradient="secondary"
           />
         </div>
 
