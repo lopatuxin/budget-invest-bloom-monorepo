@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { TrendingUp, TrendingDown, Plus, PieChart } from 'lucide-react';
+import { TrendingUp, TrendingDown, PieChart } from 'lucide-react';
 import FinanceCard from '@/components/FinanceCard';
+import AddAssetDialog from '@/components/AddAssetDialog';
 
 const Investments = () => {
   // Примерные данные портфеля
@@ -10,7 +11,7 @@ const Investments = () => {
   const gainPercentage = 15.6;
   const monthlyGain = 42000;
 
-  const holdings = [
+  const [holdings, setHoldings] = useState([
     {
       symbol: 'AAPL',
       name: 'Apple Inc.',
@@ -81,7 +82,11 @@ const Investments = () => {
       changePercent: -0.31,
       sector: 'Здравоохранение'
     }
-  ];
+  ]);
+
+  const handleAddAsset = (newAsset: any) => {
+    setHoldings(prev => [...prev, newAsset]);
+  };
 
   // Группировка акций по секторам
   const holdingsBySector = holdings.reduce((acc, holding) => {
@@ -138,13 +143,7 @@ const Investments = () => {
             <Card className="shadow-card border-0">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Мои активы</CardTitle>
-                <Button 
-                  className="bg-gradient-primary hover:opacity-90"
-                  size="sm"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Добавить актив
-                </Button>
+                <AddAssetDialog onAddAsset={handleAddAsset} />
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
