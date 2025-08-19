@@ -108,10 +108,6 @@ const Investments = () => {
   return (
     <div className="min-h-screen bg-gradient-background">
       <div className="max-w-7xl mx-auto p-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Инвестиции</h1>
-          <p className="text-muted-foreground">Отслеживайте свой инвестиционный портфель</p>
-        </div>
 
         {/* Карточки обзора портфеля */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
