@@ -149,16 +149,14 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
             </div>
           </div>
 
-          {totalValue > 0 && (
-            <div className="bg-muted/20 p-4 rounded-lg">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-muted-foreground">Общая стоимость:</span>
-                <span className="text-lg font-bold text-primary">
-                  ₽{totalValue.toLocaleString()}
-                </span>
-              </div>
+          <div className="bg-muted/20 p-4 rounded-lg">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-muted-foreground">Общая стоимость:</span>
+              <span className="text-lg font-bold text-primary">
+                ₽{totalValue.toLocaleString()}
+              </span>
             </div>
-          )}
+          </div>
 
 
           <div className="flex justify-end space-x-2 pt-4">
