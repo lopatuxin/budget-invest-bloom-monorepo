@@ -80,6 +80,8 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
   };
 
   const selectedAsset = availableAssets.find(asset => asset.symbol === formData.asset);
+  const totalValue = selectedAsset && formData.shares ? 
+    parseFloat(formData.shares) * selectedAsset.price : 0;
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -146,6 +148,17 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
               />
             </div>
           </div>
+
+          {totalValue > 0 && (
+            <div className="bg-muted/20 p-4 rounded-lg">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-muted-foreground">Общая стоимость:</span>
+                <span className="text-lg font-bold text-primary">
+                  ₽{totalValue.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          )}
 
 
           <div className="flex justify-end space-x-2 pt-4">
