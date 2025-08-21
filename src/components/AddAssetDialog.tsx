@@ -3,8 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Check, ChevronsUpDown, Plus } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 interface AddAssetDialogProps {
@@ -13,6 +15,7 @@ interface AddAssetDialogProps {
 
 const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
   const [open, setOpen] = useState(false);
+  const [comboboxOpen, setComboboxOpen] = useState(false);
   const [formData, setFormData] = useState({
     asset: '',
     shares: ''
@@ -105,21 +108,55 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="asset">Выберите актив</Label>
-            <Select value={formData.asset} onValueChange={(value) => handleInputChange('asset', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Выберите актив с Мосбиржи" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableAssets.map((asset) => (
-                  <SelectItem key={asset.symbol} value={asset.symbol}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{asset.symbol}</span>
-                      <span className="text-sm text-muted-foreground">{asset.name}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={comboboxOpen}
+                  className="w-full justify-between"
+                >
+                  {formData.asset
+                    ? (() => {
+                        const asset = availableAssets.find(a => a.symbol === formData.asset);
+                        return asset ? `${asset.symbol} - ${asset.name}` : "Выберите актив...";
+                      })()
+                    : "Выберите актив с Мосбиржи..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Поиск активов..." />
+                  <CommandList>
+                    <CommandEmpty>Активы не найдены.</CommandEmpty>
+                    <CommandGroup>
+                      {availableAssets.map((asset) => (
+                        <CommandItem
+                          key={asset.symbol}
+                          value={`${asset.symbol} ${asset.name}`}
+                          onSelect={() => {
+                            handleInputChange('asset', asset.symbol);
+                            setComboboxOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              formData.asset === asset.symbol ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <div className="flex flex-col">
+                            <span className="font-medium">{asset.symbol}</span>
+                            <span className="text-sm text-muted-foreground">{asset.name}</span>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
