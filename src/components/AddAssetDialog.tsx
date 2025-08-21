@@ -14,27 +14,33 @@ interface AddAssetDialogProps {
 const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
-    symbol: '',
-    name: '',
+    asset: '',
     shares: '',
     price: '',
     sector: ''
   });
   const { toast } = useToast();
 
-  const sectors = [
-    'Технологии',
-    'Финансы', 
-    'Здравоохранение',
-    'Автомобили',
-    'Потребительские товары',
-    'Прочее'
+  // Моковые данные активов с Мосбиржи
+  const availableAssets = [
+    { symbol: 'SBER', name: 'ПАО Сбербанк', sector: 'Финансы' },
+    { symbol: 'GAZP', name: 'Газпром', sector: 'Прочее' },
+    { symbol: 'LKOH', name: 'ЛУКОЙЛ', sector: 'Прочее' },
+    { symbol: 'YNDX', name: 'Яндекс', sector: 'Технологии' },
+    { symbol: 'ROSN', name: 'Роснефть', sector: 'Прочее' },
+    { symbol: 'NVTK', name: 'НОВАТЭК', sector: 'Прочее' },
+    { symbol: 'TCSG', name: 'TCS Group', sector: 'Финансы' },
+    { symbol: 'MTSS', name: 'МТС', sector: 'Технологии' },
+    { symbol: 'MGNT', name: 'Магнит', sector: 'Потребительские товары' },
+    { symbol: 'AFLT', name: 'Аэрофлот', sector: 'Прочее' }
   ];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.symbol || !formData.name || !formData.shares || !formData.price || !formData.sector) {
+    const selectedAsset = availableAssets.find(asset => asset.symbol === formData.asset);
+    
+    if (!formData.asset || !selectedAsset || !formData.shares || !formData.price) {
       toast({
         title: "Ошибка",
         description: "Пожалуйста, заполните все поля",
@@ -56,23 +62,23 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
     }
 
     const newAsset = {
-      symbol: formData.symbol.toUpperCase(),
-      name: formData.name,
+      symbol: selectedAsset.symbol,
+      name: selectedAsset.name,
       shares: shares,
       price: price,
       value: shares * price,
       change: 0,
       changePercent: 0,
-      sector: formData.sector
+      sector: selectedAsset.sector
     };
 
     onAddAsset(newAsset);
-    setFormData({ symbol: '', name: '', shares: '', price: '', sector: '' });
+    setFormData({ asset: '', shares: '', price: '', sector: '' });
     setOpen(false);
     
     toast({
       title: "Успешно",
-      description: `Актив ${formData.symbol} добавлен в портфель`
+      description: `Актив ${selectedAsset.symbol} добавлен в портфель`
     });
   };
 
@@ -97,24 +103,22 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="symbol">Символ (тикер)</Label>
-            <Input
-              id="symbol"
-              placeholder="AAPL"
-              value={formData.symbol}
-              onChange={(e) => handleInputChange('symbol', e.target.value)}
-              className="uppercase"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="name">Название компании</Label>
-            <Input
-              id="name" 
-              placeholder="Apple Inc."
-              value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-            />
+            <Label htmlFor="asset">Выберите актив</Label>
+            <Select value={formData.asset} onValueChange={(value) => handleInputChange('asset', value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Выберите актив с Мосбиржи" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableAssets.map((asset) => (
+                  <SelectItem key={asset.symbol} value={asset.symbol}>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{asset.symbol}</span>
+                      <span className="text-sm text-muted-foreground">{asset.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -145,21 +149,6 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="sector">Сектор</Label>
-            <Select value={formData.sector} onValueChange={(value) => handleInputChange('sector', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Выберите сектор" />
-              </SelectTrigger>
-              <SelectContent>
-                {sectors.map((sector) => (
-                  <SelectItem key={sector} value={sector}>
-                    {sector}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button 
