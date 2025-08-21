@@ -15,24 +15,22 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     asset: '',
-    shares: '',
-    price: '',
-    sector: ''
+    shares: ''
   });
   const { toast } = useToast();
 
   // Моковые данные активов с Мосбиржи
   const availableAssets = [
-    { symbol: 'SBER', name: 'ПАО Сбербанк', sector: 'Финансы' },
-    { symbol: 'GAZP', name: 'Газпром', sector: 'Прочее' },
-    { symbol: 'LKOH', name: 'ЛУКОЙЛ', sector: 'Прочее' },
-    { symbol: 'YNDX', name: 'Яндекс', sector: 'Технологии' },
-    { symbol: 'ROSN', name: 'Роснефть', sector: 'Прочее' },
-    { symbol: 'NVTK', name: 'НОВАТЭК', sector: 'Прочее' },
-    { symbol: 'TCSG', name: 'TCS Group', sector: 'Финансы' },
-    { symbol: 'MTSS', name: 'МТС', sector: 'Технологии' },
-    { symbol: 'MGNT', name: 'Магнит', sector: 'Потребительские товары' },
-    { symbol: 'AFLT', name: 'Аэрофлот', sector: 'Прочее' }
+    { symbol: 'SBER', name: 'ПАО Сбербанк', sector: 'Финансы', price: 285.50 },
+    { symbol: 'GAZP', name: 'Газпром', sector: 'Прочее', price: 165.20 },
+    { symbol: 'LKOH', name: 'ЛУКОЙЛ', sector: 'Прочее', price: 6850.00 },
+    { symbol: 'YNDX', name: 'Яндекс', sector: 'Технологии', price: 2890.00 },
+    { symbol: 'ROSN', name: 'Роснефть', sector: 'Прочее', price: 515.40 },
+    { symbol: 'NVTK', name: 'НОВАТЭК', sector: 'Прочее', price: 1125.80 },
+    { symbol: 'TCSG', name: 'TCS Group', sector: 'Финансы', price: 4250.00 },
+    { symbol: 'MTSS', name: 'МТС', sector: 'Технологии', price: 295.60 },
+    { symbol: 'MGNT', name: 'Магнит', sector: 'Потребительские товары', price: 4890.00 },
+    { symbol: 'AFLT', name: 'Аэрофлот', sector: 'Прочее', price: 48.75 }
   ];
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -40,7 +38,7 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
     
     const selectedAsset = availableAssets.find(asset => asset.symbol === formData.asset);
     
-    if (!formData.asset || !selectedAsset || !formData.shares || !formData.price) {
+    if (!formData.asset || !selectedAsset || !formData.shares) {
       toast({
         title: "Ошибка",
         description: "Пожалуйста, заполните все поля",
@@ -50,12 +48,11 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
     }
 
     const shares = parseFloat(formData.shares);
-    const price = parseFloat(formData.price);
     
-    if (isNaN(shares) || isNaN(price) || shares <= 0 || price <= 0) {
+    if (isNaN(shares) || shares <= 0) {
       toast({
         title: "Ошибка", 
-        description: "Количество акций и цена должны быть положительными числами",
+        description: "Количество акций должно быть положительным числом",
         variant: "destructive"
       });
       return;
@@ -65,15 +62,15 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
       symbol: selectedAsset.symbol,
       name: selectedAsset.name,
       shares: shares,
-      price: price,
-      value: shares * price,
+      price: selectedAsset.price,
+      value: shares * selectedAsset.price,
       change: 0,
       changePercent: 0,
       sector: selectedAsset.sector
     };
 
     onAddAsset(newAsset);
-    setFormData({ asset: '', shares: '', price: '', sector: '' });
+    setFormData({ asset: '', shares: '' });
     setOpen(false);
     
     toast({
@@ -81,6 +78,8 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
       description: `Актив ${selectedAsset.symbol} добавлен в портфель`
     });
   };
+
+  const selectedAsset = availableAssets.find(asset => asset.symbol === formData.asset);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -140,11 +139,10 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
               <Input
                 id="price"
                 type="number"
-                placeholder="175.5"
-                value={formData.price}
-                onChange={(e) => handleInputChange('price', e.target.value)}
-                min="0"
-                step="0.01"
+                placeholder="Выберите актив"
+                value={selectedAsset ? selectedAsset.price.toString() : ''}
+                readOnly
+                className="bg-muted/30"
               />
             </div>
           </div>
