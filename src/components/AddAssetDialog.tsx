@@ -16,6 +16,7 @@ interface AddAssetDialogProps {
 const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
   const [open, setOpen] = useState(false);
   const [comboboxOpen, setComboboxOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const [formData, setFormData] = useState({
     asset: '',
     shares: ''
@@ -86,6 +87,11 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
   const totalValue = selectedAsset && formData.shares ? 
     parseFloat(formData.shares) * selectedAsset.price : 0;
 
+  const filteredAssets = availableAssets.filter(asset =>
+    asset.symbol.toLowerCase().includes(query.toLowerCase()) ||
+    asset.name.toLowerCase().includes(query.toLowerCase())
+  );
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -110,49 +116,46 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
             <Label htmlFor="asset">Выберите актив</Label>
             <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
               <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
+                <Input
                   role="combobox"
                   aria-expanded={comboboxOpen}
-                  className="w-full justify-between"
-                >
-                  {formData.asset
-                    ? availableAssets.find((asset) => asset.symbol === formData.asset)?.name
-                    : "Выберите актив с Мосбиржи"}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
+                  placeholder="Выберите актив с Мосбиржи"
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setComboboxOpen(true);
+                  }}
+                  onFocus={() => setComboboxOpen(true)}
+                  className="w-full"
+                />
               </PopoverTrigger>
               <PopoverContent className="z-[60] w-[var(--radix-popover-trigger-width)] p-0">
-                <Command>
-                  <CommandInput autoFocus placeholder="Поиск активов..." />
-                  <CommandList className="max-h-64 overflow-y-auto overscroll-contain">
-                    <CommandEmpty>Активы не найдены.</CommandEmpty>
-                    <CommandGroup>
-                      {availableAssets.map((asset) => (
-                        <CommandItem
-                          key={asset.symbol}
-                          value={`${asset.symbol} ${asset.name}`}
-                          onSelect={(currentValue) => {
-                            const selectedSymbol = asset.symbol;
-                            handleInputChange('asset', selectedSymbol === formData.asset ? "" : selectedSymbol);
-                            setComboboxOpen(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              formData.asset === asset.symbol ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          <div className="flex flex-col">
+                <div className="max-h-64 overflow-y-auto overscroll-contain">
+                  {filteredAssets.length === 0 ? (
+                    <div className="py-6 text-center text-sm text-muted-foreground">
+                      Активы не найдены
+                    </div>
+                  ) : (
+                    <ul className="divide-y divide-border">
+                      {filteredAssets.map((asset) => (
+                        <li key={asset.symbol}>
+                          <button
+                            type="button"
+                            className="w-full text-left px-3 py-2 hover:bg-accent focus:bg-accent focus:outline-none flex flex-col"
+                            onClick={() => {
+                              handleInputChange('asset', asset.symbol);
+                              setQuery(asset.name);
+                              setComboboxOpen(false);
+                            }}
+                          >
                             <span className="font-medium">{asset.symbol}</span>
                             <span className="text-sm text-muted-foreground">{asset.name}</span>
-                          </div>
-                        </CommandItem>
+                          </button>
+                        </li>
                       ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
+                    </ul>
+                  )}
+                </div>
               </PopoverContent>
             </Popover>
           </div>
