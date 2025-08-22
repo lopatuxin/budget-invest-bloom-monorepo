@@ -8,7 +8,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Plus, Check, ChevronsUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-
+import { ScrollArea } from '@/components/ui/scroll-area';
 interface AddAssetDialogProps {
   onAddAsset: (asset: any) => void;
 }
@@ -129,8 +129,8 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
                   className="w-full"
                 />
               </PopoverTrigger>
-              <PopoverContent className="z-[60] w-[var(--radix-popover-trigger-width)] p-0">
-                <div className="max-h-64 overflow-y-auto overscroll-contain">
+              <PopoverContent className="z-[70] w-[var(--radix-popover-trigger-width)] p-0 bg-popover border border-border shadow-lg">
+                <ScrollArea className="h-64 w-full overscroll-contain" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
                   {filteredAssets.length === 0 ? (
                     <div className="py-6 text-center text-sm text-muted-foreground">
                       Активы не найдены
@@ -155,7 +155,7 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
                       ))}
                     </ul>
                   )}
-                </div>
+                </ScrollArea>
               </PopoverContent>
             </Popover>
           </div>
