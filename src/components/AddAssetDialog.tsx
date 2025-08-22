@@ -122,10 +122,10 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+              <PopoverContent className="z-[60] w-[var(--radix-popover-trigger-width)] p-0">
                 <Command>
-                  <CommandInput placeholder="Поиск активов..." />
-                  <CommandList>
+                  <CommandInput autoFocus placeholder="Поиск активов..." />
+                  <CommandList className="max-h-64 overflow-y-auto overscroll-contain">
                     <CommandEmpty>Активы не найдены.</CommandEmpty>
                     <CommandGroup>
                       {availableAssets.map((asset) => (
