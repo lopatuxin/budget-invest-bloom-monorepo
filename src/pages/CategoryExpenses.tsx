@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Calendar, TrendingDown, Settings } from 'lucide-react';
+import { ArrowLeft, Calendar, TrendingDown, Settings, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
@@ -65,18 +65,18 @@ const CategoryExpenses = () => {
   ];
 
   // Примерные данные отчета по дням
-  const dailyExpenses = [
-    { date: '01.12.2024', description: 'Продукты в супермаркете', amount: 1200 },
-    { date: '03.12.2024', description: 'Кафе', amount: 850 },
-    { date: '05.12.2024', description: 'Продукты на рынке', amount: 2300 },
-    { date: '07.12.2024', description: 'Доставка еды', amount: 950 },
-    { date: '10.12.2024', description: 'Ресторан', amount: 3200 },
-    { date: '12.12.2024', description: 'Продукты', amount: 1800 },
-    { date: '15.12.2024', description: 'Кофе', amount: 350 },
-    { date: '17.12.2024', description: 'Обед', amount: 1250 },
-    { date: '20.12.2024', description: 'Продукты', amount: 2100 },
-    { date: '22.12.2024', description: 'Кафе с друзьями', amount: 1650 },
-  ];
+  const [dailyExpenses, setDailyExpenses] = useState([
+    { id: 1, date: '01.12.2024', description: 'Продукты в супермаркете', amount: 1200 },
+    { id: 2, date: '03.12.2024', description: 'Кафе', amount: 850 },
+    { id: 3, date: '05.12.2024', description: 'Продукты на рынке', amount: 2300 },
+    { id: 4, date: '07.12.2024', description: 'Доставка еды', amount: 950 },
+    { id: 5, date: '10.12.2024', description: 'Ресторан', amount: 3200 },
+    { id: 6, date: '12.12.2024', description: 'Продукты', amount: 1800 },
+    { id: 7, date: '15.12.2024', description: 'Кофе', amount: 350 },
+    { id: 8, date: '17.12.2024', description: 'Обед', amount: 1250 },
+    { id: 9, date: '20.12.2024', description: 'Продукты', amount: 2100 },
+    { id: 10, date: '22.12.2024', description: 'Кафе с друзьями', amount: 1650 },
+  ]);
 
   const categoryInfo = {
     'Еда': { color: 'text-blue-500', bgColor: 'bg-blue-500' },
@@ -99,6 +99,15 @@ const CategoryExpenses = () => {
       description: `Название: ${editCategoryName}, Лимит: ₽${Number(editCategoryLimit).toLocaleString()}`,
     });
     setIsEditDialogOpen(false);
+  };
+
+  // Функция для удаления расхода
+  const handleDeleteExpense = (id: number) => {
+    setDailyExpenses(dailyExpenses.filter(expense => expense.id !== id));
+    toast({
+      title: "Расход удален",
+      description: "Запись о расходе была успешно удалена",
+    });
   };
 
   return (
@@ -278,8 +287,8 @@ const CategoryExpenses = () => {
             <div className="space-y-3">
               {dailyExpenses.map((expense, index) => (
                 <div 
-                  key={index} 
-                  className="relative flex items-center justify-between p-4 rounded-lg border border-transparent hover:border-border/20 transition-all duration-300 hover:shadow-card hover:scale-105 cursor-pointer overflow-hidden"
+                  key={expense.id} 
+                  className="relative flex items-center justify-between p-4 rounded-lg border border-transparent hover:border-border/20 transition-all duration-300 hover:shadow-card group overflow-hidden"
                 >
                   <div className="absolute inset-0 bg-gradient-primary opacity-5" />
                   <div className="relative z-10 flex items-center gap-4">
@@ -292,8 +301,21 @@ const CategoryExpenses = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="relative z-10 font-semibold text-lg text-foreground">
-                    ₽{expense.amount.toLocaleString()}
+                  <div className="relative z-10 flex items-center gap-3">
+                    <div className="font-semibold text-lg text-foreground">
+                      ₽{expense.amount.toLocaleString()}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteExpense(expense.id);
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               ))}
