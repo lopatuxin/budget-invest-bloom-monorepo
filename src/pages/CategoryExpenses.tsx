@@ -1,17 +1,27 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Calendar, TrendingDown } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ArrowLeft, Calendar, TrendingDown, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { useToast } from '@/hooks/use-toast';
 
 const CategoryExpenses = () => {
   const { category } = useParams<{ category: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [selectedYear, setSelectedYear] = useState('2024');
   const [selectedMonth, setSelectedMonth] = useState('12');
   const [chartPeriod, setChartPeriod] = useState<'month' | 'year'>('month');
+  
+  // Состояние для редактирования категории
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editCategoryName, setEditCategoryName] = useState(category || '');
+  const [editCategoryLimit, setEditCategoryLimit] = useState('30000');
 
   const months = [
     { value: '1', label: 'Январь' },
@@ -81,6 +91,16 @@ const CategoryExpenses = () => {
   const currentData = chartPeriod === 'month' ? monthlyData : yearlyData;
   const totalMonthExpenses = dailyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
+  // Функция для сохранения изменений категории
+  const handleSaveCategory = () => {
+    // Здесь будет логика сохранения изменений
+    toast({
+      title: "Категория обновлена",
+      description: `Название: ${editCategoryName}, Лимит: ₽${Number(editCategoryLimit).toLocaleString()}`,
+    });
+    setIsEditDialogOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-background">
       <div className="max-w-7xl mx-auto p-6">
@@ -94,11 +114,62 @@ const CategoryExpenses = () => {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Назад к бюджету
           </Button>
-          <div className="flex items-center gap-3">
-            <div className={`w-6 h-6 rounded-full ${currentCategoryInfo.bgColor}`} />
-            <h1 className="text-3xl font-bold text-foreground">
-              Категория: {category}
-            </h1>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-6 h-6 rounded-full ${currentCategoryInfo.bgColor}`} />
+              <h1 className="text-3xl font-bold text-foreground">
+                Категория: {category}
+              </h1>
+            </div>
+            
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Settings className="w-4 h-4" />
+                  Редактировать
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Редактировать категорию</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="category-name" className="text-right">
+                      Название
+                    </Label>
+                    <Input
+                      id="category-name"
+                      value={editCategoryName}
+                      onChange={(e) => setEditCategoryName(e.target.value)}
+                      className="col-span-3"
+                      placeholder="Название категории"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="category-limit" className="text-right">
+                      Лимит
+                    </Label>
+                    <Input
+                      id="category-limit"
+                      type="number"
+                      value={editCategoryLimit}
+                      onChange={(e) => setEditCategoryLimit(e.target.value)}
+                      className="col-span-3"
+                      placeholder="Лимит расходов"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                    Отмена
+                  </Button>
+                  <Button onClick={handleSaveCategory}>
+                    Сохранить
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
           <p className="text-muted-foreground mt-2">
             Детальная аналитика расходов по категории
