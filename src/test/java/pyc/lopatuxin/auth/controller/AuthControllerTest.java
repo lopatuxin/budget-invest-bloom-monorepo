@@ -6,6 +6,7 @@ import pyc.lopatuxin.auth.AbstractIntegrationTest;
 import pyc.lopatuxin.auth.dto.request.ApiRequest;
 import pyc.lopatuxin.auth.dto.request.RegisterRequest;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -25,6 +26,7 @@ class AuthControllerTest extends AbstractIntegrationTest {
                 .build();
 
         mockMvc.perform(post("/api/auth/register")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(apiRequest)))
                 .andExpect(status().isCreated())
