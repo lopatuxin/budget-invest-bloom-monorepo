@@ -53,12 +53,12 @@ const Budget = () => {
   const years = ['2022', '2023', '2024', '2025'];
 
   const categories = [
-    { name: 'Еда', amount: 25000, budget: 30000, color: 'bg-blue-500' },
-    { name: 'Транспорт', amount: 15000, budget: 20000, color: 'bg-green-500' },
-    { name: 'Развлечения', amount: 12000, budget: 15000, color: 'bg-purple-500' },
-    { name: 'Коммунальные', amount: 18000, budget: 18000, color: 'bg-orange-500' },
-    { name: 'Здоровье', amount: 8500, budget: 10000, color: 'bg-red-500' },
-    { name: 'Прочее', amount: 11000, budget: 15000, color: 'bg-gray-500' },
+    { name: 'Еда', amount: 25000, budget: 30000, emoji: '🍽️' },
+    { name: 'Транспорт', amount: 15000, budget: 20000, emoji: '🚗' },
+    { name: 'Развлечения', amount: 12000, budget: 15000, emoji: '🎬' },
+    { name: 'Коммунальные', amount: 18000, budget: 18000, emoji: '🏠' },
+    { name: 'Здоровье', amount: 8500, budget: 10000, emoji: '🏥' },
+    { name: 'Прочее', amount: 11000, budget: 15000, emoji: '📦' },
   ];
 
   const getProgressPercentage = (amount: number, budget: number) => {
@@ -352,7 +352,7 @@ const Budget = () => {
                     <div className="absolute inset-0 bg-gradient-primary opacity-5" />
                     <div className="relative z-10 flex justify-between items-center">
                       <div className="flex items-center space-x-3">
-                        <div className={`w-3 h-3 rounded-full ${category.color}`} />
+                        <span className="text-lg">{category.emoji}</span>
                         <span className="font-medium">{category.name}</span>
                       </div>
                       <div className="text-right">
