@@ -16,7 +16,7 @@ const Budget = () => {
   const [selectedMonth, setSelectedMonth] = useState('12');
   const [selectedYear, setSelectedYear] = useState('2024');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedOperationType, setSelectedOperationType] = useState<'expense' | 'income' | null>(null);
+  const [selectedOperationType, setSelectedOperationType] = useState<'expense' | 'income' | 'category' | null>(null);
   const [expenseForm, setExpenseForm] = useState({
     amount: '',
     category: '',
@@ -26,6 +26,11 @@ const Budget = () => {
     amount: '',
     source: '',
     description: ''
+  });
+  const [categoryForm, setCategoryForm] = useState({
+    name: '',
+    budget: '',
+    emoji: ''
   });
 
   // Примерные данные
@@ -105,6 +110,25 @@ const Budget = () => {
     resetDialog();
   };
 
+  const handleAddCategory = () => {
+    if (!categoryForm.name || !categoryForm.budget) {
+      toast({
+        title: "Ошибка",
+        description: "Заполните обязательные поля",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    toast({
+      title: "Категория добавлена",
+      description: `Добавлена категория "${categoryForm.name}" с бюджетом ${categoryForm.budget}₽`,
+    });
+
+    setCategoryForm({ name: '', budget: '', emoji: '' });
+    resetDialog();
+  };
+
   const resetDialog = () => {
     setSelectedOperationType(null);
     setIsDialogOpen(false);
@@ -177,7 +201,7 @@ const Budget = () => {
                 </DialogTrigger>
                   <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
-                      <div className="flex gap-2 justify-center">
+                      <div className="flex flex-wrap gap-2 justify-center">
                         <Button 
                           variant={selectedOperationType === 'expense' ? 'default' : 'outline'}
                           size="sm"
@@ -185,7 +209,7 @@ const Budget = () => {
                           className={selectedOperationType === 'expense' ? 'bg-gradient-primary hover:opacity-90' : ''}
                         >
                           <Minus className="w-4 h-4 mr-2" />
-                          Добавить расход
+                          Расход
                         </Button>
                         <Button 
                           variant={selectedOperationType === 'income' ? 'default' : 'outline'}
@@ -194,7 +218,16 @@ const Budget = () => {
                           className={selectedOperationType === 'income' ? 'bg-gradient-success hover:opacity-90' : ''}
                         >
                           <Plus className="w-4 h-4 mr-2" />
-                          Добавить доход
+                          Доход
+                        </Button>
+                        <Button 
+                          variant={selectedOperationType === 'category' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedOperationType('category')}
+                          className={selectedOperationType === 'category' ? 'bg-gradient-secondary hover:opacity-90' : ''}
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Категория
                         </Button>
                       </div>
                     </DialogHeader>
@@ -255,7 +288,7 @@ const Budget = () => {
                             </Button>
                           </div>
                         </>
-                      ) : (
+                      ) : selectedOperationType === 'income' ? (
                         // Форма добавления дохода
                         <>
                           <div className="grid gap-2">
@@ -306,6 +339,54 @@ const Budget = () => {
                             <Button 
                               className="flex-1 bg-gradient-success hover:opacity-90"
                               onClick={handleAddIncome}
+                            >
+                              Добавить
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        // Форма добавления категории
+                        <>
+                          <div className="grid gap-2">
+                            <Label htmlFor="category-name">Название категории *</Label>
+                            <Input
+                              id="category-name"
+                              placeholder="Название категории"
+                              value={categoryForm.name}
+                              onChange={(e) => setCategoryForm(prev => ({...prev, name: e.target.value}))}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="category-budget">Бюджет *</Label>
+                            <Input
+                              id="category-budget"
+                              type="number"
+                              placeholder="0"
+                              value={categoryForm.budget}
+                              onChange={(e) => setCategoryForm(prev => ({...prev, budget: e.target.value}))}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="category-emoji">Эмодзи</Label>
+                            <Input
+                              id="category-emoji"
+                              placeholder="🛒"
+                              maxLength={2}
+                              value={categoryForm.emoji}
+                              onChange={(e) => setCategoryForm(prev => ({...prev, emoji: e.target.value}))}
+                            />
+                          </div>
+                          <div className="flex gap-2 pt-4">
+                            <Button 
+                              variant="outline" 
+                              className="flex-1"
+                              onClick={() => resetDialog()}
+                            >
+                              Отмена
+                            </Button>
+                            <Button 
+                              className="flex-1 bg-gradient-secondary hover:opacity-90"
+                              onClick={handleAddCategory}
                             >
                               Добавить
                             </Button>
