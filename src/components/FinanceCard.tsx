@@ -12,6 +12,7 @@ interface FinanceCardProps {
   };
   className?: string;
   gradient?: 'primary' | 'secondary' | 'success';
+  onClick?: () => void;
 }
 
 const FinanceCard = ({ 
@@ -20,7 +21,8 @@ const FinanceCard = ({
   icon, 
   trend, 
   className,
-  gradient = 'primary'
+  gradient = 'primary',
+  onClick
 }: FinanceCardProps) => {
   const gradientClasses = {
     primary: 'bg-gradient-primary',
@@ -29,10 +31,14 @@ const FinanceCard = ({
   };
 
   return (
-    <Card className={cn(
-      "relative overflow-hidden transition-all duration-300 hover:shadow-card hover:scale-105 border-0",
-      className
-    )}>
+    <Card 
+      className={cn(
+        "relative overflow-hidden transition-all duration-300 hover:shadow-card hover:scale-105 border-0",
+        onClick && "cursor-pointer",
+        className
+      )}
+      onClick={onClick}
+    >
       <div className={cn(
         "absolute inset-0 opacity-5",
         gradientClasses[gradient]

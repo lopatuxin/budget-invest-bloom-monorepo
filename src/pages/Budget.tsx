@@ -122,6 +122,7 @@ const Budget = () => {
             icon={<Plus className="w-5 h-5" />}
             trend={{ value: "+8.2%", isPositive: true }}
             gradient="success"
+            onClick={() => navigate('/budget/metric/income')}
           />
           <FinanceCard
             title="Расходы"
@@ -129,6 +130,7 @@ const Budget = () => {
             icon={<Minus className="w-5 h-5" />}
             trend={{ value: "+3.1%", isPositive: false }}
             gradient="secondary"
+            onClick={() => navigate('/budget/metric/expenses')}
           />
           <FinanceCard
             title="Остаток"
@@ -136,6 +138,7 @@ const Budget = () => {
             icon={<DollarSign className="w-5 h-5" />}
             trend={{ value: "+12.8%", isPositive: true }}
             gradient="primary"
+            onClick={() => navigate('/budget/metric/balance')}
           />
           <FinanceCard
             title="Капитал"
@@ -143,6 +146,7 @@ const Budget = () => {
             icon={<Wallet className="w-5 h-5" />}
             trend={{ value: "+15.4%", isPositive: true }}
             gradient="primary"
+            onClick={() => navigate('/budget/metric/capital')}
           />
           <FinanceCard
             title="Личная инфляция"
@@ -150,6 +154,7 @@ const Budget = () => {
             icon={<TrendingUp className="w-5 h-5" />}
             trend={{ value: "+0.3%", isPositive: false }}
             gradient="secondary"
+            onClick={() => navigate('/budget/metric/inflation')}
           />
         </div>
 

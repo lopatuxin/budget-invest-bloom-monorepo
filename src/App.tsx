@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Budget from "./pages/Budget";
 import Investments from "./pages/Investments";
 import CategoryExpenses from "./pages/CategoryExpenses";
+import MetricDetails from "./pages/MetricDetails";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -29,6 +30,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/budget" element={<Budget />} />
               <Route path="/budget/category/:category" element={<CategoryExpenses />} />
+              <Route path="/budget/metric/:metric" element={<MetricDetails />} />
               <Route path="/investments" element={<Investments />} />
               <Route path="/register" element={<Register />} />
               <Route path="/login" element={<Login />} />
