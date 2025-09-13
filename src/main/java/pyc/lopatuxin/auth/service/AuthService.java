@@ -1,26 +1,52 @@
 package pyc.lopatuxin.auth.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import pyc.lopatuxin.auth.dto.request.RegisterRequest;
 import pyc.lopatuxin.auth.dto.response.RegisterResponse;
+import pyc.lopatuxin.auth.entity.User;
+import pyc.lopatuxin.auth.entity.UserRole;
+import pyc.lopatuxin.auth.enums.RoleName;
+import pyc.lopatuxin.auth.exception.UserAlreadyExistsException;
+import pyc.lopatuxin.auth.mapper.UserMapper;
+import pyc.lopatuxin.auth.repository.UserRepository;
+import pyc.lopatuxin.auth.repository.UserRoleRepository;
 
-import java.time.LocalDateTime;
-import java.util.UUID;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+    private final UserRepository userRepository;
+    private final UserRoleRepository userRoleRepository;
+    private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
 
     public RegisterResponse register(RegisterRequest request) {
-        return RegisterResponse.builder()
-                .userId(UUID.randomUUID())
-                .email(request.getEmail())
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .isActive(true)
-                .isVerified(false)
-                .createdAt(LocalDateTime.now())
+        Optional<User> optionalUser = userRepository.findUserByEmail(request.getEmail());
+
+        if (optionalUser.isPresent()) {
+            throw new UserAlreadyExistsException("Пользователь с такой почтой уже существует");
+        }
+
+        User newUser = userMapper.toUser(request);
+        newUser.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        newUser.setIsActive(true);
+        newUser.setIsVerified(false);
+
+        User savedUser = userRepository.save(newUser);
+        saveUserRole(savedUser);
+
+        return userMapper.toRegisterResponse(savedUser);
+    }
+
+    private void saveUserRole(User user) {
+        UserRole userRole = UserRole.builder()
+                .user(user)
+                .roleName(RoleName.USER)
                 .build();
+
+        userRoleRepository.save(userRole);
     }
 }

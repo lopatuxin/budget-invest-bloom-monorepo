@@ -8,6 +8,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -80,11 +82,13 @@ public class User {
     /**
      * Время создания записи
      */
+    @CreationTimestamp
     private LocalDateTime createdAt;
 
     /**
      * Время последнего обновления записи
      */
+    @UpdateTimestamp
     private LocalDateTime updatedAt;
 
     /**

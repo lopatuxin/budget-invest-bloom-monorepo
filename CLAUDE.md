@@ -22,10 +22,9 @@ This is a Spring Boot 3.5.4 authentication service using Java 24. It's configure
 - `./gradlew clean` - Clean build artifacts
 
 ### Database Management
-- `start-postgres.bat` - Start PostgreSQL container using docker-compose
-- `stop-postgres.bat` - Stop PostgreSQL container
-- `reset-postgres.bat` - Reset PostgreSQL database (clean slate)
-- `docker-compose up postgres-dev` - Alternative way to start PostgreSQL
+- `docker-compose up postgres-dev` - Start PostgreSQL container for development
+- `docker-compose down` - Stop PostgreSQL container
+- `docker-compose down -v` - Stop and remove PostgreSQL container with volumes (clean slate)
 
 ### Testing
 - `./gradlew test` - Run all tests
@@ -48,10 +47,23 @@ This is a Spring Boot 3.5.4 authentication service using Java 24. It's configure
 - Main application class: `AuthApplication.java`
 - Test configuration with Testcontainers: `TestcontainersConfiguration.java`
 
+#### Application Layers
+- `controller/` - REST controllers handling HTTP requests
+- `service/` - Business logic and service layer
+- `repository/` - Data access layer with Spring Data JPA repositories
+- `entity/` - JPA entities representing database tables
+- `dto/` - Data Transfer Objects for API requests and responses
+- `mapper/` - MapStruct mappers for entity-DTO conversion
+- `config/` - Configuration classes (Security, etc.)
+- `exception/` - Custom exceptions and global exception handler
+- `enums/` - Enumeration classes
+
 ### Key Dependencies
-- Spring Boot Starters: Data JPA, Security, Validation
+- Spring Boot Starters: Web, Data JPA, Security, Validation
 - Liquibase for database migrations
 - Lombok for boilerplate reduction
+- MapStruct for entity-DTO mapping
+- SpringDoc OpenAPI for API documentation
 - Spring Boot DevTools for development
 - Testcontainers with PostgreSQL for testing
 
@@ -77,7 +89,7 @@ This is a Spring Boot 3.5.4 authentication service using Java 24. It's configure
 - The application uses Spring Boot DevTools for hot reloading during development
 - Test configuration is automatically imported in tests via `@Import(TestcontainersConfiguration.class)`
 - Docker is required for running tests due to Testcontainers dependency
-- Local development requires PostgreSQL running (use provided batch scripts or docker-compose)
+- Local development requires PostgreSQL running (use docker-compose)
 - Application endpoints are available at `http://localhost:8080/auth/`
 - Actuator endpoints exposed: health, info, metrics, env (for monitoring)
 - Debug logging enabled for security and SQL in development profile

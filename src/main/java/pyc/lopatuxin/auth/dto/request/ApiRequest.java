@@ -2,6 +2,7 @@ package pyc.lopatuxin.auth.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -21,5 +22,6 @@ public class ApiRequest<T> {
     private UserContext user;
 
     @Schema(description = "Полезная нагрузка запроса с данными")
+    @Valid
     private T data;
 }
