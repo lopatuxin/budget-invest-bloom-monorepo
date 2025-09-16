@@ -1,5 +1,6 @@
 package pyc.lopatuxin.auth.controller;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -26,6 +27,7 @@ class AuthControllerTest extends AbstractIntegrationTest {
 
     @Test
     @Transactional
+    @DisplayName("Должен успешно зарегистрировать нового пользователя")
     void shouldRegisterNewUser() throws Exception {
         RegisterRequest registerRequest = RegisterRequest.builder()
                 .email("test@example.com")
@@ -57,6 +59,7 @@ class AuthControllerTest extends AbstractIntegrationTest {
 
     @Test
     @Transactional
+    @DisplayName("Должен возвращать конфликт при дублировании email")
     void shouldReturnConflictForDuplicateEmail() throws Exception {
         RegisterRequest firstRequest = RegisterRequest.builder()
                 .email("duplicate@example.com")
@@ -98,6 +101,7 @@ class AuthControllerTest extends AbstractIntegrationTest {
 
     @Test
     @Transactional
+    @DisplayName("Должен создавать роль пользователя при регистрации")
     void shouldCreateUserRoleWhenRegisteringNewUser() throws Exception {
         String testEmail = "role-test@example.com";
         RegisterRequest registerRequest = RegisterRequest.builder()
@@ -124,6 +128,7 @@ class AuthControllerTest extends AbstractIntegrationTest {
 
     @ParameterizedTest
     @MethodSource("invalidRegisterRequestData")
+    @DisplayName("Должен возвращать ошибку валидации для некорректных данных")
     void shouldReturnValidationErrorForInvalidData(String email, String password, String firstName, String lastName, String expectedMessage) throws Exception {
         RegisterRequest registerRequest = RegisterRequest.builder()
                 .email(email)

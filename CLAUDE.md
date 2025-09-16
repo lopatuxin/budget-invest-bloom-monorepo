@@ -82,7 +82,7 @@ This is a Spring Boot 3.5.4 authentication service using Java 24. It's configure
 - Default profile (`application.yml`): minimal configuration
 - Development profile (`application-dev.yml`): full local development setup with PostgreSQL, debug logging, and dev tools
 - Development database: `auth_dev` on localhost:5432 (user: `auth_user`, password: `dev_password`)
-- Application runs on port 8080 with context path `/auth`
+- Application runs on port 8081 with context path `/auth`
 
 ## Development Notes
 
@@ -90,7 +90,7 @@ This is a Spring Boot 3.5.4 authentication service using Java 24. It's configure
 - Test configuration is automatically imported in tests via `@Import(TestcontainersConfiguration.class)`
 - Docker is required for running tests due to Testcontainers dependency
 - Local development requires PostgreSQL running (use docker-compose)
-- Application endpoints are available at `http://localhost:8080/auth/`
+- Application endpoints are available at `http://localhost:8081/auth/`
 - Actuator endpoints exposed: health, info, metrics, env (for monitoring)
 - Debug logging enabled for security and SQL in development profile
 - **IMPORTANT**: Before writing any code, always check the relevant documentation in the `docs/` folder to ensure new code fully complies with the technical specifications and project requirements
