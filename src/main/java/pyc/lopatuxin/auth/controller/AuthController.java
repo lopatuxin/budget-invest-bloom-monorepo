@@ -24,7 +24,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 @Tag(name = "Аутентификация", description = "API для аутентификации и управления пользователями")
 public class AuthController {
