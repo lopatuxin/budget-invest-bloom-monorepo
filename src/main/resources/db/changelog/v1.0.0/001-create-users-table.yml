@@ -20,8 +20,7 @@ databaseChangeLog:
                   type: varchar(50)
                   remarks: Уникальное имя пользователя
                   constraints:
-                    nullable: false
-                    unique: true
+                    nullable: true
               - column:
                   name: email
                   type: varchar(255)
