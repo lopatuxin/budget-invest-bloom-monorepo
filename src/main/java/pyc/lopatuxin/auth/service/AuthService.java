@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import pyc.lopatuxin.auth.dto.request.RegisterRequest;
-import pyc.lopatuxin.auth.dto.response.RegisterResponse;
 import pyc.lopatuxin.auth.entity.User;
 import pyc.lopatuxin.auth.entity.UserRole;
 import pyc.lopatuxin.auth.enums.RoleName;
@@ -23,7 +22,7 @@ public class AuthService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
 
-    public RegisterResponse register(RegisterRequest request) {
+    public void register(RegisterRequest request) {
         Optional<User> optionalUser = userRepository.findUserByEmail(request.getEmail());
 
         if (optionalUser.isPresent()) {
@@ -37,8 +36,6 @@ public class AuthService {
 
         User savedUser = userRepository.save(newUser);
         saveUserRole(savedUser);
-
-        return userMapper.toRegisterResponse(savedUser);
     }
 
     private void saveUserRole(User user) {

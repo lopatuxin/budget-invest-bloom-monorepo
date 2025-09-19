@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import pyc.lopatuxin.auth.dto.request.ApiRequest;
 import pyc.lopatuxin.auth.dto.request.RegisterRequest;
-import pyc.lopatuxin.auth.dto.response.RegisterResponse;
 import pyc.lopatuxin.auth.dto.response.ResponseApi;
 import pyc.lopatuxin.auth.service.AuthService;
 
@@ -69,7 +68,7 @@ public class AuthController {
                     schema = @Schema(implementation = ResponseApi.class)
             )
     )
-    public ResponseApi<RegisterResponse> register(
+    public ResponseApi<Object> register(
             @Parameter(
                     description = "Данные для регистрации нового пользователя",
                     required = true,
@@ -77,14 +76,13 @@ public class AuthController {
             )
             @Valid @RequestBody ApiRequest<RegisterRequest> request) {
 
-        RegisterResponse registerResponse = authService.register(request.getData());
+        authService.register(request.getData());
         
-        return ResponseApi.<RegisterResponse>builder()
+        return ResponseApi.builder()
                 .id(UUID.randomUUID())
                 .status(201)
                 .message("Пользователь успешно зарегистрирован")
                 .timestamp(Instant.now())
-                .body(registerResponse)
                 .build();
     }
 }

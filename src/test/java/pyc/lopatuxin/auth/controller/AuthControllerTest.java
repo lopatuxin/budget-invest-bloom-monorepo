@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -40,20 +39,13 @@ class AuthControllerTest extends AbstractIntegrationTest {
                 .data(registerRequest)
                 .build();
 
-        mockMvc.perform(post("/api/auth/register")
-                        .with(csrf())
+        mockMvc.perform(post("/api/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(apiRequest)))
                 .andExpect(status().isCreated())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(201))
                 .andExpect(jsonPath("$.message").value("Пользователь успешно зарегистрирован"))
-                .andExpect(jsonPath("$.body").exists())
-                .andExpect(jsonPath("$.body.email").value("test@example.com"))
-                .andExpect(jsonPath("$.body.firstName").value("Тест"))
-                .andExpect(jsonPath("$.body.lastName").value("Пользователь"))
-                .andExpect(jsonPath("$.body.isActive").value(true))
-                .andExpect(jsonPath("$.body.isVerified").value(false))
         ;
     }
 
@@ -72,8 +64,7 @@ class AuthControllerTest extends AbstractIntegrationTest {
                 .data(firstRequest)
                 .build();
 
-        mockMvc.perform(post("/api/auth/register")
-                        .with(csrf())
+        mockMvc.perform(post("/api/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(firstApiRequest)))
                 .andExpect(status().isCreated());
@@ -89,8 +80,7 @@ class AuthControllerTest extends AbstractIntegrationTest {
                 .data(duplicateRequest)
                 .build();
 
-        mockMvc.perform(post("/api/auth/register")
-                        .with(csrf())
+        mockMvc.perform(post("/api/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(duplicateApiRequest)))
                 .andExpect(status().isConflict())
@@ -115,8 +105,7 @@ class AuthControllerTest extends AbstractIntegrationTest {
                 .data(registerRequest)
                 .build();
 
-        mockMvc.perform(post("/api/auth/register")
-                        .with(csrf())
+        mockMvc.perform(post("/api/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(apiRequest)))
                 .andExpect(status().isCreated());
@@ -141,8 +130,7 @@ class AuthControllerTest extends AbstractIntegrationTest {
                 .data(registerRequest)
                 .build();
 
-        mockMvc.perform(post("/api/auth/register")
-                        .with(csrf())
+        mockMvc.perform(post("/api/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(apiRequest)))
                 .andExpect(status().isBadRequest())
