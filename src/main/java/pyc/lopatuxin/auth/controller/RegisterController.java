@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import pyc.lopatuxin.auth.dto.request.ApiRequest;
 import pyc.lopatuxin.auth.dto.request.RegisterRequest;
 import pyc.lopatuxin.auth.dto.response.ResponseApi;
-import pyc.lopatuxin.auth.service.AuthService;
+import pyc.lopatuxin.auth.service.RegisterService;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -26,9 +26,9 @@ import java.util.UUID;
 @RequestMapping("/api")
 @RequiredArgsConstructor
 @Tag(name = "Аутентификация", description = "API для аутентификации и управления пользователями")
-public class AuthController {
+public class RegisterController {
 
-    private final AuthService authService;
+    private final RegisterService registerService;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -76,7 +76,7 @@ public class AuthController {
             )
             @Valid @RequestBody ApiRequest<RegisterRequest> request) {
 
-        authService.register(request.getData());
+        registerService.register(request.getData());
         
         return ResponseApi.builder()
                 .id(UUID.randomUUID())
