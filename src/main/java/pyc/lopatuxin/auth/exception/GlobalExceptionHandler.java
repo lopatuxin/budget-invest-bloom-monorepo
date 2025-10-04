@@ -66,14 +66,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ResponseApi<Object>> handleAccessDeniedException(AccessDeniedException ex) {
         log.warn("Access denied: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ResponseApi.error("Access denied"));
+                .body(ResponseApi.error(HttpStatus.FORBIDDEN.value(), ex.getMessage()));
     }
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ResponseApi<Object>> handleAuthenticationException(AuthenticationException ex) {
         log.warn("Authentication failed: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ResponseApi.error("Authentication failed"));
+                .body(ResponseApi.error(HttpStatus.UNAUTHORIZED.value(), ex.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)

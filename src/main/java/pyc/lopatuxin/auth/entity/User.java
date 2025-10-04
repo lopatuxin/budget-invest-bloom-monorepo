@@ -67,17 +67,30 @@ public class User {
     /**
      * Флаг активности аккаунта
      */
+    @Builder.Default
     private Boolean isActive = true;
 
     /**
      * Флаг подтверждения email адреса
      */
+    @Builder.Default
     private Boolean isVerified = false;
 
     /**
      * Время последнего входа в систему
      */
     private LocalDateTime lastLoginAt;
+
+    /**
+     * Счетчик неудачных попыток входа
+     */
+    @Builder.Default
+    private Integer failedLoginAttempts = 0;
+
+    /**
+     * Время до которого аккаунт заблокирован
+     */
+    private LocalDateTime lockedUntil;
 
     /**
      * Время создания записи

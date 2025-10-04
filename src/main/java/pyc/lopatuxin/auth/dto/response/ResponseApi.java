@@ -68,4 +68,21 @@ public class ResponseApi<T> {
                 .body(body)
                 .build();
     }
+
+    /**
+     * Создает стандартный ответ об ошибке с указанным HTTP статусом
+     *
+     * @param <T> тип данных в теле ответа
+     * @param status HTTP статус код
+     * @param message сообщение об ошибке
+     * @return объект ResponseApi с информацией об ошибке
+     */
+    public static <T> ResponseApi<T> error(int status, String message) {
+        return ResponseApi.<T>builder()
+                .id(UUID.randomUUID())
+                .status(status)
+                .message(message)
+                .timestamp(Instant.now())
+                .build();
+    }
 }

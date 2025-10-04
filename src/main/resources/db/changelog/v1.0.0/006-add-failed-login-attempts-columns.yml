@@ -1,0 +1,30 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-add-failed-login-attempts-columns
+      author: system
+      comment: Добавление полей для отслеживания неудачных попыток входа и блокировки аккаунта
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: failed_login_attempts
+                  type: integer
+                  remarks: Счетчик неудачных попыток входа
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: locked_until
+                  type: timestamp
+                  remarks: Время до которого аккаунт заблокирован
+                  constraints:
+                    nullable: true
+      rollback:
+        - dropColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: failed_login_attempts
+              - column:
+                  name: locked_until
