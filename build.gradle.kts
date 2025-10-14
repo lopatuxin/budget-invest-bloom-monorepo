@@ -9,6 +9,7 @@ version = "0.0.1-SNAPSHOT"
 
 val springdocVersion = "2.6.0"
 val mapstructVersion = "1.6.2"
+val jjwtVersion = "0.12.6"
 
 java {
     toolchain {
@@ -34,16 +35,25 @@ dependencies {
     implementation("org.liquibase:liquibase-core")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
     implementation("org.mapstruct:mapstruct:$mapstructVersion")
+    implementation("io.jsonwebtoken:jjwt-api:$jjwtVersion")
+
     compileOnly("org.projectlombok:lombok")
+
     developmentOnly("org.springframework.boot:spring-boot-devtools")
+
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:${jjwtVersion}")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:${jjwtVersion}")
     runtimeOnly("org.postgresql:postgresql")
+
     annotationProcessor("org.projectlombok:lombok")
     annotationProcessor("org.mapstruct:mapstruct-processor:$mapstructVersion")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")
+
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

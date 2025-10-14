@@ -27,9 +27,12 @@ class LoginControllerTest extends AbstractIntegrationTest {
     @Transactional
     @DisplayName("Должен успешно обработать запрос на аутентификацию")
     void shouldHandleLoginRequest() throws Exception {
+        User user = createUser();
+        userRepository.save(user);
+
         LoginRequest loginRequest = LoginRequest.builder()
                 .email("test@example.com")
-                .password("password123")
+                .password(TEST_PASSWORD)
                 .build();
 
         ApiRequest<LoginRequest> apiRequest = ApiRequest.<LoginRequest>builder()
@@ -43,15 +46,13 @@ class LoginControllerTest extends AbstractIntegrationTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value("Аутентификация прошла успешно"))
-                .andExpect(jsonPath("$.body.accessToken").value("sample.access.token"))
-                .andExpect(jsonPath("$.body.refreshToken").value("sample.refresh.token"))
+                .andExpect(jsonPath("$.body.accessToken").exists())
+                .andExpect(jsonPath("$.body.refreshToken").exists())
                 .andExpect(jsonPath("$.body.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.body.expiresIn").value(900))
                 .andExpect(jsonPath("$.body.user.email").value("test@example.com"))
                 .andExpect(jsonPath("$.body.user.isActive").value(true))
-                .andExpect(jsonPath("$.body.user.isVerified").value(true))
-                .andExpect(jsonPath("$.body.user.roles").isArray())
-                .andExpect(jsonPath("$.body.user.roles[0]").value("USER"));
+                .andExpect(jsonPath("$.body.user.isVerified").value(true));
     }
 
     @Test

@@ -6,9 +6,11 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pyc.lopatuxin.auth.config.JwtConfig;
 import pyc.lopatuxin.auth.dto.request.LoginRequest;
 import pyc.lopatuxin.auth.dto.response.LoginResponse;
 import pyc.lopatuxin.auth.entity.User;
+import pyc.lopatuxin.auth.mapper.UserMapper;
 import pyc.lopatuxin.auth.repository.UserRepository;
 
 import java.time.LocalDateTime;
@@ -20,6 +22,9 @@ public class LoginService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final UserMapper userMapper;
+    private final JwtConfig jwtConfig;
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final int LOCK_DURATION_MINUTES = 15;
@@ -54,7 +59,19 @@ public class LoginService {
 
         resetFailedAttempts(user);
 
+        user.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(user);
+
+        String accessToken = jwtService.generateAccessToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
+        int expiresIn = (int) (jwtConfig.getAccessTokenExpiration() / 1000);
+
         return LoginResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .expiresIn(expiresIn)
+                .user(userMapper.toUserDto(user))
                 .build();
     }
 
