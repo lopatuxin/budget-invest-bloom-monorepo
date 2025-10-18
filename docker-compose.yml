@@ -1,25 +1,78 @@
-version: '3.8'
-
 services:
+  # PostgreSQL Database
   postgres-dev:
     image: postgres:latest
     container_name: auth-postgres-dev
     environment:
-      POSTGRES_DB: auth_dev
-      POSTGRES_USER: auth_user
-      POSTGRES_PASSWORD: dev_password
+      POSTGRES_DB: ${POSTGRES_DB:-auth_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-auth_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_password}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_dev"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-auth_user} -d ${POSTGRES_DB:-auth_dev}"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - auth-network
+
+  # Spring Boot Application (Development с Hot-Reload)
+  auth-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: auth-app-dev
+    environment:
+      # Spring Configuration
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-dev:5432/${POSTGRES_DB:-auth_dev}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-auth_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-dev_password}
+
+      # JWT Configuration
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      JWT_ACCESS_TOKEN_EXPIRATION: ${JWT_ACCESS_TOKEN_EXPIRATION:-900000}
+      JWT_REFRESH_TOKEN_EXPIRATION: ${JWT_REFRESH_TOKEN_EXPIRATION:-604800000}
+
+      # DevTools Configuration (для hot-reload)
+      SPRING_DEVTOOLS_RESTART_ENABLED: ${DEVTOOLS_RESTART_ENABLED:-true}
+      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: ${DEVTOOLS_LIVERELOAD_ENABLED:-true}
+    ports:
+      - "${APP_PORT:-8081}:8081"
+      - "${LIVERELOAD_PORT:-35729}:35729"  # Порт для LiveReload
+    volumes:
+      # Volume mapping для hot-reload (монтируем исходный код)
+      - ./src:/app/src:rw
+      - ./build.gradle.kts:/app/build.gradle.kts:rw
+      - ./settings.gradle.kts:/app/settings.gradle.kts:rw
+      # Кэш Gradle (для ускорения сборки)
+      - gradle_cache:/root/.gradle
+      # Временные файлы сборки
+      - ./build:/app/build
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - auth-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/auth/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
 volumes:
   postgres_data:
     driver: local
+  gradle_cache:
+    driver: local
+
+networks:
+  auth-network:
+    driver: bridge
