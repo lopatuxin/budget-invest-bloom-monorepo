@@ -1,5 +1,6 @@
 package pyc.lopatuxin.auth.service;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -23,6 +24,7 @@ public class LoginService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
     private final UserMapper userMapper;
     private final JwtConfig jwtConfig;
 
@@ -30,7 +32,7 @@ public class LoginService {
     private static final int LOCK_DURATION_MINUTES = 15;
 
     @Transactional
-    public LoginResponse login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request, HttpServletRequest httpRequest) {
         Optional<User> optionalUser = userRepository.findUserByEmail(request.getEmail());
 
         if (optionalUser.isEmpty()) {
@@ -64,6 +66,12 @@ public class LoginService {
 
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
+
+        String userAgent = httpRequest.getHeader("User-Agent");
+        String ipAddress = httpRequest.getRemoteAddr();
+
+        refreshTokenService.createRefreshToken(user, refreshToken, userAgent, ipAddress);
+
         int expiresIn = (int) (jwtConfig.getAccessTokenExpiration() / 1000);
 
         return LoginResponse.builder()

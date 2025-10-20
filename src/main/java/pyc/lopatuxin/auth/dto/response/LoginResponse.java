@@ -21,6 +21,7 @@ public class LoginResponse {
     @Schema(description = "JWT токен для обновления access токена", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
     private String refreshToken;
 
+    @Builder.Default
     @Schema(description = "Тип токена", example = "Bearer")
     private String tokenType = "Bearer";
 

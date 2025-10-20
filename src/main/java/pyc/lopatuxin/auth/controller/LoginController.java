@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -91,9 +92,10 @@ public class LoginController {
                     required = true,
                     schema = @Schema(implementation = ApiRequest.class)
             )
-            @Valid @RequestBody ApiRequest<LoginRequest> request) {
+            @Valid @RequestBody ApiRequest<LoginRequest> request,
+            HttpServletRequest httpRequest) {
 
-        LoginResponse loginResponse = loginService.login(request.getData());
+        LoginResponse loginResponse = loginService.login(request.getData(), httpRequest);
 
         return ResponseApi.<LoginResponse>builder()
                 .id(UUID.randomUUID())

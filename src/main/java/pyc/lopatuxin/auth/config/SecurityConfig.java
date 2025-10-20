@@ -9,11 +9,13 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.crypto.password.Pbkdf2PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.ForwardedHeaderFilter;
 
 import java.util.List;
 
@@ -57,5 +59,24 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    /**
+     * Encoder для хэширования токенов с использованием PBKDF2
+     * BCrypt не подходит для токенов, так как имеет ограничение в 72 байта
+     * PBKDF2 - безопасный алгоритм с солью, рекомендуемый для хеширования токенов
+     */
+    @Bean
+    public PasswordEncoder tokenEncoder() {
+        return Pbkdf2PasswordEncoder.defaultsForSpringSecurity_v5_8();
+    }
+
+    /**
+     * Фильтр для обработки заголовков прокси (X-Forwarded-For, X-Real-IP и т.д.)
+     * После настройки этого фильтра request.getRemoteAddr() будет возвращать реальный IP клиента
+     */
+    @Bean
+    public ForwardedHeaderFilter forwardedHeaderFilter() {
+        return new ForwardedHeaderFilter();
     }
 }
