@@ -9,6 +9,7 @@ import lombok.experimental.SuperBuilder;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -18,10 +19,16 @@ import jakarta.validation.constraints.NotBlank;
 @Schema(description = "Контекст пользователя для аутентификации")
 public class UserContext {
 
+    @Schema(description = "ID пользователя", example = "123e4567-e89b-12d3-a456-426614174000")
+    private UUID userId;
+
     @Schema(description = "Email адрес пользователя", example = "user@example.com")
     @NotBlank(message = "Email пользователя обязателен")
     @Email(message = "Некорректный формат email")
     private String email;
+
+    @Schema(description = "Имя пользователя", example = "john_doe")
+    private String username;
 
     @Schema(description = "Пароль пользователя")
     @NotBlank(message = "Пароль обязателен")

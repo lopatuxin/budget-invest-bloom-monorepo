@@ -2,6 +2,7 @@ package pyc.lopatuxin.auth.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.Nullable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,6 +12,7 @@ import pyc.lopatuxin.auth.entity.User;
 import pyc.lopatuxin.auth.repository.RefreshTokenRepository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Сервис для работы с refresh токенами
@@ -59,12 +61,11 @@ public class RefreshTokenService {
      * @param user  пользователь
      * @return RefreshToken если найден и валиден
      */
+    @Nullable
     @Transactional(readOnly = true)
     public RefreshToken findValidToken(String token, User user) {
-        // Получаем все активные токены пользователя
-        var activeTokens = refreshTokenRepository.findActiveTokensByUser(user, LocalDateTime.now());
+        List<RefreshToken> activeTokens = refreshTokenRepository.findActiveTokensByUser(user, LocalDateTime.now());
 
-        // Ищем токен, хэш которого совпадает с переданным
         for (RefreshToken refreshToken : activeTokens) {
             if (tokenEncoder.matches(token, refreshToken.getTokenHash())) {
                 return refreshToken;

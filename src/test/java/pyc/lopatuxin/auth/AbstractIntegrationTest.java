@@ -10,8 +10,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import pyc.lopatuxin.auth.entity.User;
+import pyc.lopatuxin.auth.repository.RefreshTokenRepository;
 import pyc.lopatuxin.auth.repository.UserRepository;
 import pyc.lopatuxin.auth.repository.UserRoleRepository;
+import pyc.lopatuxin.auth.service.JwtService;
+import pyc.lopatuxin.auth.service.RefreshTokenService;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
@@ -36,6 +39,15 @@ public abstract class AbstractIntegrationTest {
 
     @Autowired
     protected PasswordEncoder passwordEncoder;
+
+    @Autowired
+    protected RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
+    protected JwtService jwtService;
+
+    @Autowired
+    protected RefreshTokenService refreshTokenService;
 
     public User createUser() {
         return User.builder()

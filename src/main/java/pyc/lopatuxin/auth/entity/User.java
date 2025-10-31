@@ -82,6 +82,17 @@ public class User {
     private LocalDateTime lastLoginAt;
 
     /**
+     * Время последнего выхода из системы
+     */
+    private LocalDateTime lastLogoutAt;
+
+    /**
+     * Версия безопасности для принудительного выхода со всех устройств
+     */
+    @Builder.Default
+    private Integer securityVersion = 1;
+
+    /**
      * Счетчик неудачных попыток входа
      */
     @Builder.Default
