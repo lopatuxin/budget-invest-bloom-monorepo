@@ -26,3 +26,9 @@ dist-ssr
 # Environment variables
 .env.production
 .env.local
+
+# Documentation
+docs/*
+
+# Docker
+.env.docker.local

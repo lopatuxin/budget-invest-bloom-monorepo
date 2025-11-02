@@ -18,7 +18,7 @@ const Login = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { login } = useAuth();
+  const { setAuthData } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,23 +36,95 @@ const Login = () => {
       return;
     }
 
-    // Здесь будет вызов вашего API
     try {
-      // Имитация запроса
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/api/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: {
+            email: formData.email,
+            password: formData.password,
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+
+        // Обработка различных типов ошибок согласно контракту
+        switch (errorData.error) {
+          case 'INVALID_CREDENTIALS':
+            toast({
+              title: "Ошибка входа",
+              description: "Неверный email или пароль",
+              variant: "destructive",
+            });
+            break;
+
+          case 'ACCOUNT_LOCKED':
+            toast({
+              title: "Аккаунт заблокирован",
+              description: errorData.message || "Аккаунт временно заблокирован из-за множественных неудачных попыток входа",
+              variant: "destructive",
+            });
+            break;
+
+          case 'ACCOUNT_INACTIVE':
+            toast({
+              title: "Аккаунт неактивен",
+              description: errorData.message || "Аккаунт деактивирован. Обратитесь в службу поддержки",
+              variant: "destructive",
+            });
+            break;
+
+          case 'RATE_LIMIT_EXCEEDED':
+            toast({
+              title: "Слишком много попыток",
+              description: errorData.message || "Слишком много попыток входа. Попробуйте через несколько минут",
+              variant: "destructive",
+            });
+            break;
+
+          case 'MISSING_REQUIRED_FIELDS':
+            toast({
+              title: "Ошибка",
+              description: errorData.message || "Отсутствуют обязательные поля",
+              variant: "destructive",
+            });
+            break;
+
+          default:
+            toast({
+              title: "Ошибка",
+              description: errorData.message || "Не удалось войти в систему",
+              variant: "destructive",
+            });
+        }
+        return;
+      }
+
+      const data = await response.json();
+
+      // Извлекаем данные из body, так как бэк оборачивает ответ
+      const { accessToken, refreshToken, user } = data.body;
+
+      // Сохраняем токены и данные пользователя через AuthContext
+      setAuthData(accessToken, refreshToken, user);
+
       toast({
         title: "Успешный вход!",
         description: "Добро пожаловать в FinanceApp",
       });
-      
-      // Устанавливаем состояние авторизации и делаем редирект
-      login(formData.email);
+
+      // Делаем редирект на главную страницу
       navigate('/');
     } catch (error) {
+      console.error('Login error:', error);
       toast({
-        title: "Ошибка входа",
-        description: "Неверный email или пароль",
+        title: "Ошибка",
+        description: "Не удалось подключиться к серверу. Попробуйте снова.",
         variant: "destructive",
       });
     } finally {
