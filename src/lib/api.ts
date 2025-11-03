@@ -1,5 +1,3 @@
-// API client helper with automatic JWT token handling
-
 interface ApiRequestOptions extends RequestInit {
   requiresAuth?: boolean;
 }
@@ -10,22 +8,22 @@ interface ApiRequestOptions extends RequestInit {
  * @param options - опции fetch запроса
  * @returns Promise с ответом
  */
-export async function apiRequest<T = any>(
+export async function apiRequest<T = unknown>(
   endpoint: string,
   options: ApiRequestOptions = {}
 ): Promise<T> {
   const { requiresAuth = true, headers = {}, ...restOptions } = options;
 
-  const requestHeaders: HeadersInit = {
+  const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...headers,
+    ...(headers as Record<string, string>),
   };
 
   // Добавляем JWT токен, если требуется авторизация
   if (requiresAuth) {
     const accessToken = localStorage.getItem('accessToken');
     if (accessToken) {
-      (requestHeaders as Record<string, string>)['Authorization'] = `Bearer ${accessToken}`;
+      requestHeaders['Authorization'] = `Bearer ${accessToken}`;
     }
   }
 
@@ -45,7 +43,7 @@ export async function apiRequest<T = any>(
         // Повторяем запрос с новым токеном
         const newAccessToken = localStorage.getItem('accessToken');
         if (newAccessToken) {
-          (requestHeaders as Record<string, string>)['Authorization'] = `Bearer ${newAccessToken}`;
+          requestHeaders['Authorization'] = `Bearer ${newAccessToken}`;
         }
         const retryResponse = await fetch(url, {
           ...restOptions,
@@ -62,7 +60,7 @@ export async function apiRequest<T = any>(
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
-        window.location.href = '/login';
+        globalThis.location.href = '/login';
         throw new Error('Session expired');
       }
     }
@@ -123,11 +121,11 @@ async function refreshAccessToken(): Promise<boolean> {
 
 // Вспомогательные функции для разных HTTP методов
 
-export function apiGet<T = any>(endpoint: string, options?: ApiRequestOptions): Promise<T> {
+export function apiGet<T = unknown>(endpoint: string, options?: ApiRequestOptions): Promise<T> {
   return apiRequest<T>(endpoint, { ...options, method: 'GET' });
 }
 
-export function apiPost<T = any>(endpoint: string, data?: any, options?: ApiRequestOptions): Promise<T> {
+export function apiPost<T = unknown>(endpoint: string, data?: unknown, options?: ApiRequestOptions): Promise<T> {
   return apiRequest<T>(endpoint, {
     ...options,
     method: 'POST',
@@ -135,7 +133,7 @@ export function apiPost<T = any>(endpoint: string, data?: any, options?: ApiRequ
   });
 }
 
-export function apiPut<T = any>(endpoint: string, data?: any, options?: ApiRequestOptions): Promise<T> {
+export function apiPut<T = unknown>(endpoint: string, data?: unknown, options?: ApiRequestOptions): Promise<T> {
   return apiRequest<T>(endpoint, {
     ...options,
     method: 'PUT',
@@ -143,6 +141,47 @@ export function apiPut<T = any>(endpoint: string, data?: any, options?: ApiReque
   });
 }
 
-export function apiDelete<T = any>(endpoint: string, options?: ApiRequestOptions): Promise<T> {
+export function apiDelete<T = unknown>(endpoint: string, options?: ApiRequestOptions): Promise<T> {
   return apiRequest<T>(endpoint, { ...options, method: 'DELETE' });
+}
+
+/**
+ * Выполняет logout пользователя
+ * @param logoutFromAll - если true, выход со всех устройств
+ * @returns Promise с ответом от сервера
+ */
+export async function apiLogout(logoutFromAll: boolean = false): Promise<{
+  message: string;
+  loggedOut: number;
+  timestamp: string;
+}> {
+  const accessToken = localStorage.getItem('accessToken');
+  const refreshToken = localStorage.getItem('refreshToken');
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+
+  if (refreshToken) {
+    headers['X-Refresh-Token'] = refreshToken;
+  }
+
+  const url = `${import.meta.env.VITE_API_BASE_URL}/auth/api/auth/logout`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ data: { logoutFromAll } }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Logout failed with status ${response.status}`);
+  }
+
+  return await response.json();
 }

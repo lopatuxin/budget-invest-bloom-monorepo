@@ -1,8 +1,12 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { apiLogout } from '@/lib/api';
 
 interface User {
   userId: string;
   email: string;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
   isActive: boolean;
   isVerified: boolean;
   roles: string[];
@@ -14,7 +18,7 @@ interface AuthContextType {
   user: User | null;
   accessToken: string | null;
   login: (email: string, name?: string) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   setAuthData: (accessToken: string, refreshToken: string, user: User) => void;
 }
 
@@ -81,7 +85,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(tempUser);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    // Вызываем API logout - если не удалось, выбрасываем ошибку
+    await apiLogout(false);
+
+    // Очищаем локальные данные только после успешного logout на бэкенде
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
@@ -89,6 +97,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setIsAuthenticated(false);
     setUser(null);
     setAccessToken(null);
+
+    // Перенаправляем на страницу логина
+    window.location.href = '/login';
   };
 
   return (

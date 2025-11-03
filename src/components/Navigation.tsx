@@ -4,6 +4,7 @@ import { Home, Wallet, TrendingUp, Menu, X, UserPlus, User, LogOut } from 'lucid
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -17,6 +18,19 @@ const Navigation = () => {
   ];
 
   const isActive = (href: string) => location.pathname === href;
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast({
+        title: "Ошибка выхода",
+        description: error instanceof Error ? error.message : "Не удалось выполнить выход. Попробуйте снова.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <nav className="bg-card border-b border-border shadow-card">
@@ -55,9 +69,11 @@ const Navigation = () => {
                 <div className="flex items-center space-x-2">
                   <div className="flex items-center space-x-2 px-3 py-2 bg-muted rounded-md">
                     <User className="w-4 h-4" />
-                    <span className="text-sm font-medium">{user?.name}</span>
+                    <span className="text-sm font-medium">
+                      {user?.name || (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.email)}
+                    </span>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={logout}>
+                  <Button variant="ghost" size="sm" onClick={handleLogout}>
                     <LogOut className="w-4 h-4 mr-2" />
                     Выйти
                   </Button>
@@ -117,9 +133,11 @@ const Navigation = () => {
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2 px-3 py-2 bg-muted rounded-md">
                       <User className="w-4 h-4" />
-                      <span className="text-sm font-medium">{user?.name}</span>
+                      <span className="text-sm font-medium">
+                        {user?.name || (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.email)}
+                      </span>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={logout} className="w-full justify-start">
+                    <Button variant="ghost" size="sm" onClick={handleLogout} className="w-full justify-start">
                       <LogOut className="w-4 h-4 mr-2" />
                       Выйти
                     </Button>
