@@ -1,5 +1,6 @@
 package pyc.lopatuxin.auth.service;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
@@ -7,9 +8,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.auth.config.JwtConfig;
+import pyc.lopatuxin.auth.dto.request.RequestHeadersDto;
+import pyc.lopatuxin.auth.dto.response.RefreshTokenResponse;
 import pyc.lopatuxin.auth.entity.RefreshToken;
 import pyc.lopatuxin.auth.entity.User;
 import pyc.lopatuxin.auth.repository.RefreshTokenRepository;
+import pyc.lopatuxin.auth.util.RefreshTokenCookieHelper;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,6 +27,7 @@ import java.util.List;
 public class RefreshTokenService {
 
     private final RefreshTokenRepository refreshTokenRepository;
+    private final RefreshTokenCookieHelper cookieHelper;
     private final PasswordEncoder tokenEncoder;
     private final JwtConfig jwtConfig;
 
@@ -105,5 +110,30 @@ public class RefreshTokenService {
     public void cleanupExpiredTokens() {
         refreshTokenRepository.deleteExpiredAndUsedTokens(LocalDateTime.now());
         log.debug("Выполнена очистка истекших и использованных токенов");
+    }
+
+    /**
+     * Обновление токенов (заглушка)
+     * TODO: Реализовать полную логику согласно спецификации POST_refresh.md
+     *
+     * @param refreshToken текущий refresh token
+     * @return null (заглушка)
+     */
+    @Transactional
+    public RefreshTokenResponse refreshTokens(
+            String refreshToken,
+            RequestHeadersDto headers,
+            HttpServletResponse httpServletResponse) {
+
+        log.info("Вызов метода refreshTokens (заглушка)");
+        // TODO: Реализовать логику:
+        // 1. Валидация refresh token
+        // 2. Верификация подписи и срока действия
+        // 3. Валидация пользователя и сессии
+        // 4. Генерация новых access и refresh токенов
+        // 5. Обновление сессионных данных
+        // 6. Возврат новых токенов
+
+        return null;
     }
 }

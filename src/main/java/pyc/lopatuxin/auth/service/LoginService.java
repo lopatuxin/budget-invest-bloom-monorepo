@@ -1,6 +1,6 @@
 package pyc.lopatuxin.auth.service;
 
-import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -9,10 +9,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.auth.config.JwtConfig;
 import pyc.lopatuxin.auth.dto.request.LoginRequest;
+import pyc.lopatuxin.auth.dto.request.RequestHeadersDto;
 import pyc.lopatuxin.auth.dto.response.LoginResponse;
 import pyc.lopatuxin.auth.entity.User;
 import pyc.lopatuxin.auth.mapper.UserMapper;
 import pyc.lopatuxin.auth.repository.UserRepository;
+import pyc.lopatuxin.auth.util.RefreshTokenCookieHelper;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -27,12 +29,13 @@ public class LoginService {
     private final RefreshTokenService refreshTokenService;
     private final UserMapper userMapper;
     private final JwtConfig jwtConfig;
+    private final RefreshTokenCookieHelper cookieHelper;
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final int LOCK_DURATION_MINUTES = 15;
 
     @Transactional
-    public LoginResponse login(LoginRequest request, HttpServletRequest httpRequest) {
+    public LoginResponse login(LoginRequest request, RequestHeadersDto headers, HttpServletResponse httpResponse) {
         Optional<User> optionalUser = userRepository.findUserByEmail(request.getEmail());
 
         if (optionalUser.isEmpty()) {
@@ -67,16 +70,13 @@ public class LoginService {
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
-        String userAgent = httpRequest.getHeader("User-Agent");
-        String ipAddress = httpRequest.getRemoteAddr();
-
-        refreshTokenService.createRefreshToken(user, refreshToken, userAgent, ipAddress);
+        refreshTokenService.createRefreshToken(user, refreshToken, headers.getUserAgent(), headers.extractIpAddress());
 
         int expiresIn = (int) (jwtConfig.getAccessTokenExpiration() / 1000);
+        cookieHelper.setRefreshTokenCookie(httpResponse, refreshToken);
 
         return LoginResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshToken)
                 .tokenType("Bearer")
                 .expiresIn(expiresIn)
                 .user(userMapper.toUserDto(user))

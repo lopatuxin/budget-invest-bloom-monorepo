@@ -47,7 +47,6 @@ class LoginControllerTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value("Аутентификация прошла успешно"))
                 .andExpect(jsonPath("$.body.accessToken").exists())
-                .andExpect(jsonPath("$.body.refreshToken").exists())
                 .andExpect(jsonPath("$.body.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.body.expiresIn").value(900))
                 .andExpect(jsonPath("$.body.user.email").value("test@example.com"))

@@ -12,10 +12,10 @@ import lombok.Setter;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "Ответ на успешную аутентификацию пользователя")
-public class LoginResponse {
+@Schema(description = "Ответ на успешное обновление JWT токенов")
+public class RefreshTokenResponse {
 
-    @Schema(description = "JWT токен для авторизации API запросов", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+    @Schema(description = "Новый JWT токен для авторизации API запросов", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
     private String accessToken;
 
     @Builder.Default
@@ -24,7 +24,4 @@ public class LoginResponse {
 
     @Schema(description = "Время жизни access токена в секундах", example = "900")
     private Integer expiresIn;
-
-    @Schema(description = "Информация о пользователе")
-    private UserDto user;
 }

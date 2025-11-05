@@ -7,41 +7,38 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import pyc.lopatuxin.auth.dto.request.ApiRequest;
-import pyc.lopatuxin.auth.dto.request.LoginRequest;
 import pyc.lopatuxin.auth.dto.request.RequestHeadersDto;
-import pyc.lopatuxin.auth.dto.response.LoginResponse;
+import pyc.lopatuxin.auth.dto.response.RefreshTokenResponse;
 import pyc.lopatuxin.auth.dto.response.ResponseApi;
-import pyc.lopatuxin.auth.service.LoginService;
+import pyc.lopatuxin.auth.service.RefreshTokenService;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/auth")
 @RequiredArgsConstructor
 @Tag(name = "Аутентификация", description = "API для аутентификации и управления пользователями")
-public class LoginController {
+public class RefreshController {
 
-    private final LoginService loginService;
+    private final RefreshTokenService refreshTokenService;
 
-    @PostMapping("/login")
+    @PostMapping("/refresh")
     @ResponseStatus(HttpStatus.OK)
     @Operation(
-            summary = "Аутентификация пользователя",
-            description = "Выполняет аутентификацию пользователя по email и паролю. Возвращает JWT токены для авторизации."
+            summary = "Обновление JWT токенов",
+            description = "Обновляет access и refresh токены используя действующий refresh token. Реализует Refresh Token Rotation."
     )
     @ApiResponse(
             responseCode = "200",
-            description = "Аутентификация прошла успешно",
+            description = "Токены успешно обновлены",
             content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(implementation = ResponseApi.class)
@@ -57,7 +54,7 @@ public class LoginController {
     )
     @ApiResponse(
             responseCode = "401",
-            description = "Неверные учетные данные",
+            description = "Недействительный или истекший refresh token",
             content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(implementation = ResponseApi.class)
@@ -65,7 +62,15 @@ public class LoginController {
     )
     @ApiResponse(
             responseCode = "403",
-            description = "Аккаунт заблокирован или неактивен",
+            description = "Refresh token отозван, использован или аккаунт заблокирован",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ResponseApi.class)
+            )
+    )
+    @ApiResponse(
+            responseCode = "404",
+            description = "Пользователь или сессия не найдены",
             content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(implementation = ResponseApi.class)
@@ -73,7 +78,15 @@ public class LoginController {
     )
     @ApiResponse(
             responseCode = "422",
-            description = "Ошибки валидации входных данных",
+            description = "Ошибки валидации refresh token",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ResponseApi.class)
+            )
+    )
+    @ApiResponse(
+            responseCode = "429",
+            description = "Превышен лимит операций refresh",
             content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(implementation = ResponseApi.class)
@@ -87,33 +100,28 @@ public class LoginController {
                     schema = @Schema(implementation = ResponseApi.class)
             )
     )
-    public ResponseApi<LoginResponse> login(
-            @Parameter(
-                    description = "Данные для аутентификации пользователя",
-                    required = true,
-                    schema = @Schema(implementation = ApiRequest.class)
-            )
-            @Valid @RequestBody ApiRequest<LoginRequest> request,
+    public ResponseApi<RefreshTokenResponse> refresh(
             @Parameter(
                     description = "HTTP заголовки запроса",
                     required = true,
                     schema = @Schema(implementation = RequestHeadersDto.class)
             )
             RequestHeadersDto headers,
+            @CookieValue(name = "refreshToken") String refreshTokenFromCookie,
             HttpServletResponse httpResponse) {
 
-        LoginResponse loginResponse = loginService.login(
-                request.getData(),
+        RefreshTokenResponse refreshTokenResponse = refreshTokenService.refreshTokens(
+                refreshTokenFromCookie,
                 headers,
                 httpResponse
         );
 
-        return ResponseApi.<LoginResponse>builder()
+        return ResponseApi.<RefreshTokenResponse>builder()
                 .id(UUID.randomUUID())
                 .status(200)
-                .message("Аутентификация прошла успешно")
+                .message("Токены успешно обновлены")
                 .timestamp(Instant.now())
-                .body(loginResponse)
+                .body(refreshTokenResponse)
                 .build();
     }
 }
