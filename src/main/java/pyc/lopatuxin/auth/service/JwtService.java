@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import pyc.lopatuxin.auth.config.JwtConfig;
-import pyc.lopatuxin.auth.dto.request.UserContext;
 import pyc.lopatuxin.auth.entity.User;
 
 import javax.crypto.SecretKey;
@@ -81,43 +80,6 @@ public class JwtService {
     public UUID extractUserId(String token) {
         String userId = extractClaim(token, claims -> claims.get(CLAIM_USER_ID, String.class));
         return UUID.fromString(userId);
-    }
-
-    /**
-     * Извлечение username из токена
-     *
-     * @param token JWT токен
-     * @return username пользователя
-     */
-    public String extractUsername(String token) {
-        return extractClaim(token, claims -> claims.get("username", String.class));
-    }
-
-    /**
-     * Извлечение UserContext из токена
-     *
-     * @param token JWT токен
-     * @return UserContext с данными пользователя или пустой UserContext в случае ошибки
-     */
-    public UserContext extractUserContext(String token) {
-        try {
-            if (token == null || token.isBlank()) {
-                return UserContext.builder().build();
-            }
-
-            String email = extractEmail(token);
-            String username = extractUsername(token);
-            UUID userId = extractUserId(token);
-
-            return UserContext.builder()
-                    .userId(userId)
-                    .email(email)
-                    .username(username)
-                    .build();
-        } catch (Exception e) {
-            log.error("Ошибка при извлечении данных пользователя из JWT токена", e);
-            return UserContext.builder().build();
-        }
     }
 
     /**

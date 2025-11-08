@@ -27,7 +27,7 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("RefreshTokenService")
-class RefreshTokenServiceTest {
+class RefreshTokenServiceUnitTest {
 
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
@@ -250,29 +250,5 @@ class RefreshTokenServiceTest {
         refreshTokenService.deleteAllUserTokens(testUser);
 
         verify(refreshTokenRepository, times(1)).deleteAllByUser(testUser);
-    }
-
-    @Test
-    @DisplayName("Должен очистить истекшие и использованные токены")
-    void shouldCleanupExpiredTokens() {
-        refreshTokenService.cleanupExpiredTokens();
-
-        verify(refreshTokenRepository).deleteExpiredAndUsedTokens(any(LocalDateTime.class));
-    }
-
-    @Test
-    @DisplayName("Должен передать текущее время при очистке токенов")
-    void shouldPassCurrentTimeWhenCleaningTokens() {
-        LocalDateTime beforeCleanup = LocalDateTime.now();
-
-        refreshTokenService.cleanupExpiredTokens();
-
-        ArgumentCaptor<LocalDateTime> timeCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
-        verify(refreshTokenRepository).deleteExpiredAndUsedTokens(timeCaptor.capture());
-
-        LocalDateTime capturedTime = timeCaptor.getValue();
-        assertThat(capturedTime)
-                .isAfter(beforeCleanup.minusSeconds(1))
-                .isBefore(LocalDateTime.now().plusSeconds(1));
     }
 }

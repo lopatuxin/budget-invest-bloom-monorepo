@@ -41,6 +41,9 @@ public abstract class AbstractIntegrationTest {
     protected PasswordEncoder passwordEncoder;
 
     @Autowired
+    protected PasswordEncoder tokenEncoder;
+
+    @Autowired
     protected RefreshTokenRepository refreshTokenRepository;
 
     @Autowired
