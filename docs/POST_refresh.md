@@ -12,19 +12,24 @@ Endpoint для обновления JWT токенов в системе вед
 POST /api/auth/refresh
 ```
 
-## Параметры запроса
+## Структура запроса
 
-| Параметр       | Тип    | Обязательный | Описание                                         |
-|----------------|--------|--------------|--------------------------------------------------|
-| `refreshToken` | string | Да           | Действующий refresh token для обновления токенов |
+**Важно**: Refresh token передается через HTTP Cookie, а не в теле запроса.
+
+### HTTP Cookie (обязательно)
+
+| Параметр       | Тип    | Описание                                         |
+|----------------|--------|--------------------------------------------------|
+| `refreshToken` | string | Действующий refresh token для обновления токенов |
 
 ### Пример запроса
 
-```json
-{
-  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
+**HTTP Headers (включая Cookie):**
 ```
+Cookie: refreshToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Body:** Пустое тело запроса или отсутствует
 
 ## Логика обработки
 
@@ -52,28 +57,62 @@ POST /api/auth/refresh
     - Обновление `tokenVersion` для нового refresh token
 
 7. **Обновление сессионных данных**:
-    - Сохранение информации о новой сессии в Redis
+    - Сохранение информации о новой сессии в базе данных
     - Обновление поля `last_activity_at` в таблице `user`
     - Сохранение метаданных сессии (IP, User-Agent, timestamp)
+    - Новый Refresh Token передается клиенту через HTTP Cookie (HttpOnly, Secure)
 
 ## Структура ответа
+
+Ответ использует **стандартный формат API** (подробнее в [standartRequestAndResponse.md](standartRequestAndResponse.md)):
+
+| Поле        | Тип     | Описание                                                      |
+|-------------|---------|---------------------------------------------------------------|
+| `id`        | string  | Уникальный идентификатор запроса в формате UUID               |
+| `status`    | number  | HTTP статус код ответа (200)                                  |
+| `message`   | string  | Сообщение об успешном обновлении токенов                      |
+| `timestamp` | string  | Временная метка формирования ответа в ISO 8601 UTC формате    |
+| `body`      | object  | Объект с новым access токеном                                 |
+
+### Блок `body` - данные обновленных токенов
 
 | Поле           | Тип      | Описание                                     |
 |----------------|----------|----------------------------------------------|
 | `accessToken`  | string   | Новый JWT токен для авторизации API запросов |
-| `refreshToken` | string   | Новый JWT токен для следующего обновления    |
 | `tokenType`    | string   | Тип токена (всегда `"Bearer"`)              |
 | `expiresIn`    | number   | Время жизни access токена в секундах        |
 
+### HTTP Cookie
+
+| Параметр      | Значение                                           |
+|---------------|---------------------------------------------------|
+| `Name`        | `refreshToken`                                    |
+| `Value`       | Новый JWT refresh token                           |
+| `HttpOnly`    | `true` (защита от XSS)                           |
+| `Secure`      | `true` (только HTTPS)                            |
+| `SameSite`    | `Strict` (защита от CSRF)                        |
+| `Max-Age`     | 7 дней (604800 секунд)                           |
+
 ### Пример успешного ответа
 
+**JSON Response:**
 ```json
 {
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "tokenType": "Bearer",
-  "expiresIn": 900
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "status": 200,
+  "message": "Токены успешно обновлены",
+  "timestamp": "2025-08-07T12:30:45.123Z",
+  "body": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "tokenType": "Bearer",
+    "expiresIn": 900
+  }
 }
+```
+
+**HTTP Headers (включая Cookie):**
+```
+Set-Cookie: refreshToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; SameSite=Strict; Max-Age=604800; Path=/
 ```
 
 ## Коды состояния
@@ -240,8 +279,8 @@ POST /api/auth/refresh
 ### Связь с другими API
 После обновления токенов:
 - Использование нового access токена для доступа к защищенным ресурсам
-- Возможность завершения сессии через [POST /api/auth/logout](Backend%20Specification%20-%20POST%20logout.md)
-- При истечении refresh токена - повторная аутентификация через [POST /api/auth/login](Backend%20Specification%20-%20POST%20login.md)
+- Возможность завершения сессии через [POST /api/auth/logout](POST_logout.md)
+- При истечении refresh токена - повторная аутентификация через [POST /api/login](POST_login.md)
 
 ## События и уведомления
 

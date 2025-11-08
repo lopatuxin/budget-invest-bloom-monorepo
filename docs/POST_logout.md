@@ -12,7 +12,16 @@ Endpoint для выхода пользователя из системы вед
 POST /api/auth/logout
 ```
 
-## Параметры запроса
+## Структура запроса
+
+Запрос использует **стандартный формат API** (подробнее в [standartRequestAndResponse.md](standartRequestAndResponse.md)) и требует аутентификации через JWT токен.
+
+| Поле   | Тип    | Обязательное | Описание                                                     |
+|--------|--------|--------------|--------------------------------------------------------------|
+| `user` | object | Нет          | Контекст пользователя (заполняется автоматически из JWT)    |
+| `data` | object | Да           | Данные для выхода из системы                                 |
+
+### Блок `data` - параметры выхода
 
 | Параметр        | Тип     | Обязательный | Описание                                                   |
 |-----------------|---------|--------------|-----------------------------------------------------------|
@@ -22,30 +31,33 @@ POST /api/auth/logout
 
 | Заголовок          | Обязательный | Описание                                        |
 |--------------------|--------------|------------------------------------------------|
-| `Authorization`    | Да           | Bearer токен для аутентификации                |
-| `X-Refresh-Token`  | Нет          | Refresh token для отзыва конкретной сессии     |
+| `Authorization`    | Да           | Bearer access token для идентификации пользователя |
 
 ### Пример запроса
 
 **Выход из текущей сессии:**
-```bash
-POST /api/auth/logout
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-X-Refresh-Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-
+```json
 {
-  "logoutFromAll": false
+  "user": null,
+  "data": {
+    "logoutFromAll": false
+  }
 }
 ```
 
 **Выход со всех устройств:**
-```bash
-POST /api/auth/logout
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-
+```json
 {
-  "logoutFromAll": true
+  "user": null,
+  "data": {
+    "logoutFromAll": true
+  }
 }
+```
+
+**HTTP Headers:**
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 ## Логика обработки
@@ -87,6 +99,18 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ## Структура ответа
 
+Ответ использует **стандартный формат API** (подробнее в [standartRequestAndResponse.md](standartRequestAndResponse.md)):
+
+| Поле        | Тип     | Описание                                                      |
+|-------------|---------|---------------------------------------------------------------|
+| `id`        | string  | Уникальный идентификатор запроса в формате UUID               |
+| `status`    | number  | HTTP статус код ответа (200)                                  |
+| `message`   | string  | Сообщение об успешном завершении сессии                       |
+| `timestamp` | string  | Временная метка формирования ответа в ISO 8601 UTC формате    |
+| `body`      | object  | Объект с данными о завершенных сессиях                        |
+
+### Блок `body` - информация о logout
+
 | Поле        | Тип    | Описание                                      |
 |-------------|--------|-----------------------------------------------|
 | `message`   | string | Сообщение об успешном завершении сессии       |
@@ -98,18 +122,30 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 **Выход из текущей сессии:**
 ```json
 {
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "status": 200,
   "message": "Вы успешно вышли из системы",
-  "loggedOut": 1,
-  "timestamp": "2025-08-07T12:30:45.123Z"
+  "timestamp": "2025-08-07T12:30:45.123Z",
+  "body": {
+    "message": "Вы успешно вышли из системы",
+    "loggedOut": 1,
+    "timestamp": "2025-08-07T12:30:45.123Z"
+  }
 }
 ```
 
 **Выход со всех устройств:**
 ```json
 {
+  "id": "456e7890-e89b-12d3-a456-426614174000",
+  "status": 200,
   "message": "Вы успешно вышли из системы на всех устройствах",
-  "loggedOut": 3,
-  "timestamp": "2025-08-07T12:30:45.123Z"
+  "timestamp": "2025-08-07T12:30:45.234Z",
+  "body": {
+    "message": "Вы успешно вышли из системы на всех устройствах",
+    "loggedOut": 3,
+    "timestamp": "2025-08-07T12:30:45.234Z"
+  }
 }
 ```
 
@@ -216,7 +252,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ### Связь с другими API
 После logout пользователь должен:
-- Повторно аутентифицироваться через [POST /api/auth/login](Backend%20Specification%20-%20POST%20login.md)
+- Повторно аутентифицироваться через [POST /api/login](POST_login.md)
 - Получить новые токены для доступа к защищенным ресурсам
 - Использовать `POST /api/auth/refresh` только с новыми токенами
 
