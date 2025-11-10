@@ -7,9 +7,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -102,9 +104,10 @@ public class LogoutController {
                     required = true,
                     schema = @Schema(implementation = RequestHeadersDto.class)
             )
-            RequestHeadersDto headers) {
+            RequestHeadersDto headers,
+            @CookieValue(name = "refreshToken", required = false) String refreshTokenFromCookie) {
 
-        LogoutResponse logoutResponse = logoutService.logout(headers, request);
+        LogoutResponse logoutResponse = logoutService.logout(headers, request, refreshTokenFromCookie);
 
         return ResponseApi.<LogoutResponse>builder()
                 .id(UUID.randomUUID())

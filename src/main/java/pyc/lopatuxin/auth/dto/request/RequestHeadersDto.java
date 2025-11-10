@@ -24,9 +24,6 @@ public class RequestHeadersDto {
     @Schema(description = "JWT токен без префикса Bearer", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
     private String jwt;
 
-    @Schema(description = "Refresh токен", example = "550e8400-e29b-41d4-a716-446655440000")
-    private String refreshToken;
-
     @Schema(description = "User-Agent клиента", example = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
     private String userAgent;
 

@@ -38,7 +38,7 @@ public class LogoutService {
      * @return ответ с результатом выхода
      */
     @Transactional
-    public LogoutResponse logout(RequestHeadersDto headers, ApiRequest<LogoutRequest> request) {
+    public LogoutResponse logout(RequestHeadersDto headers, ApiRequest<LogoutRequest> request, String refreshTokenFromCookie) {
         LogoutRequest data = request.getData();
         String email = jwtService.extractEmail(headers.getJwt());
         User user = userRepository.findUserByEmail(email)
@@ -52,7 +52,7 @@ public class LogoutService {
         if (Boolean.TRUE.equals(data.getLogoutFromAll())) {
             loggedOutCount = handleLogoutFromAll(user, headers.extractIpAddress(), headers.getUserAgent());
         } else {
-            loggedOutCount = handleSingleLogout(user, headers.getRefreshToken(), headers.extractIpAddress());
+            loggedOutCount = handleSingleLogout(user, refreshTokenFromCookie, headers.extractIpAddress());
         }
 
         user.setLastLogoutAt(LocalDateTime.now());
@@ -101,26 +101,31 @@ public class LogoutService {
      * Обработка выхода из текущей сессии
      *
      * @param user пользователь
-     * @param refreshTokenString refresh token из запроса (может быть null)
+     * @param refreshTokenString refresh token из запроса
      * @param ipAddress IP адрес клиента
-     * @return количество завершенных сессий (всегда 1)
+     * @return количество завершенных сессий (0 или 1)
+     * @throws IllegalArgumentException если refresh token не передан
      */
     private int handleSingleLogout(User user, String refreshTokenString, String ipAddress) {
         log.debug("Обработка выхода из текущей сессии для пользователя: {} с IP: {}", user.getEmail(), ipAddress);
 
-        if (refreshTokenString != null && !refreshTokenString.isBlank()) {
-            RefreshToken refreshToken = refreshTokenService.findValidToken(refreshTokenString, user);
-
-            if (refreshToken != null) {
-                refreshTokenRepository.delete(refreshToken);
-                log.debug("Refresh токен удален для пользователя: {}", user.getEmail());
-            } else {
-                log.debug("Refresh токен не найден в базе данных для пользователя: {}", user.getEmail());
-            }
-        } else {
-            log.debug("Refresh токен не передан в запросе logout для пользователя: {}", user.getEmail());
+        if (refreshTokenString == null || refreshTokenString.isBlank()) {
+            log.warn("Попытка выхода без refresh token для пользователя: {}", user.getEmail());
+            throw new IllegalArgumentException(
+                    "Для выхода из текущей сессии необходимо передать refresh token в cookie refreshToken. " +
+                            "Используйте logoutFromAll: true для выхода со всех устройств без токена."
+            );
         }
 
+        RefreshToken refreshToken = refreshTokenService.findValidToken(refreshTokenString, user);
+
+        if (refreshToken == null) {
+            log.debug("Refresh токен не найден - возможно повторный вызов logout для пользователя: {}", user.getEmail());
+            return 0;
+        }
+
+        refreshTokenRepository.delete(refreshToken);
+        log.debug("Refresh токен удален для пользователя: {}", user.getEmail());
         return 1;
     }
 }

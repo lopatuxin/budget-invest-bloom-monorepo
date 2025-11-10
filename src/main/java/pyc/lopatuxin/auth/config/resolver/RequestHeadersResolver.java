@@ -48,7 +48,6 @@ public class RequestHeadersResolver implements HandlerMethodArgumentResolver {
         return RequestHeadersDto.builder()
                 .authorization(request.getHeader("Authorization"))
                 .jwt(jwt)
-                .refreshToken(request.getHeader("X-Refresh-Token"))
                 .userAgent(request.getHeader("User-Agent"))
                 .xForwardedFor(request.getHeader("X-Forwarded-For"))
                 .build();

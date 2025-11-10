@@ -1,5 +1,6 @@
 package pyc.lopatuxin.auth.controller;
 
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,7 +49,7 @@ class LogoutControllerTest extends AbstractIntegrationTest {
 
         mockMvc.perform(post("/api/auth/logout")
                         .header("Authorization", "Bearer " + jwtToken)
-                        .header("X-Refresh-Token", rawRefreshToken)
+                        .cookie(new Cookie("refreshToken", rawRefreshToken))
                         .header("User-Agent", "Test-Agent")
                         .header("X-Forwarded-For", "127.0.0.1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -69,8 +70,8 @@ class LogoutControllerTest extends AbstractIntegrationTest {
 
     @Test
     @Transactional
-    @DisplayName("Должен успешно обработать выход из системы без передачи refresh token")
-    void shouldHandleLogoutWithoutRefreshToken() throws Exception {
+    @DisplayName("Должен вернуть ошибку 400 при попытке выхода без refresh token")
+    void shouldReturn400WhenLogoutWithoutRefreshToken() throws Exception {
         User user = createUser();
         userRepository.save(user);
 
@@ -90,10 +91,8 @@ class LogoutControllerTest extends AbstractIntegrationTest {
                         .header("X-Forwarded-For", "127.0.0.1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(apiRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value(200))
-                .andExpect(jsonPath("$.body.message").value("Вы успешно вышли из системы"))
-                .andExpect(jsonPath("$.body.loggedOut").value(1));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Для выхода из текущей сессии необходимо передать refresh token в cookie refreshToken. Используйте logoutFromAll: true для выхода со всех устройств без токена."));
     }
 
     @Test
@@ -163,7 +162,7 @@ class LogoutControllerTest extends AbstractIntegrationTest {
 
         mockMvc.perform(post("/api/auth/logout")
                         .header("Authorization", "Bearer " + jwtToken)
-                        .header("X-Refresh-Token", rawRefreshToken)
+                        .cookie(new Cookie("refreshToken", rawRefreshToken))
                         .header("User-Agent", "Test-Agent")
                         .header("X-Forwarded-For", "127.0.0.1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -172,13 +171,13 @@ class LogoutControllerTest extends AbstractIntegrationTest {
 
         mockMvc.perform(post("/api/auth/logout")
                         .header("Authorization", "Bearer " + jwtToken)
-                        .header("X-Refresh-Token", rawRefreshToken)
+                        .cookie(new Cookie("refreshToken", rawRefreshToken))
                         .header("User-Agent", "Test-Agent")
                         .header("X-Forwarded-For", "127.0.0.1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(apiRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.body.loggedOut").value(1));
+                .andExpect(jsonPath("$.body.loggedOut").value(0));
     }
 
     @Test
@@ -220,7 +219,7 @@ class LogoutControllerTest extends AbstractIntegrationTest {
 
     @Test
     @Transactional
-    @DisplayName("Должен успешно обработать logout с несуществующим refresh token")
+    @DisplayName("Должен успешно обработать logout с несуществующим refresh token (idempotency)")
     void shouldHandleLogoutWithNonExistentRefreshToken() throws Exception {
         User user = createUser();
         userRepository.save(user);
@@ -238,13 +237,13 @@ class LogoutControllerTest extends AbstractIntegrationTest {
 
         mockMvc.perform(post("/api/auth/logout")
                         .header("Authorization", "Bearer " + jwtToken)
-                        .header("X-Refresh-Token", nonExistentRefreshToken)
+                        .cookie(new Cookie("refreshToken", nonExistentRefreshToken))
                         .header("User-Agent", "Test-Agent")
                         .header("X-Forwarded-For", "127.0.0.1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(apiRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.body.loggedOut").value(1));
+                .andExpect(jsonPath("$.body.loggedOut").value(0));
     }
 
     @Test
