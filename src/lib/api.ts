@@ -33,6 +33,7 @@ export async function apiRequest<T = unknown>(
     const response = await fetch(url, {
       ...restOptions,
       headers: requestHeaders,
+      credentials: 'include', // Всегда отправляем cookies (для refreshToken)
     });
 
     // Обработка ошибки 401 (токен истёк или невалиден)
@@ -48,6 +49,7 @@ export async function apiRequest<T = unknown>(
         const retryResponse = await fetch(url, {
           ...restOptions,
           headers: requestHeaders,
+          credentials: 'include', // Отправляем cookies и в повторном запросе
         });
 
         if (!retryResponse.ok) {
@@ -57,8 +59,8 @@ export async function apiRequest<T = unknown>(
         return await retryResponse.json();
       } else {
         // Не удалось обновить токен - перенаправляем на логин
+        // refreshToken автоматически удаляется бекендом через Set-Cookie
         localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
         globalThis.location.href = '/login';
         throw new Error('Session expired');
@@ -77,26 +79,17 @@ export async function apiRequest<T = unknown>(
 }
 
 /**
- * Обновляет access токен используя refresh токен
+ * Обновляет access токен используя refresh токен из Cookie
  * @returns true если токен успешно обновлён, false если нет
  */
 async function refreshAccessToken(): Promise<boolean> {
-  const refreshToken = localStorage.getItem('refreshToken');
-  if (!refreshToken) {
-    return false;
-  }
-
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/api/refresh`, {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/api/auth/refresh`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        data: {
-          refreshToken,
-        }
-      }),
+      credentials: 'include', // Важно: отправляем cookie с refreshToken
     });
 
     if (!response.ok) {
@@ -104,13 +97,11 @@ async function refreshAccessToken(): Promise<boolean> {
     }
 
     const data = await response.json();
-    const { accessToken, refreshToken: newRefreshToken } = data.body;
+    const { accessToken } = data.body;
 
-    // Сохраняем новые токены
+    // Сохраняем новый accessToken
+    // refreshToken автоматически обновляется через Set-Cookie
     localStorage.setItem('accessToken', accessToken);
-    if (newRefreshToken) {
-      localStorage.setItem('refreshToken', newRefreshToken);
-    }
 
     return true;
   } catch (error) {
@@ -155,33 +146,9 @@ export async function apiLogout(logoutFromAll: boolean = false): Promise<{
   loggedOut: number;
   timestamp: string;
 }> {
-  const accessToken = localStorage.getItem('accessToken');
-  const refreshToken = localStorage.getItem('refreshToken');
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  }
-
-  if (refreshToken) {
-    headers['X-Refresh-Token'] = refreshToken;
-  }
-
-  const url = `${import.meta.env.VITE_API_BASE_URL}/auth/api/auth/logout`;
-
-  const response = await fetch(url, {
+  return apiRequest('/auth/api/auth/logout', {
     method: 'POST',
-    headers,
     body: JSON.stringify({ data: { logoutFromAll } }),
+    credentials: 'include', // Отправляем cookie с refreshToken
   });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `Logout failed with status ${response.status}`);
-  }
-
-  return await response.json();
 }

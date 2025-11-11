@@ -18,7 +18,7 @@ interface AuthContextType {
     user: User | null;
     accessToken: string | null;
     logout: () => Promise<void>;
-    setAuthData: (accessToken: string, refreshToken: string, user: User) => void;
+    setAuthData: (accessToken: string, user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,15 +54,13 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
                 console.error('Failed to parse user data from localStorage:', error);
                 // Очищаем некорректные данные
                 localStorage.removeItem('accessToken');
-                localStorage.removeItem('refreshToken');
                 localStorage.removeItem('user');
             }
         }
     }, []);
 
-    const setAuthData = useCallback((newAccessToken: string, refreshToken: string, userData: User) => {
+    const setAuthData = useCallback((newAccessToken: string, userData: User) => {
         localStorage.setItem('accessToken', newAccessToken);
-        localStorage.setItem('refreshToken', refreshToken);
         localStorage.setItem('user', JSON.stringify(userData));
 
         setAccessToken(newAccessToken);
@@ -75,8 +73,8 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
         await apiLogout(false);
 
         // Очищаем локальные данные только после успешного logout на бэкенде
+        // refreshToken автоматически удаляется бекендом через Set-Cookie
         localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
 
         setIsAuthenticated(false);

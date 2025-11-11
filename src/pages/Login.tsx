@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import {FormEvent, useState} from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { LogIn, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import * as React from "react";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -21,7 +22,7 @@ const Login = () => {
   const { setAuthData } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
@@ -108,10 +109,11 @@ const Login = () => {
       const data = await response.json();
 
       // Извлекаем данные из body, так как бэк оборачивает ответ
-      const { accessToken, refreshToken, user } = data.body;
+      const { accessToken, user } = data.body;
 
-      // Сохраняем токены и данные пользователя через AuthContext
-      setAuthData(accessToken, refreshToken, user);
+      // Сохраняем токен и данные пользователя через AuthContext
+      // refreshToken приходит в HttpOnly Cookie автоматически
+      setAuthData(accessToken, user);
 
       toast({
         title: "Успешный вход!",
