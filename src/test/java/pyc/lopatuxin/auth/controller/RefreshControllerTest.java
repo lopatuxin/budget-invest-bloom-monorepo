@@ -70,7 +70,7 @@ class RefreshControllerTest extends AbstractIntegrationTest {
                         .header("User-Agent", "Mozilla/5.0")
                         .header("X-Forwarded-For", "192.168.1.1")
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isBadRequest());
     }
 
     @Test

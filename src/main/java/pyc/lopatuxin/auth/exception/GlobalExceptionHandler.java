@@ -9,6 +9,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestCookieException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import pyc.lopatuxin.auth.dto.response.ResponseApi;
@@ -22,7 +23,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<ResponseApi<Object>> handleValidationException(ValidationException ex) {
-        log.warn("Validation error: {}", ex.getMessage());
+        log.warn("Ошибка валидации: {}", ex.getMessage());
         return ResponseEntity.badRequest()
                 .body(ResponseApi.error(ex.getMessage()));
     }
@@ -36,49 +37,57 @@ public class GlobalExceptionHandler {
             errors.put(fieldName, errorMessage);
         });
         
-        log.warn("Validation errors: {}", errors);
+        log.warn("Ошибки валидации: {}", errors);
         return ResponseEntity.badRequest()
                 .body(ResponseApi.error("Validation failed", errors));
     }
 
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ResponseApi<Object>> handleEntityNotFoundException(EntityNotFoundException ex) {
-        log.warn("Entity not found: {}", ex.getMessage());
+        log.warn("Сущность не найдена: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ResponseApi.error(ex.getMessage()));
     }
 
     @ExceptionHandler(UserAlreadyExistsException.class)
     public ResponseEntity<ResponseApi<Object>> handleUserAlreadyExistsException(UserAlreadyExistsException ex) {
-        log.warn("User already exists: {}", ex.getMessage());
+        log.warn("Пользователь уже существует: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ResponseApi.error(ex.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ResponseApi<Object>> handleIllegalArgumentException(IllegalArgumentException ex) {
-        log.warn("Illegal argument: {}", ex.getMessage());
+        log.warn("Некорректный аргумент: {}", ex.getMessage());
         return ResponseEntity.badRequest()
                 .body(ResponseApi.error(ex.getMessage()));
     }
 
+    @ExceptionHandler(MissingRequestCookieException.class)
+    public ResponseEntity<ResponseApi<Object>> handleMissingRequestCookieException(MissingRequestCookieException ex) {
+        String message = String.format("Отсутствует обязательная кука: %s", ex.getCookieName());
+        log.warn("Отсутствует обязательная кука: {}", ex.getCookieName());
+        return ResponseEntity.badRequest()
+                .body(ResponseApi.error(message));
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ResponseApi<Object>> handleAccessDeniedException(AccessDeniedException ex) {
-        log.warn("Access denied: {}", ex.getMessage());
+        log.warn("Доступ запрещен: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ResponseApi.error(HttpStatus.FORBIDDEN.value(), ex.getMessage()));
     }
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ResponseApi<Object>> handleAuthenticationException(AuthenticationException ex) {
-        log.warn("Authentication failed: {}", ex.getMessage());
+        log.warn("Аутентификация не удалась: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ResponseApi.error(HttpStatus.UNAUTHORIZED.value(), ex.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ResponseApi<Object>> handleGenericException(Exception ex) {
-        log.error("Unexpected error: ", ex);
+        log.error("Неожиданная ошибка: ", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ResponseApi.error("Internal server error"));
     }
