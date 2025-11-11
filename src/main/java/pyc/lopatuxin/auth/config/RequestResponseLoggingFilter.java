@@ -9,11 +9,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingRequestWrapper;
 import org.springframework.web.util.ContentCachingResponseWrapper;
 import org.springframework.lang.NonNull;
+import pyc.lopatuxin.auth.util.SensitiveDataMasker;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.List;
 
 @Slf4j
 public class RequestResponseLoggingFilter extends OncePerRequestFilter {
@@ -60,6 +63,10 @@ public class RequestResponseLoggingFilter extends OncePerRequestFilter {
         String requestBody = getRequestBody(request);
         String responseBody = getResponseBody(response);
 
+        // Маскируем чувствительные данные
+        String maskedRequestBody = SensitiveDataMasker.maskSensitiveJson(requestBody);
+        String maskedResponseBody = SensitiveDataMasker.maskSensitiveJson(responseBody);
+
         StringBuilder logMessage = new StringBuilder("\n");
         logMessage.append("=".repeat(80)).append("\n");
         logMessage.append("HTTP REQUEST/RESPONSE LOG [").append(timestamp).append("]\n");
@@ -72,8 +79,11 @@ public class RequestResponseLoggingFilter extends OncePerRequestFilter {
         logMessage.append("  Query: ").append(request.getQueryString() != null ? request.getQueryString() : "").append("\n");
         logMessage.append("  Content-Type: ").append(request.getContentType() != null ? request.getContentType() : "").append("\n");
 
-        if (!requestBody.isEmpty()) {
-            logMessage.append("  Body: ").append(formatJson(requestBody)).append("\n");
+        // Логируем важные заголовки с маскированием
+        appendHeaders(logMessage, request);
+
+        if (!maskedRequestBody.isEmpty()) {
+            logMessage.append("  Body: ").append(formatJson(maskedRequestBody)).append("\n");
         }
 
         logMessage.append("\n");
@@ -84,13 +94,30 @@ public class RequestResponseLoggingFilter extends OncePerRequestFilter {
         logMessage.append("  Content-Type: ").append(response.getContentType() != null ? response.getContentType() : "").append("\n");
         logMessage.append("  Duration: ").append(duration).append("ms\n");
 
-        if (!responseBody.isEmpty()) {
-            logMessage.append("  Body: ").append(formatJson(responseBody)).append("\n");
+        if (!maskedResponseBody.isEmpty()) {
+            logMessage.append("  Body: ").append(formatJson(maskedResponseBody)).append("\n");
         }
 
         logMessage.append("=".repeat(80));
 
         log.info(logMessage.toString());
+    }
+
+    /**
+     * Добавляет важные HTTP заголовки в лог с маскированием чувствительных данных
+     */
+    private void appendHeaders(StringBuilder logMessage, ContentCachingRequestWrapper request) {
+        List<String> importantHeaders = List.of("Authorization", "Cookie", "User-Agent", "X-Forwarded-For");
+
+        for (String headerName : importantHeaders) {
+            List<String> headerValues = Collections.list(request.getHeaders(headerName));
+
+            if (!headerValues.isEmpty()) {
+                String headerValue = String.join(", ", headerValues);
+                String maskedValue = SensitiveDataMasker.maskSensitiveHeader(headerName, headerValue);
+                logMessage.append("  Header [").append(headerName).append("]: ").append(maskedValue).append("\n");
+            }
+        }
     }
 
     private String getRequestBody(ContentCachingRequestWrapper request) {
