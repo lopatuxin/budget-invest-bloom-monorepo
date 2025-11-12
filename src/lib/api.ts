@@ -1,3 +1,5 @@
+import * as Sentry from '@sentry/react';
+
 interface ApiRequestOptions extends RequestInit {
   requiresAuth?: boolean;
 }
@@ -28,12 +30,43 @@ export async function apiRequest<T = unknown>(
   }
 
   const url = `${import.meta.env.VITE_API_BASE_URL}${endpoint}`;
+  const method = (restOptions.method || 'GET').toUpperCase();
+
+  // Логируем начало запроса в Sentry breadcrumbs
+  Sentry.addBreadcrumb({
+    category: 'api.request',
+    message: `${method} ${endpoint}`,
+    level: 'info',
+    data: {
+      url,
+      method,
+      requiresAuth,
+      // Не логируем тело запроса целиком (может быть большим или содержать чувствительные данные)
+    },
+  });
+
+  const startTime = performance.now();
 
   try {
     const response = await fetch(url, {
       ...restOptions,
       headers: requestHeaders,
       credentials: 'include', // Всегда отправляем cookies (для refreshToken)
+    });
+
+    const duration = performance.now() - startTime;
+
+    // Логируем ответ в Sentry breadcrumbs
+    Sentry.addBreadcrumb({
+      category: 'api.response',
+      message: `${response.status} ${method} ${endpoint}`,
+      level: response.ok ? 'info' : 'warning',
+      data: {
+        status: response.status,
+        statusText: response.statusText,
+        duration: `${duration.toFixed(2)}ms`,
+        url,
+      },
     });
 
     // Обработка ошибки 401 (токен истёк или невалиден)
@@ -68,12 +101,56 @@ export async function apiRequest<T = unknown>(
     }
 
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
+      const errorMessage = `API Error: ${response.status} ${response.statusText}`;
+      const apiError = new Error(errorMessage);
+
+      // Отправляем ошибку в Sentry с дополнительным контекстом
+      Sentry.captureException(apiError, {
+        level: 'error',
+        tags: {
+          api_endpoint: endpoint,
+          api_method: method,
+          api_status: response.status,
+        },
+        contexts: {
+          api: {
+            url,
+            endpoint,
+            method,
+            status: response.status,
+            statusText: response.statusText,
+            requiresAuth,
+          },
+        },
+      });
+
+      throw apiError;
     }
 
     return await response.json();
   } catch (error) {
     console.error('API Request failed:', error);
+
+    // Если ошибка не была обработана выше, отправляем в Sentry
+    if (error instanceof Error && !error.message.includes('API Error')) {
+      Sentry.captureException(error, {
+        level: 'error',
+        tags: {
+          api_endpoint: endpoint,
+          api_method: method,
+        },
+        contexts: {
+          api: {
+            url,
+            endpoint,
+            method,
+            requiresAuth,
+            errorType: 'network_or_unexpected',
+          },
+        },
+      });
+    }
+
     throw error;
   }
 }
