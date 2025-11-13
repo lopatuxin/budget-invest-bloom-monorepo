@@ -43,6 +43,7 @@ const Register = () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     data: {
                         firstName: formData.firstName,
