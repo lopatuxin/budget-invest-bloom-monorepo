@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,8 +23,9 @@ import pyc.lopatuxin.auth.service.RefreshTokenService;
 import java.time.Instant;
 import java.util.UUID;
 
+@Slf4j
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 @Tag(name = "Аутентификация", description = "API для аутентификации и управления пользователями")
 public class RefreshController {
@@ -110,6 +112,7 @@ public class RefreshController {
             @CookieValue(name = "refreshToken") String refreshTokenFromCookie,
             HttpServletResponse httpResponse) {
 
+        log.info("Refresh token: {}", refreshTokenFromCookie);
         RefreshTokenResponse refreshTokenResponse = refreshTokenService.refreshTokens(
                 refreshTokenFromCookie,
                 headers,

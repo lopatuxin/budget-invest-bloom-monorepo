@@ -28,4 +28,33 @@ public class JwtConfig {
      * Время жизни refresh токена в миллисекундах
      */
     private Long refreshTokenExpiration;
+
+    /**
+     * Настройки для refresh token cookie
+     */
+    private CookieSettings cookie = new CookieSettings();
+
+    @Getter
+    @Setter
+    public static class CookieSettings {
+        /**
+         * Флаг Secure (требует HTTPS)
+         */
+        private Boolean secure = true;
+
+        /**
+         * Политика SameSite (None, Lax, Strict)
+         */
+        private String sameSite = "Strict";
+
+        /**
+         * Путь для cookie
+         */
+        private String path = "/auth";
+
+        /**
+         * Домен для cookie (опционально)
+         */
+        private String domain;
+    }
 }

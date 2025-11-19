@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,6 +28,7 @@ import pyc.lopatuxin.auth.service.LogoutService;
 import java.time.Instant;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -105,9 +107,11 @@ public class LogoutController {
                     schema = @Schema(implementation = RequestHeadersDto.class)
             )
             RequestHeadersDto headers,
-            @CookieValue(name = "refreshToken", required = false) String refreshTokenFromCookie) {
+            @CookieValue(name = "refreshToken", required = false) String refreshTokenFromCookie,
+            HttpServletResponse httpResponse) {
 
-        LogoutResponse logoutResponse = logoutService.logout(headers, request, refreshTokenFromCookie);
+        log.info("Refresh token: {}", refreshTokenFromCookie);
+        LogoutResponse logoutResponse = logoutService.logout(headers, request, refreshTokenFromCookie, httpResponse);
 
         return ResponseApi.<LogoutResponse>builder()
                 .id(UUID.randomUUID())

@@ -1,5 +1,6 @@
 package pyc.lopatuxin.auth.service;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -12,6 +13,7 @@ import pyc.lopatuxin.auth.entity.RefreshToken;
 import pyc.lopatuxin.auth.entity.User;
 import pyc.lopatuxin.auth.repository.RefreshTokenRepository;
 import pyc.lopatuxin.auth.repository.UserRepository;
+import pyc.lopatuxin.auth.util.RefreshTokenCookieHelper;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -26,6 +28,7 @@ public class LogoutService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final RefreshTokenService refreshTokenService;
     private final JwtService jwtService;
+    private final RefreshTokenCookieHelper cookieHelper;
 
     /**
      * Метод для выхода пользователя из системы.
@@ -35,10 +38,15 @@ public class LogoutService {
      * 3. Отзыв токенов (удаление из БД)
      * 4. Обработка режима logoutFromAll (завершение всех сессий пользователя)
      * 5. Обновление last_logout_at и security_version в БД
+     * 6. Удаление refresh token cookie из браузера
+     * @param headers HTTP заголовки запроса
+     * @param request запрос с данными logout
+     * @param refreshTokenFromCookie refresh token из cookie
+     * @param httpResponse HTTP ответ для удаления cookie
      * @return ответ с результатом выхода
      */
     @Transactional
-    public LogoutResponse logout(RequestHeadersDto headers, ApiRequest<LogoutRequest> request, String refreshTokenFromCookie) {
+    public LogoutResponse logout(RequestHeadersDto headers, ApiRequest<LogoutRequest> request, String refreshTokenFromCookie, HttpServletResponse httpResponse) {
         LogoutRequest data = request.getData();
         String email = jwtService.extractEmail(headers.getJwt());
         User user = userRepository.findUserByEmail(email)
@@ -57,6 +65,9 @@ public class LogoutService {
 
         user.setLastLogoutAt(LocalDateTime.now());
         userRepository.save(user);
+
+        // Удаляем refresh token cookie из браузера
+        cookieHelper.clearRefreshTokenCookie(httpResponse);
 
         String message = Boolean.TRUE.equals(data.getLogoutFromAll())
                 ? "Вы успешно вышли из системы на всех устройствах"

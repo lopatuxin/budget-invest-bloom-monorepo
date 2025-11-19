@@ -25,10 +25,42 @@ public class RefreshTokenCookieHelper {
     public void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
         Cookie cookie = new Cookie("refreshToken", refreshToken);
         cookie.setHttpOnly(true);  // Защита от XSS
-        cookie.setSecure(true);    // Только по HTTPS
-        cookie.setPath("/api/auth"); // Доступен только для auth endpoints
-        cookie.setMaxAge((int) (jwtConfig.getRefreshTokenExpiration() / 1000)); // 7 дней
-        cookie.setAttribute("SameSite", "Strict"); // Защита от CSRF
+
+        // Настройки из конфигурации
+        JwtConfig.CookieSettings cookieSettings = jwtConfig.getCookie();
+        cookie.setSecure(cookieSettings.getSecure());
+        cookie.setPath(cookieSettings.getPath());
+        cookie.setMaxAge((int) (jwtConfig.getRefreshTokenExpiration() / 1000));
+        cookie.setAttribute("SameSite", cookieSettings.getSameSite());
+
+        // Установка домена, если указан
+        if (cookieSettings.getDomain() != null && !cookieSettings.getDomain().isBlank()) {
+            cookie.setDomain(cookieSettings.getDomain());
+        }
+
+        response.addCookie(cookie);
+    }
+
+    /**
+     * Удаляет refresh token cookie из браузера.
+     *
+     * @param response HTTP ответ
+     */
+    public void clearRefreshTokenCookie(HttpServletResponse response) {
+        Cookie cookie = new Cookie("refreshToken", null);
+        cookie.setHttpOnly(true);
+        cookie.setMaxAge(0);  // Удаление cookie
+
+        // Применяем те же настройки, что и при создании
+        JwtConfig.CookieSettings cookieSettings = jwtConfig.getCookie();
+        cookie.setSecure(cookieSettings.getSecure());
+        cookie.setPath(cookieSettings.getPath());
+        cookie.setAttribute("SameSite", cookieSettings.getSameSite());
+
+        if (cookieSettings.getDomain() != null && !cookieSettings.getDomain().isBlank()) {
+            cookie.setDomain(cookieSettings.getDomain());
+        }
+
         response.addCookie(cookie);
     }
 }

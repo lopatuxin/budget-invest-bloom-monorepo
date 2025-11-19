@@ -38,7 +38,7 @@ class RefreshControllerTest extends AbstractIntegrationTest {
         String rawRefreshToken = jwtService.generateRefreshToken(user);
         refreshTokenService.createRefreshToken(user, rawRefreshToken, "Mozilla/5.0", "192.168.1.1");
 
-        mockMvc.perform(post("/api/auth/refresh")
+        mockMvc.perform(post("/api/refresh")
                         .cookie(new Cookie("refreshToken", rawRefreshToken))
                         .header("User-Agent", "Mozilla/5.0")
                         .header("X-Forwarded-For", "192.168.1.1")
@@ -66,7 +66,7 @@ class RefreshControllerTest extends AbstractIntegrationTest {
     @Transactional
     @DisplayName("Должен вернуть ошибку при отсутствии refresh token в cookie")
     void shouldReturnErrorWhenRefreshTokenMissing() throws Exception {
-        mockMvc.perform(post("/api/auth/refresh")
+        mockMvc.perform(post("/api/refresh")
                         .header("User-Agent", "Mozilla/5.0")
                         .header("X-Forwarded-For", "192.168.1.1")
                         .contentType(MediaType.APPLICATION_JSON))
@@ -84,7 +84,7 @@ class RefreshControllerTest extends AbstractIntegrationTest {
         // поэтому используем недействительный токен как имитацию)
         String expiredToken = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE1MTYyMzkwMjJ9.invalid";
 
-        mockMvc.perform(post("/api/auth/refresh")
+        mockMvc.perform(post("/api/refresh")
                         .cookie(new Cookie("refreshToken", expiredToken))
                         .header("User-Agent", "Mozilla/5.0")
                         .header("X-Forwarded-For", "192.168.1.1")
@@ -99,7 +99,7 @@ class RefreshControllerTest extends AbstractIntegrationTest {
     void shouldReturn401WhenRefreshTokenInvalid() throws Exception {
         String invalidToken = "invalid.jwt.token";
 
-        mockMvc.perform(post("/api/auth/refresh")
+        mockMvc.perform(post("/api/refresh")
                         .cookie(new Cookie("refreshToken", invalidToken))
                         .header("User-Agent", "Mozilla/5.0")
                         .header("X-Forwarded-For", "192.168.1.1")
@@ -118,7 +118,7 @@ class RefreshControllerTest extends AbstractIntegrationTest {
         // Генерируем валидный JWT токен, но не сохраняем его в БД
         String rawRefreshToken = jwtService.generateRefreshToken(user);
 
-        mockMvc.perform(post("/api/auth/refresh")
+        mockMvc.perform(post("/api/refresh")
                         .cookie(new Cookie("refreshToken", rawRefreshToken))
                         .header("User-Agent", "Mozilla/5.0")
                         .header("X-Forwarded-For", "192.168.1.1")
@@ -139,7 +139,7 @@ class RefreshControllerTest extends AbstractIntegrationTest {
         String rawRefreshToken = jwtService.generateRefreshToken(user);
         refreshTokenService.createRefreshToken(user, rawRefreshToken, "Mozilla/5.0", "192.168.1.1");
 
-        mockMvc.perform(post("/api/auth/refresh")
+        mockMvc.perform(post("/api/refresh")
                         .cookie(new Cookie("refreshToken", rawRefreshToken))
                         .header("User-Agent", "Mozilla/5.0")
                         .header("X-Forwarded-For", "192.168.1.1")
@@ -160,7 +160,7 @@ class RefreshControllerTest extends AbstractIntegrationTest {
         String rawRefreshToken = jwtService.generateRefreshToken(user);
         refreshTokenService.createRefreshToken(user, rawRefreshToken, "Mozilla/5.0", "192.168.1.1");
 
-        mockMvc.perform(post("/api/auth/refresh")
+        mockMvc.perform(post("/api/refresh")
                         .cookie(new Cookie("refreshToken", rawRefreshToken))
                         .header("User-Agent", "Mozilla/5.0")
                         .header("X-Forwarded-For", "192.168.1.1")
@@ -184,7 +184,7 @@ class RefreshControllerTest extends AbstractIntegrationTest {
         refreshTokenRepository.deleteAll();
         userRepository.delete(user);
 
-        mockMvc.perform(post("/api/auth/refresh")
+        mockMvc.perform(post("/api/refresh")
                         .cookie(new Cookie("refreshToken", rawRefreshToken))
                         .header("User-Agent", "Mozilla/5.0")
                         .header("X-Forwarded-For", "192.168.1.1")
@@ -203,7 +203,7 @@ class RefreshControllerTest extends AbstractIntegrationTest {
         String rawRefreshToken = jwtService.generateRefreshToken(user);
         refreshTokenService.createRefreshToken(user, rawRefreshToken, "Mozilla/5.0", "192.168.1.1");
 
-        mockMvc.perform(post("/api/auth/refresh")
+        mockMvc.perform(post("/api/refresh")
                         .cookie(new Cookie("refreshToken", rawRefreshToken))
                         .header("User-Agent", "Mozilla/5.0")
                         .header("X-Forwarded-For", "192.168.1.1")
@@ -230,7 +230,7 @@ class RefreshControllerTest extends AbstractIntegrationTest {
         String rawRefreshToken = jwtService.generateRefreshToken(user);
         refreshTokenService.createRefreshToken(user, rawRefreshToken, "Mozilla/5.0", "192.168.1.1");
 
-        mockMvc.perform(post("/api/auth/refresh")
+        mockMvc.perform(post("/api/refresh")
                         .cookie(new Cookie("refreshToken", rawRefreshToken))
                         .header("User-Agent", "Mozilla/5.0")
                         .header("X-Forwarded-For", "192.168.1.1")
@@ -238,7 +238,7 @@ class RefreshControllerTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(cookie().exists("refreshToken"))
                 .andExpect(cookie().httpOnly("refreshToken", true))
-                .andExpect(cookie().path("refreshToken", "/api/auth"))
+                .andExpect(cookie().path("refreshToken", "/auth"))
                 .andExpect(cookie().secure("refreshToken", true));
     }
 
@@ -254,7 +254,7 @@ class RefreshControllerTest extends AbstractIntegrationTest {
         String rawRefreshToken = jwtService.generateRefreshToken(user);
         refreshTokenService.createRefreshToken(user, rawRefreshToken, "Mozilla/5.0", "192.168.1.1");
 
-        mockMvc.perform(post("/api/auth/refresh")
+        mockMvc.perform(post("/api/refresh")
                         .cookie(new Cookie("refreshToken", rawRefreshToken))
                         .header("User-Agent", "Mozilla/5.0")
                         .header("X-Forwarded-For", "192.168.1.1")
@@ -276,7 +276,7 @@ class RefreshControllerTest extends AbstractIntegrationTest {
 
         String newUserAgent = "New-Agent/2.0";
 
-        mockMvc.perform(post("/api/auth/refresh")
+        mockMvc.perform(post("/api/refresh")
                         .cookie(new Cookie("refreshToken", rawRefreshToken))
                         .header("User-Agent", newUserAgent)
                         .header("X-Forwarded-For", "192.168.100.50")

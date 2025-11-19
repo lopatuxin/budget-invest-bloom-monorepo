@@ -34,6 +34,10 @@ jwt:
   secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
   access-token-expiration: 900000  # 15 минут в миллисекундах
   refresh-token-expiration: 604800000  # 7 дней в миллисекундах
+  cookie:
+    secure: false  # Для разработки без HTTPS
+    same-site: Lax  # Менее строгая политика для разработки
+    path: /auth  # Базовый путь приложения
 
 logging:
   level:
