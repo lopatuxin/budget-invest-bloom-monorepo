@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: budget
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/mydatabase
+    username: myuser
+    driver-class-name: org.postgresql.Driver
+    password: secret
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yml
+
+logging:
+  level:
+    liquibase: INFO
