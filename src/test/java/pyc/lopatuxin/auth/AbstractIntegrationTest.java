@@ -1,9 +1,8 @@
 package pyc.lopatuxin.auth;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -15,6 +14,7 @@ import pyc.lopatuxin.auth.repository.UserRepository;
 import pyc.lopatuxin.auth.repository.UserRoleRepository;
 import pyc.lopatuxin.auth.service.JwtService;
 import pyc.lopatuxin.auth.service.RefreshTokenService;
+import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
@@ -29,7 +29,7 @@ public abstract class AbstractIntegrationTest {
     protected MockMvc mockMvc;
 
     @Autowired
-    protected ObjectMapper objectMapper;
+    protected JsonMapper objectMapper;
 
     @Autowired
     protected UserRoleRepository userRoleRepository;

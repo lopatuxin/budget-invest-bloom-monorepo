@@ -8,7 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingRequestWrapper;
 import org.springframework.web.util.ContentCachingResponseWrapper;
-import org.springframework.lang.NonNull;
+import org.jspecify.annotations.NonNull;
 import pyc.lopatuxin.auth.util.SensitiveDataMasker;
 
 import java.io.IOException;
@@ -22,6 +22,7 @@ import java.util.List;
 public class RequestResponseLoggingFilter extends OncePerRequestFilter {
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
+    private static final int DEFAULT_MAX_PAYLOAD_LENGTH = 10 * 1024; // 10KB
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
@@ -32,7 +33,7 @@ public class RequestResponseLoggingFilter extends OncePerRequestFilter {
             return;
         }
 
-        ContentCachingRequestWrapper wrappedRequest = new ContentCachingRequestWrapper(request);
+        ContentCachingRequestWrapper wrappedRequest = new ContentCachingRequestWrapper(request, DEFAULT_MAX_PAYLOAD_LENGTH);
         ContentCachingResponseWrapper wrappedResponse = new ContentCachingResponseWrapper(response);
 
         long startTime = System.currentTimeMillis();

@@ -1,15 +1,16 @@
 plugins {
     java
-    id("org.springframework.boot") version "3.5.4"
+    id("org.springframework.boot") version "4.0.1"
     id("io.spring.dependency-management") version "1.1.7"
 }
 
 group = "pyc.lopatuxin"
 version = "0.0.1-SNAPSHOT"
 
-val springdocVersion = "2.6.0"
+val springdocVersion = "3.0.1"
 val mapstructVersion = "1.6.2"
 val jjwtVersion = "0.12.6"
+val testcontainersVersion = "1.20.4"
 
 java {
     toolchain {
@@ -38,6 +39,7 @@ dependencies {
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
     implementation("org.mapstruct:mapstruct:$mapstructVersion")
     implementation("io.jsonwebtoken:jjwt-api:$jjwtVersion")
+    implementation("org.jspecify:jspecify:1.0.0")
 
     compileOnly("org.projectlombok:lombok")
 
@@ -51,10 +53,11 @@ dependencies {
     annotationProcessor("org.mapstruct:mapstruct-processor:$mapstructVersion")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.springframework.security:spring-security-test")
-    testImplementation("org.testcontainers:junit-jupiter")
-    testImplementation("org.testcontainers:postgresql")
+    testImplementation("org.testcontainers:junit-jupiter:$testcontainersVersion")
+    testImplementation("org.testcontainers:postgresql:$testcontainersVersion")
 
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
