@@ -64,7 +64,7 @@ docker-compose up postgres
 docker-compose up -d postgres
 
 # Connect to PostgreSQL
-docker-compose exec postgres psql -U myuser -d mydatabase
+docker-compose exec budget-postgres psql -U budget_user -d budget_dev
 
 # View Liquibase migration status (if plugin configured)
 ./gradlew liquibaseStatus
@@ -127,12 +127,12 @@ Key points:
 ### Database Configuration
 
 **Local Development (Docker Compose):**
-- Database: `mydatabase`
-- User: `myuser`
-- Password: `secret`
-- Port: `5432`
+- Database: `budget_dev`
+- User: `budget_user`
+- Password: `dev_password`
+- Port: `5433` (external), `5432` (internal)
 
-Connection URL: `jdbc:postgresql://localhost:5432/mydatabase`
+Connection URL: `jdbc:postgresql://localhost:5433/budget_dev`
 
 **Liquibase:**
 - Manages all database schema changes
@@ -192,8 +192,8 @@ docker-compose down -v
 
 # View logs
 docker-compose logs -f
-docker-compose logs auth-app
-docker-compose logs postgres
+docker-compose logs budget-service
+docker-compose logs budget-postgres
 ```
 
 ### Testing with Testcontainers
