@@ -1,0 +1,50 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-create-user-roles-table
+      author: system
+      comment: Создание таблицы ролей пользователей для базового разграничения доступа
+      changes:
+        - createTable:
+            tableName: user_roles
+            remarks: Роли пользователей для базового разграничения доступа
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  remarks: Уникальный идентификатор роли
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: uuid
+                  remarks: Ссылка на пользователя
+                  constraints:
+                    nullable: false
+              - column:
+                  name: role_name
+                  type: varchar(50)
+                  remarks: Название роли (USER, ADMIN, PREMIUM)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: granted_at
+                  type: timestamp
+                  remarks: Время назначения роли
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: user_roles
+            baseColumnNames: user_id
+            constraintName: fk_user_roles_user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+            onUpdate: CASCADE
+      rollback:
+        - dropForeignKeyConstraint:
+            baseTableName: user_roles
+            constraintName: fk_user_roles_user_id
+        - dropTable:
+            tableName: user_roles

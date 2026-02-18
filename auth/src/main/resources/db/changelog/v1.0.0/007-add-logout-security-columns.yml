@@ -1,0 +1,30 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-add-logout-security-columns
+      author: system
+      comment: Добавление полей для отслеживания выхода из системы и версии безопасности
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: last_logout_at
+                  type: timestamp
+                  remarks: Время последнего выхода из системы
+                  constraints:
+                    nullable: true
+              - column:
+                  name: security_version
+                  type: integer
+                  remarks: Версия безопасности для принудительного выхода со всех устройств
+                  defaultValueNumeric: 1
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: last_logout_at
+              - column:
+                  name: security_version

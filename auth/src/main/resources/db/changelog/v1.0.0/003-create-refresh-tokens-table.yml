@@ -1,0 +1,75 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-refresh-tokens-table
+      author: system
+      comment: Создание таблицы для хранения refresh токенов для обновления JWT
+      changes:
+        - createTable:
+            tableName: refresh_tokens
+            remarks: Таблица для хранения refresh токенов для обновления JWT
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  remarks: Уникальный идентификатор токена
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: uuid
+                  remarks: Владелец токена
+                  constraints:
+                    nullable: false
+              - column:
+                  name: token_hash
+                  type: varchar(255)
+                  remarks: Хэш refresh токена
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expires_at
+                  type: timestamp
+                  remarks: Время истечения токена
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_used
+                  type: boolean
+                  remarks: Флаг использования токена
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_agent
+                  type: varchar(500)
+                  remarks: User Agent клиента
+                  constraints:
+                    nullable: true
+              - column:
+                  name: ip_address
+                  type: inet
+                  remarks: IP адрес клиента
+                  constraints:
+                    nullable: true
+              - column:
+                  name: created_at
+                  type: timestamp
+                  remarks: Время создания
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: refresh_tokens
+            baseColumnNames: user_id
+            constraintName: fk_refresh_tokens_user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+            onUpdate: CASCADE
+      rollback:
+        - dropForeignKeyConstraint:
+            baseTableName: refresh_tokens
+            constraintName: fk_refresh_tokens_user_id
+        - dropTable:
+            tableName: refresh_tokens

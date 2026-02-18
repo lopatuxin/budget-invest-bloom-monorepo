@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/changelog-v1.0.0.yml
+  - include:
+      file: db/changelog/v1.0.0/001-create-users-table.yml
+  - include:
+      file: db/changelog/v1.0.0/002-create-user-roles-table.yml
+  - include:
+      file: db/changelog/v1.0.0/003-create-refresh-tokens-table.yml
+  - include:
+      file: db/changelog/v1.0.0/004-create-password-reset-tokens-table.yml
+  - include:
+      file: db/changelog/v1.0.0/005-create-email-verification-tokens-table.yml
+  - include:
+      file: db/changelog/v1.0.0/006-add-failed-login-attempts-columns.yml
+  - include:
+      file: db/changelog/v1.0.0/007-add-logout-security-columns.yml

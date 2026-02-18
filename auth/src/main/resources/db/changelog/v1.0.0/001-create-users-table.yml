@@ -1,0 +1,85 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-users-table
+      author: system
+      comment: Создание основной таблицы пользователей системы
+      changes:
+        - createTable:
+            tableName: users
+            remarks: Основная таблица для хранения пользователей системы
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  remarks: Уникальный идентификатор пользователя
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: username
+                  type: varchar(50)
+                  remarks: Уникальное имя пользователя
+                  constraints:
+                    nullable: true
+              - column:
+                  name: email
+                  type: varchar(255)
+                  remarks: Email адрес пользователя
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: password_hash
+                  type: varchar(255)
+                  remarks: Хэш пароля (bcrypt)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: first_name
+                  type: varchar(100)
+                  remarks: Имя пользователя
+                  constraints:
+                    nullable: true
+              - column:
+                  name: last_name
+                  type: varchar(100)
+                  remarks: Фамилия пользователя
+                  constraints:
+                    nullable: true
+              - column:
+                  name: is_active
+                  type: boolean
+                  remarks: Флаг активности аккаунта
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_verified
+                  type: boolean
+                  remarks: Подтверждение email адреса
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_login_at
+                  type: timestamp
+                  remarks: Время последнего входа
+                  constraints:
+                    nullable: true
+              - column:
+                  name: created_at
+                  type: timestamp
+                  remarks: Время создания
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+                  remarks: Время последнего обновления
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropTable:
+            tableName: users
