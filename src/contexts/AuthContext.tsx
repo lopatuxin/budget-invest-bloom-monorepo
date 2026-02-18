@@ -69,13 +69,25 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
     }, []);
 
     const logout = useCallback(async () => {
-        // Вызываем API logout - если не удалось, выбрасываем ошибку
-        await apiLogout(false);
+        try {
+            // Пытаемся выйти из текущей сессии (требует cookie)
+            await apiLogout(false);
+        } catch (error) {
+            // Если не удалось (нет cookie), выходим со всех устройств
+            console.warn('Logout from current session failed, trying logoutFromAll', error);
+            try {
+                await apiLogout(true);
+            } catch (logoutError) {
+                // Даже если API logout не удался, очищаем локальные данные
+                console.error('Logout API failed:', logoutError);
+            }
+        }
 
-        // Очищаем локальные данные только после успешного logout на бэкенде
+        // Очищаем локальные данные
         // refreshToken автоматически удаляется бекендом через Set-Cookie
         localStorage.removeItem('accessToken');
         localStorage.removeItem('user');
+        localStorage.removeItem('refreshToken'); // На случай если есть старый токен
 
         setIsAuthenticated(false);
         setUser(null);

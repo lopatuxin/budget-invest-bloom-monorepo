@@ -161,7 +161,7 @@ export async function apiRequest<T = unknown>(
  */
 async function refreshAccessToken(): Promise<boolean> {
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/api/auth/refresh`, {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/api/refresh`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
