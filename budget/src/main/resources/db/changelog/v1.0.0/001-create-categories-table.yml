@@ -1,0 +1,61 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-categories-table
+      author: budget-service
+      changes:
+        - createTable:
+            tableName: categories
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: budget
+                  type: decimal(15,2)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: emoji
+                  type: varchar(10)
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp with time zone
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            indexName: idx_categories_user_id
+            tableName: categories
+            columns:
+              - column:
+                  name: user_id
+
+        - addUniqueConstraint:
+            constraintName: uq_categories_user_name
+            tableName: categories
+            columnNames: user_id, name
+
+      rollback:
+        - dropTable:
+            tableName: categories

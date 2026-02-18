@@ -1,0 +1,84 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-create-expenses-table
+      author: budget-service
+      changes:
+        - createTable:
+            tableName: expenses
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: category_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount
+                  type: decimal(15,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: text
+              - column:
+                  name: date
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp with time zone
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            constraintName: fk_expenses_category
+            baseTableName: expenses
+            baseColumnNames: category_id
+            referencedTableName: categories
+            referencedColumnNames: id
+            onDelete: RESTRICT
+
+        - createIndex:
+            indexName: idx_expenses_user_date
+            tableName: expenses
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: date
+
+        - createIndex:
+            indexName: idx_expenses_user_category_date
+            tableName: expenses
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: category_id
+              - column:
+                  name: date
+
+        - sql:
+            sql: ALTER TABLE expenses ADD CONSTRAINT chk_expenses_amount CHECK (amount > 0)
+
+      rollback:
+        - dropTable:
+            tableName: expenses

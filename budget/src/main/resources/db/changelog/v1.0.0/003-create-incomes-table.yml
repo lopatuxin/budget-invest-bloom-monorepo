@@ -1,0 +1,68 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-incomes-table
+      author: budget-service
+      changes:
+        - createTable:
+            tableName: incomes
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount
+                  type: decimal(15,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: text
+              - column:
+                  name: date
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp with time zone
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            indexName: idx_incomes_user_date
+            tableName: incomes
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: date
+
+        - sql:
+            sql: |
+              ALTER TABLE incomes ADD CONSTRAINT chk_incomes_amount CHECK (amount > 0);
+              ALTER TABLE incomes ADD CONSTRAINT chk_incomes_source
+                CHECK (source IN ('SALARY', 'FREELANCE', 'INVESTMENTS', 'GIFTS', 'OTHER'));
+
+      rollback:
+        - dropTable:
+            tableName: incomes

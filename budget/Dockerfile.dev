@@ -1,0 +1,39 @@
+# Dockerfile для development с hot-reload
+# Используем базовый образ Eclipse Temurin JDK 24
+FROM eclipse-temurin:24-jdk AS base
+
+# Устанавливаем Gradle 8.14 (поддерживает Java 24)
+ENV GRADLE_VERSION=8.14.2
+ENV GRADLE_HOME=/opt/gradle
+RUN apt-get update && apt-get install -y wget unzip curl && \
+    wget https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip && \
+    unzip gradle-${GRADLE_VERSION}-bin.zip && \
+    mv gradle-${GRADLE_VERSION} ${GRADLE_HOME} && \
+    rm gradle-${GRADLE_VERSION}-bin.zip && \
+    ln -s ${GRADLE_HOME}/bin/gradle /usr/bin/gradle
+
+WORKDIR /app
+
+# Копируем файлы конфигурации Gradle для кэширования зависимостей
+COPY build.gradle.kts settings.gradle.kts ./
+COPY gradle gradle
+
+# Загружаем зависимости (этот слой будет кэшироваться)
+RUN gradle dependencies --no-daemon || true
+
+# Копируем исходный код
+COPY src ./src
+
+# Устанавливаем переменные окружения для development
+ENV SPRING_PROFILES_ACTIVE=dev
+ENV GRADLE_OPTS="-Dorg.gradle.daemon=false --add-opens=java.base/java.lang=ALL-UNNAMED"
+ENV JAVA_TOOL_OPTIONS="--enable-native-access=ALL-UNNAMED"
+
+# Открываем порт приложения
+EXPOSE 8083
+
+# Открываем порт для LiveReload (Spring DevTools)
+EXPOSE 35730
+
+# Запускаем приложение с bootRun (поддержка hot-reload через DevTools)
+CMD ["gradle", "bootRun", "--no-daemon", "--continuous"]
