@@ -1,0 +1,110 @@
+import {createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback} from 'react';
+import {apiLogout} from '@/lib/api';
+
+interface User {
+    userId: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    name?: string;
+    isActive: boolean;
+    isVerified: boolean;
+    roles: string[];
+    lastLoginAt: string;
+}
+
+interface AuthContextType {
+    isAuthenticated: boolean;
+    user: User | null;
+    accessToken: string | null;
+    logout: () => Promise<void>;
+    setAuthData: (accessToken: string, user: User) => void;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const useAuth = () => {
+    const context = useContext(AuthContext);
+    if (context === undefined) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
+    return context;
+};
+
+interface AuthProviderProps {
+    children: ReactNode;
+}
+
+export const AuthProvider = ({children}: AuthProviderProps) => {
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [user, setUser] = useState<User | null>(null);
+    const [accessToken, setAccessToken] = useState<string | null>(null);
+
+    // Проверяем наличие токенов при инициализации
+    useEffect(() => {
+        const token = localStorage.getItem('accessToken');
+        const userData = localStorage.getItem('user');
+
+        if (token && userData && userData !== 'undefined' && userData !== 'null') {
+            try {
+                setAccessToken(token);
+                setUser(JSON.parse(userData));
+                setIsAuthenticated(true);
+            } catch (error) {
+                console.error('Failed to parse user data from localStorage:', error);
+                // Очищаем некорректные данные
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('user');
+            }
+        }
+    }, []);
+
+    const setAuthData = useCallback((newAccessToken: string, userData: User) => {
+        localStorage.setItem('accessToken', newAccessToken);
+        localStorage.setItem('user', JSON.stringify(userData));
+
+        setAccessToken(newAccessToken);
+        setUser(userData);
+        setIsAuthenticated(true);
+    }, []);
+
+    const logout = useCallback(async () => {
+        try {
+            // Пытаемся выйти из текущей сессии (требует cookie)
+            await apiLogout(false);
+        } catch (error) {
+            // Если не удалось (нет cookie), выходим со всех устройств
+            console.warn('Logout from current session failed, trying logoutFromAll', error);
+            try {
+                await apiLogout(true);
+            } catch (logoutError) {
+                // Даже если API logout не удался, очищаем локальные данные
+                console.error('Logout API failed:', logoutError);
+            }
+        }
+
+        // Очищаем локальные данные
+        // refreshToken автоматически удаляется бекендом через Set-Cookie
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('user');
+        localStorage.removeItem('refreshToken'); // На случай если есть старый токен
+
+        setIsAuthenticated(false);
+        setUser(null);
+        setAccessToken(null);
+
+        // Перенаправляем на страницу логина
+        globalThis.location.href = '/login';
+    }, []);
+
+    const value = useMemo(
+        () => ({isAuthenticated, user, accessToken, logout, setAuthData}),
+        [isAuthenticated, user, accessToken, logout, setAuthData]
+    );
+
+    return (
+        <AuthContext.Provider value={value}>
+            {children}
+        </AuthContext.Provider>
+    );
+};
