@@ -12,11 +12,11 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Expose Vite dev server port
-EXPOSE 8080
+# Expose Vite dev server port (must match docker-compose mapping host:8080 -> container:8082)
+EXPOSE 8082
 
-# Start development server with hot-reload
-CMD ["npm", "run", "dev"]
+# Start development server with hot-reload, override port to 8082
+CMD ["npm", "run", "dev", "--", "--port", "8082", "--host"]
 
 # Production build stage
 FROM node:20-alpine AS build

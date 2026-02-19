@@ -12,13 +12,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Services
 
-| Service | Directory | Tech | Port | Context Path |
+| Service | Directory | Java Package / Stack | Port | Context Path |
 |---|---|---|---|---|
-| Auth | `auth/` | Spring Boot 4.0.1, Java 24 | 8081 | `/auth` |
-| Budget | `budget/` | Spring Boot 4.0.0, Java 24 | 8083 | — |
-| Frontend | `budget-invest-bloom/` | React 18 + Vite + TypeScript | 8080 (dev) | — |
+| Auth | `auth/` | `pyc.lopatuxin.auth` · Spring Boot 4.0.1, Java 24 | 8081 | `/auth` |
+| Budget | `budget/` | `pyc.lopatuxin.budget` · Spring Boot 4.0.0, Java 24 | 8083 | — (none currently) |
+| Frontend | `budget-invest-bloom/` | React 18 + Vite (SWC) + TypeScript | 8080 (dev) | — |
 
 All services are orchestrated via the root `docker-compose.yml`. Each backend has its own PostgreSQL instance (auth on port 5432, budget on port 5433).
+
+### Docker Port Mapping
+- Auth: `8081:8081`
+- Budget: `8083:8083`
+- Frontend: `8080:8082` (host 8080 → container 8082, Dockerfile overrides Vite port)
+- Port `8082` is reserved for a future API Gateway (not yet implemented)
+
+## Пользовательские команды
+
+### *коммит
+Когда пользователь пишет `*коммит`, нужно:
+1. Выполнить `git diff` и `git status`, чтобы увидеть все изменения
+2. Составить подробное сообщение коммита на русском языке, описывающее все изменения
+3. Стиль сообщения — прошедшее время первого лица: «Добавил», «Исправил», «Удалил» и т.д.
+4. Вывести готовое сообщение коммита пользователю — **без выполнения самого коммита**
 
 ## Development Commands
 
@@ -89,13 +104,19 @@ All response messages must be in Russian. The `id` field is for distributed trac
 ### Auth Service Architecture
 
 - **JWT-based auth** with access tokens (15min) and refresh tokens (7 days) using JJWT library
-- Refresh tokens stored in HttpOnly cookies; access tokens in localStorage on frontend
+- Refresh tokens stored in HttpOnly cookies (path `/auth`, SameSite `Lax`); access tokens in localStorage on frontend
+- **Refresh Token Rotation** — old token invalidated on each refresh
 - **Account lockout** after failed login attempts (`failed_login_attempts`, `locked_until` columns)
 - **Security versioning** for forced logout from all devices (`security_version` column)
+- Security: `SecurityConfig` + `JwtAuthenticationFilter` + `spring-boot-starter-oauth2-resource-server`
 - Controllers: `RegisterController`, `LoginController`, `LogoutController`, `RefreshController`
 - Endpoints: `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, `/api/refresh`
+- Entities: `User`, `UserRole`, `RefreshToken`, `PasswordResetToken`, `EmailVerificationToken`
 - MapStruct for entity-DTO mapping, SpringDoc OpenAPI for API docs
-- Has custom `.claude/agents/` for java-code-writer and liquibase-migration-manager subagents
+- `SensitiveDataMasker` utility for log masking (auth-only, not shared)
+- Has custom `.claude/agents/` for `java-code-writer` and `liquibase-migration-manager` subagents
+
+> **Note:** Auth `docs/` describe planned features (Redis caching, Kafka events, OAuth2, 2FA, SMS/Email verification) that are **not yet implemented** in code. Treat docs as roadmap, not current state.
 
 ### Budget Service Architecture
 
@@ -103,18 +124,22 @@ All response messages must be in Russian. The `id` field is for distributed trac
 - Entities: `Category`, `Expense`, `Income`, `CapitalRecord`
 - Enums: `IncomeSource`, `MetricType`, `UserRole`
 - Currently in early development (entities defined, no controllers/services yet)
-- Uses `SensitiveDataMasker` pattern for log masking (from shared conventions)
+
+> **Warning:** `budget/docs/api/budget-api-specification.md` contains code examples using `@Data` and database indexes — these **violate project conventions**. Follow the Java Code Conventions section below, not the doc examples.
 
 ### Frontend Architecture
 
 - Built with Vite + React 18 + TypeScript + shadcn/ui + Tailwind CSS
 - Originally scaffolded with [Lovable](https://lovable.dev)
 - State: React Context (`AuthContext`) for auth, `@tanstack/react-query` for server state
+- Forms: `react-hook-form` + `zod` for validation (`@hookform/resolvers`)
+- Charts: `recharts` library for data visualization
 - Routing: `react-router-dom` v6 — pages in `src/pages/`, layout via `Navigation` component
-- Error tracking: Sentry (`@sentry/react`) with ErrorBoundary wrapper
+- Error tracking: Sentry (`@sentry/react`) with ErrorBoundary, replay, browser tracing
 - API client: `src/lib/api.ts` — handles JWT attachment, automatic token refresh on 401, and redirect to `/login` on session expiry
 - UI components: `src/components/ui/` (shadcn/ui library), custom components at `src/components/`
 - Path alias: `@/` maps to `src/`
+- TypeScript is non-strict (`strictNullChecks: false`, `noImplicitAny: false`)
 
 ## Database Migrations (Liquibase)
 
@@ -159,9 +184,20 @@ src/main/resources/db/changelog/
 - Always check `docs/` folder before writing code to ensure alignment with specifications
 - Tests use Testcontainers with real PostgreSQL — Docker must be running
 
+## Environment Variables
+
+### Frontend (`budget-invest-bloom/.env`)
+- `VITE_API_BASE_URL` — Backend API base URL (default: `http://localhost:8082`, intended for API Gateway)
+- `VITE_SENTRY_DSN` — Sentry DSN for error tracking
+- `VITE_SENTRY_TRACES_SAMPLE_RATE` — Sentry trace sampling rate
+
+### Backend (via docker-compose or application-dev.yml)
+- `SPRING_DATASOURCE_URL` — PostgreSQL connection (auth: `localhost:5432/auth_dev`, budget: `localhost:5433/budget_dev`)
+- Auth JWT settings configured in `application-dev.yml` under `jwt.*` properties
+
 ## Key Documentation Locations
 
-- `auth/docs/` — Auth service specs (endpoints, DB schema, API format)
+- `auth/docs/` — Auth service specs (endpoints, DB schema, API format). **Caution:** docs describe planned features (Redis, Kafka, OAuth2) not yet in code
 - `budget/docs/setup/` — Budget service setup guides (Docker, Liquibase, logging)
-- `budget/docs/api/` — Budget API specification
+- `budget/docs/api/` — Budget API specification. **Caution:** contains code examples that violate project conventions
 - Both services share `standartRequestAndResponse.md` defining the unified API contract
