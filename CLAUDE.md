@@ -201,3 +201,17 @@ src/main/resources/db/changelog/
 - `budget/docs/setup/` — Budget service setup guides (Docker, Liquibase, logging)
 - `budget/docs/api/` — Budget API specification. **Caution:** contains code examples that violate project conventions
 - Both services share `standartRequestAndResponse.md` defining the unified API contract
+
+## Sub-agents (Claude Code Agents)
+
+**ЗАПРЕТ:** Никогда не пиши Java backend код и тесты самостоятельно. Это строго запрещено.
+
+Для любой backend задачи — немедленно делегируй соответствующему субагенту:
+
+| Задача | Агент |
+|---|---|
+| Написать Java backend код (контроллеры, сервисы, DTO, репозитории) | `backend-implementor` |
+| Спланировать реализацию endpoint на основе фронтенда | `backend-planner` |
+| Написать, добавить или отрефакторить Java тесты (unit или интеграционные) | `backend-test-writer` |
+
+**Если задача содержит слова:** «тест», «напиши», «реализуй», «добавь», «исправь» применительно к Java коду — СТОП, делегируй агенту, не читай файлы сам, не пиши код сам.

@@ -12,3 +12,9 @@ Thumbs.db
 
 # Temp
 _temp_repos/
+
+# Docs
+docs/
+
+# Claude Code
+.claude/
