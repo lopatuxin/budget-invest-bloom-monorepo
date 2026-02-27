@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
@@ -21,6 +22,10 @@ import java.util.List;
  * Настройка {@code allowCredentials = true} обязательна для корректной передачи
  * HttpOnly cookie с refresh-токеном из браузера через Gateway в Auth-сервис.
  * </p>
+ * <p>
+ * {@link CorsConfigurationSource} публикуется отдельным бином, чтобы
+ * {@link SecurityConfig} мог явно ссылаться на ту же CORS-политику.
+ * </p>
  */
 @Configuration
 public class CorsConfig {
@@ -37,20 +42,21 @@ public class CorsConfig {
     private String allowedOrigins;
 
     /**
-     * Создаёт и регистрирует {@link CorsWebFilter} для всех путей ({@code /**}).
+     * Регистрирует {@link CorsConfigurationSource} как бин Spring-контекста.
      * <p>
-     * Разрешённые HTTP-методы: {@code GET}, {@code POST}, {@code PUT},
-     * {@code DELETE}, {@code OPTIONS}.
+     * Источник применяется ко всем путям ({@code /**}) с разрешёнными методами
+     * {@code GET}, {@code POST}, {@code PUT}, {@code DELETE}, {@code OPTIONS}
+     * и заголовками {@code Authorization}, {@code Content-Type}, {@code X-Request-ID}.
      * </p>
      * <p>
-     * Разрешённые заголовки: {@code Authorization}, {@code Content-Type},
-     * {@code X-Request-ID}.
+     * Бин используется совместно {@link CorsWebFilter} и {@link SecurityConfig},
+     * чтобы CORS-политика применялась единообразно.
      * </p>
      *
-     * @return настроенный {@link CorsWebFilter}
+     * @return настроенный {@link CorsConfigurationSource}
      */
     @Bean
-    public CorsWebFilter corsWebFilter() {
+    public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration corsConfiguration = new CorsConfiguration();
 
         corsConfiguration.setAllowedOrigins(List.of(allowedOrigins.split(",")));
@@ -61,6 +67,21 @@ public class CorsConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", corsConfiguration);
 
-        return new CorsWebFilter(source);
+        return source;
+    }
+
+    /**
+     * Создаёт и регистрирует {@link CorsWebFilter} для всех путей ({@code /**}).
+     * <p>
+     * Использует {@link CorsConfigurationSource}, зарегистрированный в
+     * {@link #corsConfigurationSource()}, для единой точки управления CORS-политикой.
+     * </p>
+     *
+     * @param corsConfigurationSource источник CORS-конфигурации
+     * @return настроенный {@link CorsWebFilter}
+     */
+    @Bean
+    public CorsWebFilter corsWebFilter(CorsConfigurationSource corsConfigurationSource) {
+        return new CorsWebFilter(corsConfigurationSource);
     }
 }
