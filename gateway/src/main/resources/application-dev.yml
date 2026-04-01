@@ -10,7 +10,27 @@ spring:
 
   cloud:
     gateway:
-      routes: []
+      routes:
+        - id: auth-public
+          uri: ${gateway.services.auth-url}
+          predicates:
+            - Path=/auth/api/login,/auth/api/register,/auth/api/refresh
+          filters:
+            - PreserveHostHeader
+
+        - id: auth-protected
+          uri: ${gateway.services.auth-url}
+          predicates:
+            - Path=/auth/api/auth/logout
+          filters:
+            - PreserveHostHeader
+
+        - id: budget
+          uri: ${gateway.services.budget-url}
+          predicates:
+            - Path=/api/budget/**
+          filters:
+            - UserEnrichment
 
   devtools:
     restart:

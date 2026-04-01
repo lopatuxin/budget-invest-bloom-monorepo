@@ -16,15 +16,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 |---|---|---|---|---|
 | Auth | `auth/` | `pyc.lopatuxin.auth` · Spring Boot 4.0.1, Java 24 | 8081 | `/auth` |
 | Budget | `budget/` | `pyc.lopatuxin.budget` · Spring Boot 4.0.0, Java 24 | 8083 | — (none currently) |
+| Gateway | `gateway/` | `pyc.lopatuxin.gateway` · Spring Cloud Gateway 2025.1.1, Java 24 | 8082 | — |
 | Frontend | `budget-invest-bloom/` | React 18 + Vite (SWC) + TypeScript | 8080 (dev) | — |
 
-All services are orchestrated via the root `docker-compose.yml`. Each backend has its own PostgreSQL instance (auth on port 5432, budget on port 5433).
+All services are orchestrated via the root `docker-compose.yml`. Each backend has its own PostgreSQL instance (auth on port 5432, budget on port 5433). Gateway has no database.
 
 ### Docker Port Mapping
 - Auth: `8081:8081`
 - Budget: `8083:8083`
+- Gateway: `8082:8082`
 - Frontend: `8080:8082` (host 8080 → container 8082, Dockerfile overrides Vite port)
-- Port `8082` is reserved for a future API Gateway (not yet implemented)
 
 ## Пользовательские команды
 
@@ -61,6 +62,12 @@ docker-compose down -v               # Stop all and remove volumes (clean slate)
 ./gradlew test --tests "ClassName"   # Run specific test class
 ```
 
+### Gateway Service (from `gateway/`)
+```bash
+./gradlew build                      # Build
+./gradlew bootRun                    # Run locally (needs Auth service for JWT validation)
+```
+
 ### Frontend (from `budget-invest-bloom/`)
 ```bash
 npm install                          # Install dependencies
@@ -73,10 +80,11 @@ npm run lint                         # ESLint
 
 ### Inter-Service Communication
 
-The system is designed around an **API Gateway pattern** (not yet implemented as a separate service):
-- Frontend calls backend APIs via `VITE_API_BASE_URL` (default `http://localhost:8082`)
-- The `user` block in API requests is meant to be populated by the API Gateway from JWT tokens
-- Auth service handles JWT issuance; other services trust the user context passed in request bodies
+The system uses an **API Gateway pattern** implemented in `gateway/` (Spring Cloud Gateway, WebFlux-based):
+- Frontend calls backend APIs via `VITE_API_BASE_URL` (default `http://localhost:8082`) → Gateway
+- Gateway validates JWT tokens via OAuth2 Resource Server (issuer: Auth service)
+- `UserEnrichmentFilter` extracts user context from JWT and injects the `user` block into request bodies
+- Auth service handles JWT issuance; other services trust the user context passed by Gateway
 
 ### Unified API Contract (Mandatory for All Services)
 
@@ -117,6 +125,18 @@ All response messages must be in Russian. The `id` field is for distributed trac
 - Has custom `.claude/agents/` for `java-code-writer` and `liquibase-migration-manager` subagents
 
 > **Note:** Auth `docs/` describe planned features (Redis caching, Kafka events, OAuth2, 2FA, SMS/Email verification) that are **not yet implemented** in code. Treat docs as roadmap, not current state.
+
+### Gateway Service Architecture
+
+- **Spring Cloud Gateway 2025.1.1** (WebFlux-based, non-blocking)
+- OAuth2 Resource Server with JWT validation against Auth service issuer URI
+- `UserEnrichmentFilter` — global filter that decodes JWT claims and wraps request body with `user` context
+- `CorsConfig` — configurable CORS via `gateway.services.cors.allowed-origins`
+- `JacksonConfig` — JSON serialization settings
+- DTOs: `UserContext`, `EnrichedRequest`
+- No database, no Liquibase migrations
+- Routes configured in `application-dev.yml` (currently empty, to be populated)
+- **Build file**: `build.gradle` (Groovy DSL, unlike other services which use Kotlin DSL)
 
 ### Budget Service Architecture
 
@@ -195,6 +215,12 @@ src/main/resources/db/changelog/
 - `SPRING_DATASOURCE_URL` — PostgreSQL connection (auth: `localhost:5432/auth_dev`, budget: `localhost:5433/budget_dev`)
 - Auth JWT settings configured in `application-dev.yml` under `jwt.*` properties
 
+### Gateway (via application-dev.yml)
+- `JWT_ISSUER_URI` — Auth service URL for JWT validation (default: `http://auth:8081/auth`)
+- `AUTH_SERVICE_URL` — Auth service backend URL for routing
+- `BUDGET_SERVICE_URL` — Budget service backend URL for routing
+- `GATEWAY_CORS_ALLOWED_ORIGINS` — Allowed CORS origins
+
 ## Key Documentation Locations
 
 - `auth/docs/` — Auth service specs (endpoints, DB schema, API format). **Caution:** docs describe planned features (Redis, Kafka, OAuth2) not yet in code
@@ -221,8 +247,8 @@ src/main/resources/db/changelog/
 «тест», «напиши», «реализуй», «добавь», «исправь», «выполни», «сделай», «создай», «инициализируй», «настрой», «обнови», «implement», «create», «задачу», «таск», «task»
 — **СТОП. Немедленно делегируй агенту. Не читай файлы сам. Не анализируй структуру сам. Не пиши код сам.**
 
-+**Если задача содержит слова:** «архитектура», «не нравится», «как устроить», «как сервисы общаются»,
-+«какой подход», «что выбрать» — И при этом НЕТ готового таск-файла или плана — СТОП, сначала `backend-architect`.
-+
-+**Если есть готовый таск-файл или план реализации** — это задача для `backend-implementor`,
-+даже если файл называется «gateway», «infrastructure», «architecture» или содержит слова про новые сервисы.
+**Если задача содержит слова:** «архитектура», «не нравится», «как устроить», «как сервисы общаются»,
+«какой подход», «что выбрать» — И при этом НЕТ готового таск-файла или плана — СТОП, сначала `backend-architect`.
+
+**Если есть готовый таск-файл или план реализации** — это задача для `backend-implementor`,
+даже если файл называется «gateway», «infrastructure», «architecture» или содержит слова про новые сервисы.

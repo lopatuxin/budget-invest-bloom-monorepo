@@ -53,13 +53,13 @@ public class SecurityConfig {
      * <p>
      * Публичные пути (JWT не требуется):
      * <ul>
-     *   <li>{@code POST /api/auth/register}</li>
-     *   <li>{@code POST /api/auth/login}</li>
-     *   <li>{@code POST /api/refresh}</li>
+     *   <li>{@code POST /auth/api/register}</li>
+     *   <li>{@code POST /auth/api/login}</li>
+     *   <li>{@code POST /auth/api/refresh}</li>
      * </ul>
      * Защищённые пути (JWT обязателен):
      * <ul>
-     *   <li>{@code POST /api/auth/logout}</li>
+     *   <li>{@code POST /auth/api/auth/logout}</li>
      *   <li>{@code /api/budget/**} — все методы</li>
      * </ul>
      * </p>
@@ -80,10 +80,10 @@ public class SecurityConfig {
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
                 .cors(corsSpec -> corsSpec.configurationSource(corsConfigurationSource))
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
-                        .pathMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                        .pathMatchers(HttpMethod.POST, "/api/refresh").permitAll()
-                        .pathMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
+                        .pathMatchers(HttpMethod.POST, "/auth/api/register").permitAll()
+                        .pathMatchers(HttpMethod.POST, "/auth/api/login").permitAll()
+                        .pathMatchers(HttpMethod.POST, "/auth/api/refresh").permitAll()
+                        .pathMatchers(HttpMethod.POST, "/auth/api/auth/logout").authenticated()
                         .pathMatchers("/api/budget/**").authenticated()
                         .anyExchange().authenticated()
                 )
