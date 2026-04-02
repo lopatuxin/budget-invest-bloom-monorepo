@@ -8,6 +8,10 @@ group = "pyc.lopatuxin"
 version = "0.0.1-SNAPSHOT"
 description = "budget"
 
+springBoot {
+    mainClass.set("pyc.lopatuxin.budget.BudgetApplication")
+}
+
 val testcontainersVersion = "1.20.4"
 
 java {

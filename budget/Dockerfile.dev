@@ -35,5 +35,9 @@ EXPOSE 8083
 # Открываем порт для LiveReload (Spring DevTools)
 EXPOSE 35730
 
-# Запускаем приложение с bootRun (поддержка hot-reload через DevTools)
-CMD ["gradle", "bootRun", "--no-daemon", "--continuous"]
+# Entrypoint: bootRun компилирует и запускает приложение,
+# фоновый цикл периодически перекомпилирует классы при изменениях в src/
+# Spring DevTools подхватывает изменённые .class файлы и перезапускает приложение
+CMD bash -c "\
+  (while true; do sleep 10; gradle classes --no-daemon 2>/dev/null || true; done) & \
+  gradle bootRun --no-daemon"

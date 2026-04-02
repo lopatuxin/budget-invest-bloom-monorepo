@@ -80,6 +80,7 @@ public class SecurityConfig {
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
                 .cors(corsSpec -> corsSpec.configurationSource(corsConfigurationSource))
                 .authorizeExchange(exchanges -> exchanges
+                        .pathMatchers("/actuator/**").permitAll()
                         .pathMatchers(HttpMethod.POST, "/auth/api/register").permitAll()
                         .pathMatchers(HttpMethod.POST, "/auth/api/login").permitAll()
                         .pathMatchers(HttpMethod.POST, "/auth/api/refresh").permitAll()

@@ -7,6 +7,10 @@ plugins {
 group = "pyc.lopatuxin"
 version = "0.0.1-SNAPSHOT"
 
+springBoot {
+    mainClass.set("pyc.lopatuxin.auth.AuthApplication")
+}
+
 val springdocVersion = "3.0.1"
 val mapstructVersion = "1.6.2"
 val jjwtVersion = "0.12.6"
@@ -36,6 +40,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.liquibase:liquibase-core")
+    implementation("org.springframework.boot:spring-boot-liquibase")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
     implementation("org.mapstruct:mapstruct:$mapstructVersion")
     implementation("io.jsonwebtoken:jjwt-api:$jjwtVersion")

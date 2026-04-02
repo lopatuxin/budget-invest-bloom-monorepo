@@ -8,6 +8,10 @@ group = 'pyc.lopatuxin'
 version = '0.0.1-SNAPSHOT'
 description = 'gateway'
 
+springBoot {
+    mainClass = 'pyc.lopatuxin.gateway.GatewayApplication'
+}
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(24)

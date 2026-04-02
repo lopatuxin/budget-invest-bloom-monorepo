@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y wget unzip curl && \
 WORKDIR /app
 
 # Копируем файлы конфигурации Gradle для кэширования зависимостей
-COPY build.gradle.kts settings.gradle.kts ./
+COPY build.gradle settings.gradle ./
 COPY gradle gradle
 
 # Загружаем зависимости (этот слой будет кэшироваться)
@@ -30,10 +30,10 @@ ENV GRADLE_OPTS="-Dorg.gradle.daemon=false --add-opens=java.base/java.lang=ALL-U
 ENV JAVA_TOOL_OPTIONS="--enable-native-access=ALL-UNNAMED"
 
 # Открываем порт приложения
-EXPOSE 8081
+EXPOSE 8082
 
 # Открываем порт для LiveReload (Spring DevTools)
-EXPOSE 35729
+EXPOSE 35731
 
 # Entrypoint: bootRun компилирует и запускает приложение,
 # фоновый цикл периодически перекомпилирует классы при изменениях в src/
