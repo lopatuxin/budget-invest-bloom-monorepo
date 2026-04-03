@@ -4,17 +4,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Minus, DollarSign, CreditCard, Wallet, TrendingUp } from 'lucide-react';
+import { Plus, Minus, DollarSign, Wallet, TrendingUp, Loader2 } from 'lucide-react';
 import FinanceCard from '@/components/FinanceCard';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { useBudgetSummary } from '@/hooks/useBudgetSummary';
 
 const Budget = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [selectedMonth, setSelectedMonth] = useState('12');
-  const [selectedYear, setSelectedYear] = useState('2024');
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(String(now.getMonth() + 1));
+  const [selectedYear, setSelectedYear] = useState(String(now.getFullYear()));
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedOperationType, setSelectedOperationType] = useState<'expense' | 'income' | 'category' | null>(null);
   const [expenseForm, setExpenseForm] = useState({
@@ -33,12 +35,29 @@ const Budget = () => {
     emoji: ''
   });
 
-  // Примерные данные
-  const income = 150000;
-  const expenses = 89500;
-  const balance = income - expenses;
-  const capital = 875000; // Общий капитал (инвестиции + остаток + другие активы)
-  const personalInflation = 6.8; // Личная инфляция в процентах
+  const { data: summaryData, isLoading, error } = useBudgetSummary(selectedMonth, selectedYear);
+
+  if (error) {
+    toast({
+      title: "Ошибка загрузки",
+      description: summaryData?.message || "Не удалось загрузить данные бюджета",
+      variant: "destructive",
+    });
+  }
+
+  const summary = summaryData?.body;
+  const income = summary?.income ?? 0;
+  const expenses = summary?.expenses ?? 0;
+  const balance = summary?.balance ?? 0;
+  const capital = summary?.capital ?? 0;
+  const personalInflation = summary?.personalInflation ?? 0;
+  const categories = summary?.categories ?? [];
+  const trends = summary?.trends;
+
+  const parseTrend = (trendStr?: string) => {
+    if (!trendStr) return { value: "0%", isPositive: true };
+    return { value: trendStr, isPositive: trendStr.startsWith('+') };
+  };
 
   const months = [
     { value: '1', label: 'Январь' },
@@ -57,16 +76,8 @@ const Budget = () => {
 
   const years = ['2022', '2023', '2024', '2025'];
 
-  const categories = [
-    { name: 'Еда', amount: 25000, budget: 30000, emoji: '🍽️' },
-    { name: 'Транспорт', amount: 15000, budget: 20000, emoji: '🚗' },
-    { name: 'Развлечения', amount: 12000, budget: 15000, emoji: '🎬' },
-    { name: 'Коммунальные', amount: 18000, budget: 18000, emoji: '🏠' },
-    { name: 'Здоровье', amount: 8500, budget: 10000, emoji: '🏥' },
-    { name: 'Прочее', amount: 11000, budget: 15000, emoji: '📦' },
-  ];
-
   const getProgressPercentage = (amount: number, budget: number) => {
+    if (budget === 0) return 0;
     return Math.min((amount / budget) * 100, 100);
   };
 
@@ -138,13 +149,19 @@ const Budget = () => {
     <div className="h-[calc(100vh-4rem)] bg-gradient-background overflow-hidden">
       <div className="max-w-7xl mx-auto p-6">
 
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        )}
+
         {/* Карточки обзора */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
           <FinanceCard
             title="Доходы"
             value={`₽${income.toLocaleString()}`}
             icon={<Plus className="w-5 h-5" />}
-            trend={{ value: "+8.2%", isPositive: true }}
+            trend={parseTrend(trends?.income)}
             gradient="success"
             onClick={() => navigate('/budget/metric/income')}
           />
@@ -152,7 +169,7 @@ const Budget = () => {
             title="Расходы"
             value={`₽${expenses.toLocaleString()}`}
             icon={<Minus className="w-5 h-5" />}
-            trend={{ value: "+3.1%", isPositive: false }}
+            trend={parseTrend(trends?.expenses)}
             gradient="secondary"
             onClick={() => navigate('/budget/metric/expenses')}
           />
@@ -160,7 +177,7 @@ const Budget = () => {
             title="Остаток"
             value={`₽${balance.toLocaleString()}`}
             icon={<DollarSign className="w-5 h-5" />}
-            trend={{ value: "+12.8%", isPositive: true }}
+            trend={parseTrend(trends?.balance)}
             gradient="primary"
             onClick={() => navigate('/budget/metric/balance')}
           />
@@ -168,7 +185,7 @@ const Budget = () => {
             title="Капитал"
             value={`₽${capital.toLocaleString()}`}
             icon={<Wallet className="w-5 h-5" />}
-            trend={{ value: "+15.4%", isPositive: true }}
+            trend={parseTrend(trends?.capital)}
             gradient="primary"
             onClick={() => navigate('/budget/metric/capital')}
           />
@@ -176,7 +193,7 @@ const Budget = () => {
             title="Личная инфляция"
             value={`${personalInflation}%`}
             icon={<TrendingUp className="w-5 h-5" />}
-            trend={{ value: "+0.3%", isPositive: false }}
+            trend={parseTrend(trends?.inflation)}
             gradient="secondary"
             onClick={() => navigate('/budget/metric/inflation')}
           />
@@ -425,13 +442,13 @@ const Budget = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto">
-              {categories.map((category, index) => {
+              {categories.map((category) => {
                 const percentage = getProgressPercentage(category.amount, category.budget);
                 const isOverBudget = category.amount > category.budget;
-                
+
                 return (
-                  <div 
-                    key={index} 
+                  <div
+                    key={category.id || category.name}
                     className="relative space-y-2 p-2 rounded-lg transition-all duration-300 hover:shadow-card hover:scale-105 cursor-pointer border border-transparent hover:border-border/20 overflow-hidden"
                     onClick={() => navigate(`/budget/category/${encodeURIComponent(category.name)}`)}
                   >

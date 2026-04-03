@@ -87,12 +87,12 @@ public class UserEnrichmentFilter extends AbstractGatewayFilterFactory<Object> {
                                         .flatMap(jwtToken -> {
                                             Map<String, Object> claims = jwtToken.getToken().getClaims();
 
-                                            String sub = (String) claims.get("sub");
-                                            String email = (String) claims.get("email");
+                                            String userIdRaw = (String) claims.get("userId");
+                                            String email = (String) claims.get("sub");
                                             String role = (String) claims.get("role");
                                             String sessionIdRaw = (String) claims.get("sessionId");
 
-                                            UUID userId = sub != null ? UUID.fromString(sub) : null;
+                                            UUID userId = userIdRaw != null ? UUID.fromString(userIdRaw) : null;
                                             UUID sessionId = sessionIdRaw != null
                                                     ? UUID.fromString(sessionIdRaw)
                                                     : null;

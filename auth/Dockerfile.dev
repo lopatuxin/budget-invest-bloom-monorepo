@@ -36,8 +36,8 @@ EXPOSE 8081
 EXPOSE 35729
 
 # Entrypoint: bootRun компилирует и запускает приложение,
-# фоновый цикл периодически перекомпилирует классы при изменениях в src/
+# gradle --continuous отслеживает изменения файлов и перекомпилирует классы только при необходимости,
 # Spring DevTools подхватывает изменённые .class файлы и перезапускает приложение
 CMD bash -c "\
-  (while true; do sleep 10; gradle classes --no-daemon 2>/dev/null || true; done) & \
+  (gradle classes --continuous --no-daemon 2>/dev/null &) & \
   gradle bootRun --no-daemon"

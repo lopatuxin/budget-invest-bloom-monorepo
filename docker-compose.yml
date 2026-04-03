@@ -147,8 +147,8 @@ services:
       # Spring Configuration
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
 
-      # JWT Configuration (issuer URI points to auth service inside Docker network)
-      JWT_ISSUER_URI: ${JWT_ISSUER_URI:-http://auth-service:8081/auth}
+      # JWT Configuration (общий HMAC-ключ с Auth сервисом)
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
 
       # Service URLs (inside Docker network)
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
