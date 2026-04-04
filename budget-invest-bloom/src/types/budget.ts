@@ -33,3 +33,19 @@ export interface ApiResponse<T> {
   timestamp: string;
   body: T;
 }
+
+export interface MonthlyIncome {
+  month: number;
+  monthName: string;
+  amount: number;
+}
+
+export interface IncomeMetricResponse {
+  year: number;
+  currentValue: number;
+  previousValue: number;
+  changePercent: string;
+  yearlyAverage: number;
+  yearlyMax: number;
+  monthlyData: MonthlyIncome[];
+}

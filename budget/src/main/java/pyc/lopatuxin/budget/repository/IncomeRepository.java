@@ -7,6 +7,7 @@ import pyc.lopatuxin.budget.entity.Income;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -34,5 +35,25 @@ public interface IncomeRepository extends JpaRepository<Income, UUID> {
             @Param("userId") UUID userId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
+    );
+
+    /**
+     * Возвращает помесячные суммы доходов пользователя за указанный год.
+     *
+     * @param userId идентификатор пользователя
+     * @param year   календарный год
+     * @return список пар [номер месяца (Integer), сумма (BigDecimal)]
+     */
+    @Query("""
+            SELECT MONTH(i.date), SUM(i.amount)
+            FROM Income i
+            WHERE i.userId = :userId
+              AND YEAR(i.date) = :year
+            GROUP BY MONTH(i.date)
+            ORDER BY MONTH(i.date)
+            """)
+    List<Object[]> findMonthlyIncomeByUserIdAndYear(
+            @Param("userId") UUID userId,
+            @Param("year") int year
     );
 }

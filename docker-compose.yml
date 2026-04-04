@@ -112,9 +112,9 @@ services:
       # DevTools Configuration
       SPRING_DEVTOOLS_RESTART_ENABLED: ${DEVTOOLS_RESTART_ENABLED:-true}
       SPRING_DEVTOOLS_LIVERELOAD_ENABLED: ${DEVTOOLS_LIVERELOAD_ENABLED:-true}
-    ports:
-      - "${BUDGET_APP_PORT:-8083}:8083"
-      - "${BUDGET_LIVERELOAD_PORT:-35730}:35730"
+    expose:
+      - "8083"
+      - "35730"
     volumes:
       # Hot-reload volumes
       - ./budget/src:/app/src:rw

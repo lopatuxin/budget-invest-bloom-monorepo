@@ -15,6 +15,7 @@ import pyc.lopatuxin.budget.repository.CapitalRecordRepository;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
 import pyc.lopatuxin.budget.repository.IncomeRepository;
+import pyc.lopatuxin.budget.util.TrendFormatter;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -130,31 +131,12 @@ public class BudgetSummaryService {
         BigDecimal prevInflation = calculatePersonalInflation(userId, prevMonth, prevYear);
 
         return TrendsDto.builder()
-                .income(formatTrend(currentIncome, prev.income()))
-                .expenses(formatTrend(currentExpenses, prev.expenses()))
-                .balance(formatTrend(balance, prev.balance()))
-                .capital(formatTrend(capital, prevCapital))
-                .inflation(formatTrend(personalInflation, prevInflation))
+                .income(TrendFormatter.formatTrend(currentIncome, prev.income()))
+                .expenses(TrendFormatter.formatTrend(currentExpenses, prev.expenses()))
+                .balance(TrendFormatter.formatTrend(balance, prev.balance()))
+                .capital(TrendFormatter.formatTrend(capital, prevCapital))
+                .inflation(TrendFormatter.formatTrend(personalInflation, prevInflation))
                 .build();
-    }
-
-    /**
-     * Вычисляет процентное изменение показателя и форматирует его в строку вида "+8.2%" или "-3.1%".
-     * Если предыдущее значение равно нулю — возвращает "+0.0%".
-     */
-    private String formatTrend(BigDecimal current, BigDecimal previous) {
-        if (previous.compareTo(BigDecimal.ZERO) == 0) {
-            return "+0.0%";
-        }
-
-        BigDecimal percentChange = current.subtract(previous)
-                .divide(previous.abs(), 10, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(100))
-                .setScale(1, RoundingMode.HALF_UP);
-
-        String formatted = percentChange.toPlainString() + "%";
-
-        return (percentChange.compareTo(BigDecimal.ZERO) >= 0) ? "+" + formatted : formatted;
     }
 
     /**

@@ -131,8 +131,8 @@ public class UserEnrichmentFilter extends AbstractGatewayFilterFactory<Object> {
      * @param body исходное тело запроса в виде строки JSON
      * @return значение поля {@code data} или всё тело целиком
      */
-    private @Nullable Object resolveData(String body) {
-        if (body.isBlank()) {
+    private @Nullable Object resolveData(@Nullable String body) {
+        if (body == null || body.isBlank()) {
             return null;
         }
 

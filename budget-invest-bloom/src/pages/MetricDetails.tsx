@@ -1,15 +1,19 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Wallet, CreditCard, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Wallet, CreditCard, Plus, Minus, Loader2, AlertCircle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useIncomeMetric } from '@/hooks/useIncomeMetric';
 
 const MetricDetails = () => {
   const { metric } = useParams<{ metric: string }>();
   const navigate = useNavigate();
+  const currentYear = String(new Date().getFullYear());
 
-  // Данные для графиков (примерные данные за последние 12 месяцев)
-  const monthlyData = [
+  const { data: incomeMetric, isLoading: incomeLoading, error: incomeError } = useIncomeMetric(currentYear);
+
+  // Данные для графиков (примерные данные за последние 12 месяцев — для метрик кроме income)
+  const fallbackData = [
     { month: 'Янв', income: 145000, expenses: 85000, balance: 60000, capital: 800000, inflation: 6.2 },
     { month: 'Фев', income: 148000, expenses: 87000, balance: 61000, capital: 820000, inflation: 6.4 },
     { month: 'Мар', income: 147000, expenses: 89000, balance: 58000, capital: 835000, inflation: 6.5 },
@@ -23,6 +27,16 @@ const MetricDetails = () => {
     { month: 'Ноя', income: 148000, expenses: 89000, balance: 59000, capital: 874000, inflation: 6.8 },
     { month: 'Дек', income: 150000, expenses: 89500, balance: 60500, capital: 875000, inflation: 6.8 },
   ];
+
+  const useApiData = metric === 'income' && incomeMetric?.body;
+
+  const monthlyData = useApiData
+    ? incomeMetric.body.monthlyData.map(item => ({
+        month: item.monthName,
+        income: item.amount,
+        expenses: 0, balance: 0, capital: 0, inflation: 0,
+      }))
+    : fallbackData;
 
   const getMetricConfig = () => {
     switch (metric) {
@@ -84,9 +98,21 @@ const MetricDetails = () => {
   };
 
   const config = getMetricConfig();
-  const currentValue = monthlyData[monthlyData.length - 1][config.dataKey as keyof typeof monthlyData[0]];
-  const previousValue = monthlyData[monthlyData.length - 2][config.dataKey as keyof typeof monthlyData[0]];
-  const change = ((Number(currentValue) - Number(previousValue)) / Number(previousValue)) * 100;
+
+  let currentValue: number;
+  let previousValue: number;
+  let change: number;
+
+  if (useApiData) {
+    currentValue = incomeMetric.body.currentValue;
+    previousValue = incomeMetric.body.previousValue;
+    const parsed = parseFloat(incomeMetric.body.changePercent.replace('%', '').replace('+', ''));
+    change = isNaN(parsed) ? 0 : parsed;
+  } else {
+    currentValue = Number(monthlyData[monthlyData.length - 1][config.dataKey as keyof typeof monthlyData[0]]);
+    previousValue = Number(monthlyData[monthlyData.length - 2][config.dataKey as keyof typeof monthlyData[0]]);
+    change = ((currentValue - previousValue) / previousValue) * 100;
+  }
 
   const formatValue = (value: number) => {
     if (metric === 'inflation') {
@@ -94,6 +120,32 @@ const MetricDetails = () => {
     }
     return `₽${value.toLocaleString()}`;
   };
+
+  if (metric === 'income' && incomeError) {
+    return (
+      <div className="h-[calc(100vh-4rem)] bg-gradient-background flex items-center justify-center">
+        <Card className="shadow-card border-0 max-w-md w-full mx-4">
+          <CardContent className="flex flex-col items-center gap-4 pt-6">
+            <AlertCircle className="w-12 h-12 text-destructive" />
+            <p className="text-lg font-medium text-center">Не удалось загрузить данные о доходах</p>
+            <p className="text-sm text-muted-foreground text-center">{incomeError.message}</p>
+            <Button variant="outline" onClick={() => navigate('/budget')}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Назад к бюджету
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (metric === 'income' && incomeLoading) {
+    return (
+      <div className="h-[calc(100vh-4rem)] bg-gradient-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="h-[calc(100vh-4rem)] bg-gradient-background overflow-auto">
@@ -141,7 +193,10 @@ const MetricDetails = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">
-                {formatValue(monthlyData.reduce((sum, item) => sum + Number(item[config.dataKey as keyof typeof item]), 0) / monthlyData.length)}
+                {formatValue(useApiData
+                  ? incomeMetric.body.yearlyAverage
+                  : monthlyData.reduce((sum, item) => sum + Number(item[config.dataKey as keyof typeof item]), 0) / monthlyData.length
+                )}
               </div>
             </CardContent>
           </Card>
@@ -152,7 +207,10 @@ const MetricDetails = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">
-                {formatValue(Math.max(...monthlyData.map(item => Number(item[config.dataKey as keyof typeof item]))))}
+                {formatValue(useApiData
+                  ? incomeMetric.body.yearlyMax
+                  : Math.max(...monthlyData.map(item => Number(item[config.dataKey as keyof typeof item])))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -171,7 +229,7 @@ const MetricDetails = () => {
                   <YAxis tickFormatter={(value) => metric === 'inflation' ? `${value}%` : `₽${(value / 1000).toFixed(0)}k`} />
                   <Tooltip 
                     formatter={(value) => [formatValue(Number(value)), config.title]}
-                    labelFormatter={(label) => `${label} 2024`}
+                    labelFormatter={(label) => `${label} ${currentYear}`}
                   />
                   <Line 
                     type="monotone" 
@@ -196,7 +254,7 @@ const MetricDetails = () => {
               {monthlyData.map((data, index) => (
                 <div key={index} className="p-4 rounded-lg border border-border/20 hover:border-border/40 transition-colors">
                   <div className="flex justify-between items-center">
-                    <span className="font-medium">{data.month} 2024</span>
+                    <span className="font-medium">{data.month} {currentYear}</span>
                     <span className="text-lg font-bold">
                       {formatValue(Number(data[config.dataKey as keyof typeof data]))}
                     </span>
