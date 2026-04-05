@@ -84,7 +84,7 @@ public abstract class AbstractMetricService {
                 .build();
     }
 
-    private Map<Integer, BigDecimal> buildMonthlyMap(List<Object[]> rawData) {
+    protected Map<Integer, BigDecimal> buildMonthlyMap(List<Object[]> rawData) {
         return rawData.stream()
                 .collect(Collectors.toMap(
                         row -> ((Number) row[0]).intValue(),
@@ -104,7 +104,7 @@ public abstract class AbstractMetricService {
         return result;
     }
 
-    private List<BigDecimal> extractNonZeroAmounts(List<MonthlyMetricDto> monthlyData) {
+    protected List<BigDecimal> extractNonZeroAmounts(List<MonthlyMetricDto> monthlyData) {
         return monthlyData.stream()
                 .map(MonthlyMetricDto::getAmount)
                 .filter(amount -> amount.compareTo(BigDecimal.ZERO) > 0)
