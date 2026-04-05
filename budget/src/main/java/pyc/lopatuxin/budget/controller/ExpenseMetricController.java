@@ -18,36 +18,36 @@ import pyc.lopatuxin.budget.dto.common.ApiRequest;
 import pyc.lopatuxin.budget.dto.common.YearDto;
 import pyc.lopatuxin.budget.dto.response.MetricResponseDto;
 import pyc.lopatuxin.budget.dto.response.ResponseApi;
-import pyc.lopatuxin.budget.service.IncomeMetricService;
+import pyc.lopatuxin.budget.service.ExpenseMetricService;
 
 /**
- * Контроллер для получения детальной метрики доходов пользователя за год.
+ * Контроллер для получения детальной метрики расходов пользователя за год.
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/budget/metric/income")
+@RequestMapping("/api/budget/metric/expenses")
 @RequiredArgsConstructor
 @Tag(name = "Метрики", description = "API для получения детальных метрик бюджета")
-public class IncomeMetricController {
+public class ExpenseMetricController {
 
-    private final IncomeMetricService incomeMetricService;
+    private final ExpenseMetricService expenseMetricService;
 
     /**
-     * Возвращает детальную метрику доходов пользователя за указанный год.
+     * Возвращает детальную метрику расходов пользователя за указанный год.
      *
      * @param request запрос с контекстом пользователя и годом
-     * @return стандартный ответ с метрикой доходов
+     * @return стандартный ответ с метрикой расходов
      */
     @PostMapping
     @ResponseStatus(HttpStatus.OK)
     @Operation(
-            summary = "Получить метрику доходов",
-            description = "Возвращает помесячную разбивку доходов за указанный год, " +
+            summary = "Получить метрику расходов",
+            description = "Возвращает помесячную разбивку расходов за указанный год, " +
                     "а также агрегированные показатели: текущее значение, среднее, максимум и процент изменения."
     )
     @ApiResponse(
             responseCode = "200",
-            description = "Метрика доходов успешно получена",
+            description = "Метрика расходов успешно получена",
             content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(implementation = ResponseApi.class)
@@ -77,13 +77,13 @@ public class IncomeMetricController {
                     schema = @Schema(implementation = ResponseApi.class)
             )
     )
-    public ResponseApi<MetricResponseDto> getIncomeMetric(
+    public ResponseApi<MetricResponseDto> getExpenseMetric(
             @RequestBody @Valid ApiRequest<YearDto> request) {
 
-        MetricResponseDto metric = incomeMetricService.getIncomeMetric(
+        MetricResponseDto metric = expenseMetricService.getExpenseMetric(
                 request.getUser().getUserId(),
                 request.getData().getYear()
         );
-        return ResponseApi.success("Метрика доходов успешно получена", metric);
+        return ResponseApi.success("Метрика расходов успешно получена", metric);
     }
 }

@@ -3,65 +3,79 @@ package pyc.lopatuxin.budget.service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 import pyc.lopatuxin.budget.dto.response.MetricResponseDto;
 import pyc.lopatuxin.budget.dto.response.MonthlyMetricDto;
-import pyc.lopatuxin.budget.repository.IncomeRepository;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
-@DisplayName("IncomeMetricServiceUnitTest")
-class IncomeMetricServiceUnitTest {
+@DisplayName("AbstractMetricService (Template Method)")
+class AbstractMetricServiceTest {
 
-    @Mock
-    private IncomeRepository incomeRepository;
-
-    @InjectMocks
-    private IncomeMetricService incomeMetricService;
-
+    private TestableMetricService service;
     private UUID userId;
 
     @BeforeEach
     void setUp() {
+        service = new TestableMetricService();
         userId = UUID.randomUUID();
     }
 
+    // ========== Тестовый наследник ==========
+
+    /**
+     * Конкретная реализация AbstractMetricService для тестирования шаблонного метода.
+     * Данные задаются извне через setData().
+     */
+    private static class TestableMetricService extends AbstractMetricService {
+
+        private List<Object[]> data = Collections.emptyList();
+
+        void setData(List<Object[]> data) {
+            this.data = data;
+        }
+
+        @Override
+        protected List<Object[]> findMonthlyData(UUID userId, int year) {
+            return data;
+        }
+
+        @Override
+        protected String getMetricName() {
+            return "тестовая метрика";
+        }
+    }
+
+    // ========== Happy path ==========
+
     @Test
-    @DisplayName("Должен вернуть корректную метрику при наличии данных за несколько месяцев")
-    void shouldReturnCorrectMetricWhenSeveralMonthsHaveData() {
+    @DisplayName("Должен вернуть корректную метрику при данных за несколько месяцев")
+    void shouldReturnCorrectMetricForSeveralMonths() {
         int year = 2026;
-        // Март: 100000, Июнь: 150000, Сентябрь: 120000
-        List<Object[]> dbData = List.of(
+        service.setData(List.of(
                 new Object[]{3, new BigDecimal("100000.00")},
                 new Object[]{6, new BigDecimal("150000.00")},
                 new Object[]{9, new BigDecimal("120000.00")}
-        );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
+        ));
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = service.getMetric(userId, year);
 
         assertThat(result).isNotNull();
         assertThat(result.getYear()).isEqualTo(year);
         assertThat(result.getMonthlyData()).hasSize(12);
 
-        // Проверяем что месяцы с данными заполнены корректно
+        // Месяцы с данными
         assertThat(result.getMonthlyData().get(2).getAmount()).isEqualByComparingTo(new BigDecimal("100000.00"));
         assertThat(result.getMonthlyData().get(2).getMonthName()).isEqualTo("Мар");
         assertThat(result.getMonthlyData().get(5).getAmount()).isEqualByComparingTo(new BigDecimal("150000.00"));
         assertThat(result.getMonthlyData().get(8).getAmount()).isEqualByComparingTo(new BigDecimal("120000.00"));
 
-        // Проверяем что месяцы без данных имеют amount = 0
+        // Месяцы без данных = 0
         assertThat(result.getMonthlyData().get(0).getAmount()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.getMonthlyData().get(11).getAmount()).isEqualByComparingTo(BigDecimal.ZERO);
 
@@ -71,25 +85,25 @@ class IncomeMetricServiceUnitTest {
         // yearlyMax = 150000
         assertThat(result.getYearlyMax()).isEqualByComparingTo(new BigDecimal("150000.00"));
 
-        // currentValue = последний ненулевой = Сентябрь = 120000
+        // currentValue = последний ненулевой (Сентябрь)
         assertThat(result.getCurrentValue()).isEqualByComparingTo(new BigDecimal("120000.00"));
 
-        // previousValue = предпоследний ненулевой = Июнь = 150000
+        // previousValue = предпоследний ненулевой (Июнь)
         assertThat(result.getPreviousValue()).isEqualByComparingTo(new BigDecimal("150000.00"));
 
         // changePercent = (120000 - 150000) / 150000 * 100 = -20.0%
         assertThat(result.getChangePercent()).isEqualTo("-20.0%");
-
-        verify(incomeRepository).findMonthlyIncomeByUserIdAndYear(userId, year);
     }
+
+    // ========== Граничный случай: пустой год ==========
 
     @Test
     @DisplayName("Должен вернуть нулевые показатели при отсутствии данных за год")
     void shouldReturnZeroValuesWhenNoDataExists() {
         int year = 2026;
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
+        service.setData(Collections.emptyList());
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = service.getMetric(userId, year);
 
         assertThat(result.getYear()).isEqualTo(year);
         assertThat(result.getMonthlyData()).hasSize(12);
@@ -99,22 +113,22 @@ class IncomeMetricServiceUnitTest {
         assertThat(result.getYearlyMax()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.getChangePercent()).isEqualTo("+0.0%");
 
-        // Все 12 месяцев должны иметь amount = 0
         for (MonthlyMetricDto monthly : result.getMonthlyData()) {
             assertThat(monthly.getAmount()).isEqualByComparingTo(BigDecimal.ZERO);
         }
     }
 
+    // ========== Граничный случай: один месяц ==========
+
     @Test
     @DisplayName("Должен корректно обработать один месяц с данными")
     void shouldHandleSingleMonthWithData() {
         int year = 2026;
-        List<Object[]> dbData = List.<Object[]>of(
+        service.setData(List.<Object[]>of(
                 new Object[]{5, new BigDecimal("200000.00")}
-        );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
+        ));
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = service.getMetric(userId, year);
 
         assertThat(result.getMonthlyData().get(4).getAmount()).isEqualByComparingTo(new BigDecimal("200000.00"));
         assertThat(result.getMonthlyData().get(4).getMonthName()).isEqualTo("Май");
@@ -127,15 +141,17 @@ class IncomeMetricServiceUnitTest {
         assertThat(result.getCurrentValue()).isEqualByComparingTo(new BigDecimal("200000.00"));
         assertThat(result.getPreviousValue()).isEqualByComparingTo(BigDecimal.ZERO);
 
-        // previousValue=0 => TrendFormatter возвращает +0.0%
+        // previousValue=0 => TrendFormatter: +0.0%
         assertThat(result.getChangePercent()).isEqualTo("+0.0%");
     }
+
+    // ========== Все 12 месяцев ==========
 
     @Test
     @DisplayName("Должен корректно обработать данные за все 12 месяцев")
     void shouldHandleAllTwelveMonthsWithData() {
         int year = 2026;
-        List<Object[]> dbData = List.of(
+        service.setData(List.of(
                 new Object[]{1, new BigDecimal("100000")},
                 new Object[]{2, new BigDecimal("110000")},
                 new Object[]{3, new BigDecimal("105000")},
@@ -148,26 +164,22 @@ class IncomeMetricServiceUnitTest {
                 new Object[]{10, new BigDecimal("150000")},
                 new Object[]{11, new BigDecimal("145000")},
                 new Object[]{12, new BigDecimal("160000")}
-        );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
+        ));
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = service.getMetric(userId, year);
 
         assertThat(result.getMonthlyData()).hasSize(12);
 
-        // Ни один месяц не должен быть нулевым
         for (MonthlyMetricDto monthly : result.getMonthlyData()) {
             assertThat(monthly.getAmount()).isGreaterThan(BigDecimal.ZERO);
         }
 
-        // yearlyMax = 160000
         assertThat(result.getYearlyMax()).isEqualByComparingTo(new BigDecimal("160000"));
 
-        // yearlyAverage = (100000+110000+105000+120000+115000+130000+125000+140000+135000+150000+145000+160000) / 12
-        // = 1535000 / 12 = 127916.67
+        // yearlyAverage = 1535000 / 12 = 127916.67
         assertThat(result.getYearlyAverage()).isEqualByComparingTo(new BigDecimal("127916.67"));
 
-        // currentValue = декабрь = 160000, previousValue = ноябрь = 145000
+        // currentValue = декабрь, previousValue = ноябрь
         assertThat(result.getCurrentValue()).isEqualByComparingTo(new BigDecimal("160000"));
         assertThat(result.getPreviousValue()).isEqualByComparingTo(new BigDecimal("145000"));
 
@@ -175,35 +187,35 @@ class IncomeMetricServiceUnitTest {
         assertThat(result.getChangePercent()).isEqualTo("+10.3%");
     }
 
+    // ========== Среднее только по ненулевым месяцам ==========
+
     @Test
-    @DisplayName("Должен корректно рассчитать среднее только по ненулевым месяцам")
-    void shouldCalculateYearlyAverageOnlyForNonZeroMonths() {
+    @DisplayName("Должен рассчитать среднее только по ненулевым месяцам")
+    void shouldCalculateAverageOnlyForNonZeroMonths() {
         int year = 2026;
-        // 2 месяца: 50000 + 70000 = 120000; average = 60000
-        List<Object[]> dbData = List.of(
+        service.setData(List.of(
                 new Object[]{1, new BigDecimal("50000")},
                 new Object[]{12, new BigDecimal("70000")}
-        );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
+        ));
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = service.getMetric(userId, year);
 
-        // Среднее считается по 2 ненулевым месяцам, а не по 12
+        // Среднее = (50000 + 70000) / 2 = 60000, а не / 12
         assertThat(result.getYearlyAverage()).isEqualByComparingTo(new BigDecimal("60000.00"));
     }
 
+    // ========== currentValue и previousValue из непоследовательных месяцев ==========
+
     @Test
-    @DisplayName("Должен корректно определить currentValue и previousValue из непоследовательных месяцев")
+    @DisplayName("Должен определить currentValue и previousValue из непоследовательных месяцев")
     void shouldSelectCurrentAndPreviousFromNonConsecutiveMonths() {
         int year = 2026;
-        // Данные за Февраль и Октябрь — currentValue=Октябрь, previousValue=Февраль
-        List<Object[]> dbData = List.of(
+        service.setData(List.of(
                 new Object[]{2, new BigDecimal("80000")},
                 new Object[]{10, new BigDecimal("95000")}
-        );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
+        ));
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = service.getMetric(userId, year);
 
         assertThat(result.getCurrentValue()).isEqualByComparingTo(new BigDecimal("95000"));
         assertThat(result.getPreviousValue()).isEqualByComparingTo(new BigDecimal("80000"));
@@ -212,13 +224,14 @@ class IncomeMetricServiceUnitTest {
         assertThat(result.getChangePercent()).isEqualTo("+18.8%");
     }
 
+    // ========== Названия месяцев ==========
+
     @Test
     @DisplayName("Должен корректно заполнить названия всех 12 месяцев")
     void shouldPopulateAllMonthNamesCorrectly() {
-        int year = 2026;
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
+        service.setData(Collections.emptyList());
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = service.getMetric(userId, 2026);
 
         String[] expectedNames = {"Янв", "Фев", "Мар", "Апр", "Май", "Июн",
                 "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"};
@@ -230,36 +243,62 @@ class IncomeMetricServiceUnitTest {
         }
     }
 
+    // ========== yearlyMax ==========
+
     @Test
     @DisplayName("Должен корректно определить yearlyMax среди нескольких месяцев")
     void shouldDetermineYearlyMaxCorrectly() {
         int year = 2026;
-        List<Object[]> dbData = List.of(
+        service.setData(List.of(
                 new Object[]{3, new BigDecimal("50000")},
                 new Object[]{7, new BigDecimal("250000")},
                 new Object[]{11, new BigDecimal("180000")}
-        );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
+        ));
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = service.getMetric(userId, year);
 
         assertThat(result.getYearlyMax()).isEqualByComparingTo(new BigDecimal("250000"));
     }
 
+    // ========== Отрицательный тренд ==========
+
     @Test
-    @DisplayName("Должен вернуть отрицательный changePercent при снижении дохода")
-    void shouldReturnNegativeChangePercentWhenIncomeDecreased() {
+    @DisplayName("Должен вернуть отрицательный changePercent при снижении значения")
+    void shouldReturnNegativeChangePercentWhenValueDecreased() {
         int year = 2026;
-        // previousValue = Март = 200000, currentValue = Июль = 160000
-        List<Object[]> dbData = List.of(
+        service.setData(List.of(
                 new Object[]{3, new BigDecimal("200000")},
                 new Object[]{7, new BigDecimal("160000")}
-        );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
+        ));
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = service.getMetric(userId, year);
 
         // (160000 - 200000) / 200000 * 100 = -20.0%
         assertThat(result.getChangePercent()).isEqualTo("-20.0%");
+    }
+
+    // ========== Положительный тренд ==========
+
+    @Test
+    @DisplayName("Должен вернуть положительный changePercent при росте значения")
+    void shouldReturnPositiveChangePercentWhenValueIncreased() {
+        int year = 2026;
+        service.setData(List.of(
+                new Object[]{1, new BigDecimal("100000")},
+                new Object[]{2, new BigDecimal("150000")}
+        ));
+
+        MetricResponseDto result = service.getMetric(userId, year);
+
+        // (150000 - 100000) / 100000 * 100 = +50.0%
+        assertThat(result.getChangePercent()).isEqualTo("+50.0%");
+    }
+
+    // ========== getMetricName() вызывается корректно ==========
+
+    @Test
+    @DisplayName("Тестовый наследник должен возвращать правильное имя метрики")
+    void shouldReturnCorrectMetricName() {
+        assertThat(service.getMetricName()).isEqualTo("тестовая метрика");
     }
 }

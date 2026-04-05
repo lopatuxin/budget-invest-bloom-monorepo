@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * Детальная метрика доходов пользователя за указанный год.
+ * Детальная финансовая метрика пользователя за указанный год.
  * Содержит помесячную разбивку и агрегированные показатели.
  */
 @Getter
@@ -21,27 +21,27 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@Schema(description = "Детальная метрика доходов пользователя за указанный год")
-public class IncomeMetricResponseDto {
+@Schema(description = "Детальная метрика пользователя за указанный год")
+public class MetricResponseDto {
 
     @Schema(description = "Запрошенный год", example = "2026")
     private Integer year;
 
-    @Schema(description = "Доход за последний месяц с данными", example = "150000.00")
+    @Schema(description = "Значение за последний месяц с данными", example = "150000.00")
     private BigDecimal currentValue;
 
-    @Schema(description = "Доход за предпоследний месяц с данными", example = "148000.00")
+    @Schema(description = "Значение за предпоследний месяц с данными", example = "148000.00")
     private BigDecimal previousValue;
 
     @Schema(description = "Процент изменения текущего значения относительно предыдущего", example = "+1.4%")
     private String changePercent;
 
-    @Schema(description = "Среднемесячный доход за год (по месяцам с данными)", example = "149250.00")
+    @Schema(description = "Среднемесячное значение за год (по месяцам с данными)", example = "149250.00")
     private BigDecimal yearlyAverage;
 
-    @Schema(description = "Максимальный месячный доход за год", example = "153000.00")
+    @Schema(description = "Максимальное месячное значение за год", example = "153000.00")
     private BigDecimal yearlyMax;
 
-    @Schema(description = "Помесячная разбивка доходов (12 записей, для месяцев без данных amount = 0)")
-    private List<MonthlyIncomeDto> monthlyData;
+    @Schema(description = "Помесячная разбивка (12 записей, для месяцев без данных amount = 0)")
+    private List<MonthlyMetricDto> monthlyData;
 }

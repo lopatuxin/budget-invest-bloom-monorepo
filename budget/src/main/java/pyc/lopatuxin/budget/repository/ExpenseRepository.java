@@ -78,4 +78,24 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
             @Param("userId") UUID userId,
             @Param("year") int year
     );
+
+    /**
+     * Возвращает помесячные суммы расходов пользователя за указанный год.
+     *
+     * @param userId идентификатор пользователя
+     * @param year   календарный год
+     * @return список пар [номер месяца (Integer), сумма (BigDecimal)]
+     */
+    @Query("""
+            SELECT MONTH(e.date), SUM(e.amount)
+            FROM Expense e
+            WHERE e.userId = :userId
+              AND YEAR(e.date) = :year
+            GROUP BY MONTH(e.date)
+            ORDER BY MONTH(e.date)
+            """)
+    List<Object[]> findMonthlyExpenseByUserIdAndYear(
+            @Param("userId") UUID userId,
+            @Param("year") int year
+    );
 }

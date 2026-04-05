@@ -4,13 +4,15 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Wallet, CreditCard, Plus, Minus, Loader2, AlertCircle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useIncomeMetric } from '@/hooks/useIncomeMetric';
+import { useExpenseMetric } from '@/hooks/useExpenseMetric';
 
 const MetricDetails = () => {
   const { metric } = useParams<{ metric: string }>();
   const navigate = useNavigate();
   const currentYear = String(new Date().getFullYear());
 
-  const { data: incomeMetric, isLoading: incomeLoading, error: incomeError } = useIncomeMetric(currentYear);
+  const { data: incomeMetric, isLoading: incomeLoading, error: incomeError } = useIncomeMetric(currentYear, metric === 'income');
+  const { data: expenseMetric, isLoading: expenseLoading, error: expenseError } = useExpenseMetric(currentYear, metric === 'expenses');
 
   // Данные для графиков (примерные данные за последние 12 месяцев — для метрик кроме income)
   const fallbackData = [
@@ -28,13 +30,19 @@ const MetricDetails = () => {
     { month: 'Дек', income: 150000, expenses: 89500, balance: 60500, capital: 875000, inflation: 6.8 },
   ];
 
-  const useApiData = metric === 'income' && incomeMetric?.body;
+  const useApiData = (metric === 'income' && incomeMetric?.body) || (metric === 'expenses' && expenseMetric?.body);
 
-  const monthlyData = useApiData
+  const monthlyData = metric === 'income' && incomeMetric?.body
     ? incomeMetric.body.monthlyData.map(item => ({
         month: item.monthName,
         income: item.amount,
         expenses: 0, balance: 0, capital: 0, inflation: 0,
+      }))
+    : metric === 'expenses' && expenseMetric?.body
+    ? expenseMetric.body.monthlyData.map(item => ({
+        month: item.monthName,
+        expenses: item.amount,
+        income: 0, balance: 0, capital: 0, inflation: 0,
       }))
     : fallbackData;
 
@@ -103,10 +111,12 @@ const MetricDetails = () => {
   let previousValue: number;
   let change: number;
 
-  if (useApiData) {
-    currentValue = incomeMetric.body.currentValue;
-    previousValue = incomeMetric.body.previousValue;
-    const parsed = parseFloat(incomeMetric.body.changePercent.replace('%', '').replace('+', ''));
+  const activeMetric = metric === 'income' ? incomeMetric : metric === 'expenses' ? expenseMetric : null;
+
+  if (activeMetric?.body) {
+    currentValue = activeMetric.body.currentValue;
+    previousValue = activeMetric.body.previousValue;
+    const parsed = parseFloat(activeMetric.body.changePercent.replace('%', '').replace('+', ''));
     change = isNaN(parsed) ? 0 : parsed;
   } else {
     currentValue = Number(monthlyData[monthlyData.length - 1][config.dataKey as keyof typeof monthlyData[0]]);
@@ -140,6 +150,32 @@ const MetricDetails = () => {
   }
 
   if (metric === 'income' && incomeLoading) {
+    return (
+      <div className="h-[calc(100vh-4rem)] bg-gradient-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (metric === 'expenses' && expenseError) {
+    return (
+      <div className="h-[calc(100vh-4rem)] bg-gradient-background flex items-center justify-center">
+        <Card className="shadow-card border-0 max-w-md w-full mx-4">
+          <CardContent className="flex flex-col items-center gap-4 pt-6">
+            <AlertCircle className="w-12 h-12 text-destructive" />
+            <p className="text-lg font-medium text-center">Не удалось загрузить данные о расходах</p>
+            <p className="text-sm text-muted-foreground text-center">{expenseError.message}</p>
+            <Button variant="outline" onClick={() => navigate('/budget')}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Назад к бюджету
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (metric === 'expenses' && expenseLoading) {
     return (
       <div className="h-[calc(100vh-4rem)] bg-gradient-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -193,8 +229,8 @@ const MetricDetails = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">
-                {formatValue(useApiData
-                  ? incomeMetric.body.yearlyAverage
+                {formatValue(activeMetric?.body
+                  ? activeMetric.body.yearlyAverage
                   : monthlyData.reduce((sum, item) => sum + Number(item[config.dataKey as keyof typeof item]), 0) / monthlyData.length
                 )}
               </div>
@@ -207,8 +243,8 @@ const MetricDetails = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">
-                {formatValue(useApiData
-                  ? incomeMetric.body.yearlyMax
+                {formatValue(activeMetric?.body
+                  ? activeMetric.body.yearlyMax
                   : Math.max(...monthlyData.map(item => Number(item[config.dataKey as keyof typeof item])))
                 )}
               </div>
