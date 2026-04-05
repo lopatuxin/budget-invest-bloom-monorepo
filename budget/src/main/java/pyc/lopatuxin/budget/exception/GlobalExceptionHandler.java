@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -102,6 +103,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(ResponseApi.error(HttpStatus.BAD_REQUEST.value(), "Отсутствует обязательный параметр: " + ex.getParameterName()));
+    }
+
+    /**
+     * Обрабатывает вызов эндпоинта неподдерживаемым HTTP-методом.
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ResponseApi<Object>> handleMethodNotSupported(
+            HttpRequestMethodNotSupportedException ex) {
+        log.warn("Неподдерживаемый HTTP-метод: {}", ex.getMethod());
+        return ResponseEntity
+                .status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(ResponseApi.error(HttpStatus.METHOD_NOT_ALLOWED.value(),
+                        "HTTP-метод " + ex.getMethod() + " не поддерживается для данного эндпоинта"));
     }
 
     /**

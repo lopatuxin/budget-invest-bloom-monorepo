@@ -9,13 +9,17 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Запись о капитале пользователя за конкретный месяц и год.
+ * Каждая запись фиксирует общую стоимость активов пользователя
+ * на определённый период (месяц + год).
+ */
 @Entity
 @Table(name = "capital_records",
         uniqueConstraints = @UniqueConstraint(
                 name = "uq_capital_user_month_year",
                 columnNames = {"user_id", "month", "year"}
-        ),
-        indexes = @Index(name = "idx_capital_user_year", columnList = "user_id, year")
+        )
 )
 @Getter
 @Setter
@@ -24,28 +28,43 @@ import java.util.UUID;
 @AllArgsConstructor
 public class CapitalRecord {
 
+    /**
+     * Уникальный идентификатор записи капитала.
+     */
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(nullable = false, updatable = false)
     private UUID id;
 
-    @Column(name = "user_id", nullable = false)
+    /**
+     * Идентификатор пользователя, которому принадлежит запись.
+     */
     private UUID userId;
 
-    @Column(nullable = false, precision = 15, scale = 2)
+    /**
+     * Размер капитала (общая стоимость активов)
+     * на указанный месяц и год.
+     */
     private BigDecimal amount;
 
-    @Column(nullable = false)
+    /**
+     * Номер месяца (1-12), за который зафиксирован капитал.
+     */
     private Integer month;
 
-    @Column(nullable = false)
+    /**
+     * Календарный год, за который зафиксирован капитал.
+     */
     private Integer year;
 
+    /**
+     * Дата и время создания записи.
+     */
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    /**
+     * Дата и время последнего обновления записи.
+     */
     @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 }

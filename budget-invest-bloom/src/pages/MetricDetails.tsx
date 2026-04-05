@@ -6,6 +6,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useIncomeMetric } from '@/hooks/useIncomeMetric';
 import { useExpenseMetric } from '@/hooks/useExpenseMetric';
 import { useBalanceMetric } from '@/hooks/useBalanceMetric';
+import { useCapitalMetric } from '@/hooks/useCapitalMetric';
 
 const MetricDetails = () => {
   const { metric } = useParams<{ metric: string }>();
@@ -15,6 +16,7 @@ const MetricDetails = () => {
   const { data: incomeMetric, isLoading: incomeLoading, error: incomeError } = useIncomeMetric(currentYear, metric === 'income');
   const { data: expenseMetric, isLoading: expenseLoading, error: expenseError } = useExpenseMetric(currentYear, metric === 'expenses');
   const { data: balanceMetric, isLoading: balanceLoading, error: balanceError } = useBalanceMetric(currentYear, metric === 'balance');
+  const { data: capitalMetric, isLoading: capitalLoading, error: capitalError } = useCapitalMetric(currentYear, metric === 'capital');
 
   // Данные для графиков (примерные данные за последние 12 месяцев — для метрик кроме income)
   const fallbackData = [
@@ -49,6 +51,12 @@ const MetricDetails = () => {
         month: item.monthName,
         balance: item.amount,
         income: 0, expenses: 0, capital: 0, inflation: 0,
+      }))
+    : metric === 'capital' && capitalMetric?.body
+    ? capitalMetric.body.monthlyData.map(item => ({
+        month: item.monthName,
+        capital: item.amount,
+        income: 0, expenses: 0, balance: 0, inflation: 0,
       }))
     : fallbackData;
 
@@ -117,9 +125,9 @@ const MetricDetails = () => {
   let previousValue: number;
   let change: number;
 
-  const activeMetric = metric === 'income' ? incomeMetric : metric === 'expenses' ? expenseMetric : metric === 'balance' ? balanceMetric : null;
-  const activeLoading = metric === 'income' ? incomeLoading : metric === 'expenses' ? expenseLoading : metric === 'balance' ? balanceLoading : false;
-  const activeError = metric === 'income' ? incomeError : metric === 'expenses' ? expenseError : metric === 'balance' ? balanceError : null;
+  const activeMetric = metric === 'income' ? incomeMetric : metric === 'expenses' ? expenseMetric : metric === 'balance' ? balanceMetric : metric === 'capital' ? capitalMetric : null;
+  const activeLoading = metric === 'income' ? incomeLoading : metric === 'expenses' ? expenseLoading : metric === 'balance' ? balanceLoading : metric === 'capital' ? capitalLoading : false;
+  const activeError = metric === 'income' ? incomeError : metric === 'expenses' ? expenseError : metric === 'balance' ? balanceError : metric === 'capital' ? capitalError : null;
 
   if (activeMetric?.body) {
     currentValue = activeMetric.body.currentValue;

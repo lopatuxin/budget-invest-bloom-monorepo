@@ -42,4 +42,23 @@ public interface CapitalRecordRepository extends JpaRepository<CapitalRecord, UU
             ORDER BY cr.year DESC, cr.month DESC
             """)
     List<CapitalRecord> findLatestByUserId(@Param("userId") UUID userId, Pageable pageable);
+
+    /**
+     * Возвращает помесячные суммы капитала пользователя за указанный год.
+     * Каждый элемент массива содержит номер месяца и сумму капитала.
+     *
+     * @param userId идентификатор пользователя
+     * @param year   календарный год
+     * @return список пар [месяц, сумма] отсортированных по месяцу
+     */
+    @Query("""
+            SELECT cr.month, cr.amount
+            FROM CapitalRecord cr
+            WHERE cr.userId = :userId AND cr.year = :year
+            ORDER BY cr.month
+            """)
+    List<Object[]> findMonthlyCapitalByUserIdAndYear(
+            @Param("userId") UUID userId,
+            @Param("year") int year
+    );
 }
