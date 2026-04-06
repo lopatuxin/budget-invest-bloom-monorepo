@@ -61,6 +61,24 @@ public class ResponseApi<T> {
     }
 
     /**
+     * Создаёт успешный ответ со статусом 201 (Created) и переданным телом.
+     *
+     * @param <T>     тип тела ответа
+     * @param message человекочитаемое сообщение на русском языке
+     * @param body    полезная нагрузка ответа
+     * @return объект ResponseApi со статусом 201
+     */
+    public static <T> ResponseApi<T> created(String message, T body) {
+        return ResponseApi.<T>builder()
+                .id(UUID.randomUUID())
+                .status(201)
+                .message(message)
+                .timestamp(Instant.now())
+                .body(body)
+                .build();
+    }
+
+    /**
      * Создаёт ответ об ошибке с указанным HTTP статусом.
      *
      * @param <T>     тип тела ответа

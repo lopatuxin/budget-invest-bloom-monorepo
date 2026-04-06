@@ -9,11 +9,14 @@ import FinanceCard from '@/components/FinanceCard';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useBudgetSummary } from '@/hooks/useBudgetSummary';
+import { apiPost } from '@/lib/api';
 
 const Budget = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(String(now.getMonth() + 1));
   const [selectedYear, setSelectedYear] = useState(String(now.getFullYear()));
@@ -74,7 +77,10 @@ const Budget = () => {
     { value: '12', label: 'Декабрь' },
   ];
 
-  const years = ['2022', '2023', '2024', '2025'];
+  const years = Array.from(
+    { length: new Date().getFullYear() - 2022 + 1 },
+    (_, i) => String(2022 + i)
+  );
 
   const getProgressPercentage = (amount: number, budget: number) => {
     if (budget === 0) return 0;
@@ -83,7 +89,9 @@ const Budget = () => {
 
   const incomeSources = ['Зарплата', 'Фриланс', 'Инвестиции', 'Подарки', 'Прочее'];
 
-  const handleAddExpense = () => {
+  const [isExpenseSubmitting, setIsExpenseSubmitting] = useState(false);
+
+  const handleAddExpense = async () => {
     if (!expenseForm.amount || !expenseForm.category) {
       toast({
         title: "Ошибка",
@@ -93,13 +101,32 @@ const Budget = () => {
       return;
     }
 
-    toast({
-      title: "Расход добавлен",
-      description: `Добавлен расход ${expenseForm.amount}₽ в категорию "${expenseForm.category}"`,
-    });
+    setIsExpenseSubmitting(true);
+    try {
+      await apiPost('/api/budget/expenses', {
+        categoryId: expenseForm.category,
+        amount: parseFloat(expenseForm.amount),
+        description: expenseForm.description || null,
+      });
 
-    setExpenseForm({ amount: '', category: '', description: '' });
-    resetDialog();
+      toast({
+        title: "Расход добавлен",
+        description: `Добавлен расход ${expenseForm.amount}₽`,
+      });
+
+      setExpenseForm({ amount: '', category: '', description: '' });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+      resetDialog();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Не удалось добавить расход";
+      toast({
+        title: "Ошибка",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsExpenseSubmitting(false);
+    }
   };
 
   const handleAddIncome = () => {
@@ -273,7 +300,7 @@ const Budget = () => {
                               </SelectTrigger>
                               <SelectContent>
                                 {categories.map((category) => (
-                                  <SelectItem key={category.name} value={category.name}>
+                                  <SelectItem key={category.id} value={category.id}>
                                     {category.name}
                                   </SelectItem>
                                 ))}
@@ -297,10 +324,12 @@ const Budget = () => {
                             >
                               Отмена
                             </Button>
-                            <Button 
+                            <Button
                               className="flex-1 bg-gradient-primary hover:opacity-90"
                               onClick={handleAddExpense}
+                              disabled={isExpenseSubmitting}
                             >
+                              {isExpenseSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                               Добавить
                             </Button>
                           </div>

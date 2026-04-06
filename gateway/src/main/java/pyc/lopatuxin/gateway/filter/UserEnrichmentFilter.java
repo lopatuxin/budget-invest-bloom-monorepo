@@ -16,6 +16,8 @@ import pyc.lopatuxin.gateway.dto.EnrichedRequest;
 import pyc.lopatuxin.gateway.dto.UserContext;
 import reactor.core.publisher.Mono;
 
+import org.springframework.http.MediaType;
+
 import java.util.Map;
 import java.util.UUID;
 
@@ -80,6 +82,7 @@ public class UserEnrichmentFilter extends AbstractGatewayFilterFactory<Object> {
                 new ModifyRequestBodyGatewayFilterFactory.Config()
                         .setInClass(String.class)
                         .setOutClass(EnrichedRequest.class)
+                        .setContentType(MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
                         .setRewriteFunction(String.class, EnrichedRequest.class, (_, body) ->
                                 ReactiveSecurityContextHolder.getContext()
                                         .flatMap(ctx -> Mono.justOrEmpty(ctx.getAuthentication()))
