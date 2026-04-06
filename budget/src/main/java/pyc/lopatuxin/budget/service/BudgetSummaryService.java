@@ -86,24 +86,37 @@ public class BudgetSummaryService {
     /**
      * Рассчитывает личную инфляцию как процентное изменение средних месячных расходов
      * текущего года по сравнению с предыдущим.
-     * Количество месяцев текущего года — от 1 до текущего месяца включительно.
+     * Среднее считается по фактическому количеству месяцев с данными, а не по календарным.
      */
     private BigDecimal calculatePersonalInflation(UUID userId, int month, int year) {
-        BigDecimal currentYearTotal = expenseRepository
-                .sumAmountByUserIdAndYear(userId, year)
-                .orElse(BigDecimal.ZERO);
+        List<Object[]> currentYearMonthly = expenseRepository
+                .findMonthlyExpenseByUserIdAndYear(userId, year);
+        List<Object[]> currentYearUpToMonth = currentYearMonthly.stream()
+                .filter(row -> ((Number) row[0]).intValue() <= month)
+                .toList();
 
-        BigDecimal currentYearAvg = currentYearTotal.divide(BigDecimal.valueOf(month), 10, RoundingMode.HALF_UP);
-
-        BigDecimal previousYearTotal = expenseRepository
-                .sumAmountByUserIdAndYear(userId, year - 1)
-                .orElse(BigDecimal.ZERO);
-
-        if (previousYearTotal.compareTo(BigDecimal.ZERO) == 0) {
+        if (currentYearUpToMonth.isEmpty()) {
             return BigDecimal.ZERO;
         }
 
-        BigDecimal previousYearAvg = previousYearTotal.divide(BigDecimal.valueOf(12), 10, RoundingMode.HALF_UP);
+        BigDecimal currentYearTotal = currentYearUpToMonth.stream()
+                .map(row -> (BigDecimal) row[1])
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal currentYearAvg = currentYearTotal.divide(
+                BigDecimal.valueOf(currentYearUpToMonth.size()), 10, RoundingMode.HALF_UP);
+
+        List<Object[]> previousYearMonthly = expenseRepository
+                .findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+
+        if (previousYearMonthly.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal previousYearTotal = previousYearMonthly.stream()
+                .map(row -> (BigDecimal) row[1])
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal previousYearAvg = previousYearTotal.divide(
+                BigDecimal.valueOf(previousYearMonthly.size()), 10, RoundingMode.HALF_UP);
 
         return currentYearAvg.subtract(previousYearAvg)
                 .divide(previousYearAvg, 10, RoundingMode.HALF_UP)

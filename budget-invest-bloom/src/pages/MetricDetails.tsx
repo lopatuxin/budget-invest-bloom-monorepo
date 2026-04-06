@@ -7,6 +7,7 @@ import { useIncomeMetric } from '@/hooks/useIncomeMetric';
 import { useExpenseMetric } from '@/hooks/useExpenseMetric';
 import { useBalanceMetric } from '@/hooks/useBalanceMetric';
 import { useCapitalMetric } from '@/hooks/useCapitalMetric';
+import { useInflationMetric } from '@/hooks/useInflationMetric';
 
 const MetricDetails = () => {
   const { metric } = useParams<{ metric: string }>();
@@ -17,6 +18,7 @@ const MetricDetails = () => {
   const { data: expenseMetric, isLoading: expenseLoading, error: expenseError } = useExpenseMetric(currentYear, metric === 'expenses');
   const { data: balanceMetric, isLoading: balanceLoading, error: balanceError } = useBalanceMetric(currentYear, metric === 'balance');
   const { data: capitalMetric, isLoading: capitalLoading, error: capitalError } = useCapitalMetric(currentYear, metric === 'capital');
+  const { data: inflationMetric, isLoading: inflationLoading, error: inflationError } = useInflationMetric(currentYear, metric === 'inflation');
 
   // Данные для графиков (примерные данные за последние 12 месяцев — для метрик кроме income)
   const fallbackData = [
@@ -57,6 +59,12 @@ const MetricDetails = () => {
         month: item.monthName,
         capital: item.amount,
         income: 0, expenses: 0, balance: 0, inflation: 0,
+      }))
+    : metric === 'inflation' && inflationMetric?.body
+    ? inflationMetric.body.monthlyData.map(item => ({
+        month: item.monthName,
+        inflation: item.amount,
+        income: 0, expenses: 0, balance: 0, capital: 0,
       }))
     : fallbackData;
 
@@ -125,9 +133,9 @@ const MetricDetails = () => {
   let previousValue: number;
   let change: number;
 
-  const activeMetric = metric === 'income' ? incomeMetric : metric === 'expenses' ? expenseMetric : metric === 'balance' ? balanceMetric : metric === 'capital' ? capitalMetric : null;
-  const activeLoading = metric === 'income' ? incomeLoading : metric === 'expenses' ? expenseLoading : metric === 'balance' ? balanceLoading : metric === 'capital' ? capitalLoading : false;
-  const activeError = metric === 'income' ? incomeError : metric === 'expenses' ? expenseError : metric === 'balance' ? balanceError : metric === 'capital' ? capitalError : null;
+  const activeMetric = metric === 'income' ? incomeMetric : metric === 'expenses' ? expenseMetric : metric === 'balance' ? balanceMetric : metric === 'capital' ? capitalMetric : metric === 'inflation' ? inflationMetric : null;
+  const activeLoading = metric === 'income' ? incomeLoading : metric === 'expenses' ? expenseLoading : metric === 'balance' ? balanceLoading : metric === 'capital' ? capitalLoading : metric === 'inflation' ? inflationLoading : false;
+  const activeError = metric === 'income' ? incomeError : metric === 'expenses' ? expenseError : metric === 'balance' ? balanceError : metric === 'capital' ? capitalError : metric === 'inflation' ? inflationError : null;
 
   if (activeMetric?.body) {
     currentValue = activeMetric.body.currentValue;

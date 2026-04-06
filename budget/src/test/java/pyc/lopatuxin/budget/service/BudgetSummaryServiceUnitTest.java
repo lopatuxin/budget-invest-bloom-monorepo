@@ -87,10 +87,27 @@ class BudgetSummaryServiceUnitTest {
                 .thenReturn(Optional.of(new BigDecimal("89500.00")));
         when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, month, year))
                 .thenReturn(Optional.of(capitalRecord));
-        when(expenseRepository.sumAmountByUserIdAndYear(userId, year))
-                .thenReturn(Optional.of(new BigDecimal("268500.00")));
-        when(expenseRepository.sumAmountByUserIdAndYear(userId, year - 1))
-                .thenReturn(Optional.of(new BigDecimal("960000.00")));
+        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year))
+                .thenReturn(List.of(
+                        new Object[]{1, new BigDecimal("89500.00")},
+                        new Object[]{2, new BigDecimal("89500.00")},
+                        new Object[]{3, new BigDecimal("89500.00")}
+                ));
+        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year - 1))
+                .thenReturn(List.of(
+                        new Object[]{1, new BigDecimal("80000.00")},
+                        new Object[]{2, new BigDecimal("80000.00")},
+                        new Object[]{3, new BigDecimal("80000.00")},
+                        new Object[]{4, new BigDecimal("80000.00")},
+                        new Object[]{5, new BigDecimal("80000.00")},
+                        new Object[]{6, new BigDecimal("80000.00")},
+                        new Object[]{7, new BigDecimal("80000.00")},
+                        new Object[]{8, new BigDecimal("80000.00")},
+                        new Object[]{9, new BigDecimal("80000.00")},
+                        new Object[]{10, new BigDecimal("80000.00")},
+                        new Object[]{11, new BigDecimal("80000.00")},
+                        new Object[]{12, new BigDecimal("80000.00")}
+                ));
         when(categoryRepository.findByUserId(userId)).thenReturn(List.of(category));
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(List.<Object[]>of(new Object[]{categoryId, new BigDecimal("25000.00")}));
@@ -128,10 +145,8 @@ class BudgetSummaryServiceUnitTest {
                 .thenReturn(Optional.empty());
         when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
                 .thenReturn(Collections.emptyList());
-        when(expenseRepository.sumAmountByUserIdAndYear(userId, year))
-                .thenReturn(Optional.empty());
-        when(expenseRepository.sumAmountByUserIdAndYear(userId, year - 1))
-                .thenReturn(Optional.empty());
+        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year))
+                .thenReturn(Collections.emptyList());
         when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
@@ -165,10 +180,8 @@ class BudgetSummaryServiceUnitTest {
                 .thenReturn(Optional.empty());
         when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
                 .thenReturn(Collections.emptyList());
-        when(expenseRepository.sumAmountByUserIdAndYear(userId, year))
-                .thenReturn(Optional.empty());
-        when(expenseRepository.sumAmountByUserIdAndYear(userId, year - 1))
-                .thenReturn(Optional.empty());
+        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year))
+                .thenReturn(Collections.emptyList());
         when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
@@ -198,10 +211,27 @@ class BudgetSummaryServiceUnitTest {
                 .thenReturn(Optional.empty());
         when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
                 .thenReturn(Collections.emptyList());
-        when(expenseRepository.sumAmountByUserIdAndYear(userId, year))
-                .thenReturn(Optional.of(new BigDecimal("99000")));
-        when(expenseRepository.sumAmountByUserIdAndYear(userId, year - 1))
-                .thenReturn(Optional.of(new BigDecimal("360000")));
+        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year))
+                .thenReturn(List.of(
+                        new Object[]{1, new BigDecimal("33000")},
+                        new Object[]{2, new BigDecimal("33000")},
+                        new Object[]{3, new BigDecimal("33000")}
+                ));
+        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year - 1))
+                .thenReturn(List.of(
+                        new Object[]{1, new BigDecimal("30000")},
+                        new Object[]{2, new BigDecimal("30000")},
+                        new Object[]{3, new BigDecimal("30000")},
+                        new Object[]{4, new BigDecimal("30000")},
+                        new Object[]{5, new BigDecimal("30000")},
+                        new Object[]{6, new BigDecimal("30000")},
+                        new Object[]{7, new BigDecimal("30000")},
+                        new Object[]{8, new BigDecimal("30000")},
+                        new Object[]{9, new BigDecimal("30000")},
+                        new Object[]{10, new BigDecimal("30000")},
+                        new Object[]{11, new BigDecimal("30000")},
+                        new Object[]{12, new BigDecimal("30000")}
+                ));
         when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
@@ -232,8 +262,8 @@ class BudgetSummaryServiceUnitTest {
                 .thenReturn(Optional.empty());
         when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
                 .thenReturn(Collections.emptyList());
-        when(expenseRepository.sumAmountByUserIdAndYear(userId, year))
-                .thenReturn(Optional.empty());
+        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year))
+                .thenReturn(Collections.emptyList());
         when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
@@ -242,8 +272,6 @@ class BudgetSummaryServiceUnitTest {
         when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, prevStart, prevEnd))
                 .thenReturn(Optional.empty());
         when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, 3, 2024))
-                .thenReturn(Optional.empty());
-        when(expenseRepository.sumAmountByUserIdAndYear(userId, 2023))
                 .thenReturn(Optional.empty());
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
@@ -271,8 +299,8 @@ class BudgetSummaryServiceUnitTest {
                 .thenReturn(Optional.empty());
         when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
                 .thenReturn(Collections.emptyList());
-        when(expenseRepository.sumAmountByUserIdAndYear(userId, year))
-                .thenReturn(Optional.empty());
+        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year))
+                .thenReturn(Collections.emptyList());
         when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
@@ -281,8 +309,6 @@ class BudgetSummaryServiceUnitTest {
         when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, prevStart, prevEnd))
                 .thenReturn(Optional.of(new BigDecimal("90000")));
         when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, 3, 2024))
-                .thenReturn(Optional.empty());
-        when(expenseRepository.sumAmountByUserIdAndYear(userId, 2023))
                 .thenReturn(Optional.empty());
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
@@ -306,10 +332,8 @@ class BudgetSummaryServiceUnitTest {
                 .thenReturn(Optional.empty());
         when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
                 .thenReturn(Collections.emptyList());
-        when(expenseRepository.sumAmountByUserIdAndYear(userId, year))
-                .thenReturn(Optional.empty());
-        when(expenseRepository.sumAmountByUserIdAndYear(userId, year - 1))
-                .thenReturn(Optional.empty());
+        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year))
+                .thenReturn(Collections.emptyList());
         when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
@@ -344,7 +368,7 @@ class BudgetSummaryServiceUnitTest {
                 .thenReturn(Optional.empty());
         when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
                 .thenReturn(Collections.emptyList());
-        when(expenseRepository.sumAmountByUserIdAndYear(any(), anyInt())).thenReturn(Optional.empty());
+        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(any(), anyInt())).thenReturn(Collections.emptyList());
         when(categoryRepository.findByUserId(userId)).thenReturn(List.of(category));
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(List.<Object[]>of(new Object[]{categoryId, new BigDecimal("25000")}));
@@ -379,7 +403,7 @@ class BudgetSummaryServiceUnitTest {
                 .thenReturn(Optional.empty());
         when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
                 .thenReturn(Collections.emptyList());
-        when(expenseRepository.sumAmountByUserIdAndYear(any(), anyInt())).thenReturn(Optional.empty());
+        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(any(), anyInt())).thenReturn(Collections.emptyList());
         when(categoryRepository.findByUserId(userId)).thenReturn(List.of(category));
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(List.<Object[]>of(new Object[]{categoryId, new BigDecimal("15000")}));
@@ -414,7 +438,7 @@ class BudgetSummaryServiceUnitTest {
                 .thenReturn(Optional.empty());
         when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
                 .thenReturn(Collections.emptyList());
-        when(expenseRepository.sumAmountByUserIdAndYear(any(), anyInt())).thenReturn(Optional.empty());
+        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(any(), anyInt())).thenReturn(Collections.emptyList());
         when(categoryRepository.findByUserId(userId)).thenReturn(List.of(category));
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(List.<Object[]>of(new Object[]{categoryId, new BigDecimal("5000")}));
@@ -447,10 +471,10 @@ class BudgetSummaryServiceUnitTest {
                 .thenReturn(Optional.empty());
         when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
                 .thenReturn(Collections.emptyList());
-        when(expenseRepository.sumAmountByUserIdAndYear(userId, 2024))
-                .thenReturn(Optional.empty());
-        when(expenseRepository.sumAmountByUserIdAndYear(userId, 2023))
-                .thenReturn(Optional.empty());
+        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, 2024))
+                .thenReturn(Collections.emptyList());
+        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, 2023))
+                .thenReturn(Collections.emptyList());
         when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
@@ -459,8 +483,6 @@ class BudgetSummaryServiceUnitTest {
         when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, prevStart, prevEnd))
                 .thenReturn(Optional.empty());
         when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, 12, 2023))
-                .thenReturn(Optional.empty());
-        when(expenseRepository.sumAmountByUserIdAndYear(userId, 2022))
                 .thenReturn(Optional.empty());
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
@@ -490,7 +512,7 @@ class BudgetSummaryServiceUnitTest {
                 .thenReturn(Optional.empty());
         when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
                 .thenReturn(List.of(latestRecord));
-        when(expenseRepository.sumAmountByUserIdAndYear(any(), anyInt())).thenReturn(Optional.empty());
+        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(any(), anyInt())).thenReturn(Collections.emptyList());
         when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());

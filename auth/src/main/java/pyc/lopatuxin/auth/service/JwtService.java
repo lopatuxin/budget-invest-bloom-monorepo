@@ -43,6 +43,7 @@ public class JwtService {
         claims.put(CLAIM_USER_ID, user.getId().toString());
         claims.put("email", user.getEmail());
         claims.put("username", user.getUsername());
+        claims.put("role", user.getRoles().getFirst().getRoleName().name());
 
         return generateToken(claims, user.getEmail(), jwtConfig.getAccessTokenExpiration());
     }
