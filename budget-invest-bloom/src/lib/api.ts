@@ -101,7 +101,16 @@ export async function apiRequest<T = unknown>(
     }
 
     if (!response.ok) {
-      const errorMessage = `API Error: ${response.status} ${response.statusText}`;
+      // Пытаемся извлечь сообщение из тела ответа (по API-контракту поле "message")
+      let serverMessage: string | undefined;
+      try {
+        const errorBody = await response.json();
+        serverMessage = errorBody?.message;
+      } catch {
+        // Тело ответа не является валидным JSON — используем statusText
+      }
+
+      const errorMessage = serverMessage || `API Error: ${response.status} ${response.statusText}`;
       const apiError = new Error(errorMessage);
 
       // Отправляем ошибку в Sentry с дополнительным контекстом

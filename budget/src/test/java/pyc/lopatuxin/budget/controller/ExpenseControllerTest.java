@@ -52,7 +52,7 @@ class ExpenseControllerTest extends AbstractIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id", notNullValue()))
-                .andExpect(jsonPath("$.status", is(200)))
+                .andExpect(jsonPath("$.status", is(201)))
                 .andExpect(jsonPath("$.message", is("Расход успешно добавлен")))
                 .andExpect(jsonPath("$.timestamp", notNullValue()))
                 .andExpect(jsonPath("$.body.id", notNullValue()))

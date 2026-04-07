@@ -196,6 +196,9 @@ const Budget = () => {
   const resetDialog = () => {
     setSelectedOperationType(null);
     setIsDialogOpen(false);
+    setCategoryForm({ name: '', budget: '', emoji: '' });
+    setExpenseForm({ amount: '', category: '', description: '' });
+    setIncomeForm({ amount: '', source: '', description: '' });
   };
 
   return (
@@ -258,7 +261,7 @@ const Budget = () => {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Категории расходов</span>
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) resetDialog(); else setIsDialogOpen(true); }}>
                 <DialogTrigger asChild>
                   <Button 
                     size="sm" 
