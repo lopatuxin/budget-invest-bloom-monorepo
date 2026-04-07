@@ -90,6 +90,7 @@ const Budget = () => {
   const incomeSources = ['Зарплата', 'Фриланс', 'Инвестиции', 'Подарки', 'Прочее'];
 
   const [isExpenseSubmitting, setIsExpenseSubmitting] = useState(false);
+  const [isCategorySubmitting, setIsCategorySubmitting] = useState(false);
 
   const handleAddExpense = async () => {
     if (!expenseForm.amount || !expenseForm.category) {
@@ -148,7 +149,7 @@ const Budget = () => {
     resetDialog();
   };
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     if (!categoryForm.name || !categoryForm.budget) {
       toast({
         title: "Ошибка",
@@ -158,13 +159,38 @@ const Budget = () => {
       return;
     }
 
-    toast({
-      title: "Категория добавлена",
-      description: `Добавлена категория "${categoryForm.name}" с бюджетом ${categoryForm.budget}₽`,
-    });
+    const budgetValue = Number(categoryForm.budget);
+    if (isNaN(budgetValue)) {
+      toast({ title: "Ошибка", description: "Некорректное значение бюджета", variant: "destructive" });
+      return;
+    }
 
-    setCategoryForm({ name: '', budget: '', emoji: '' });
-    resetDialog();
+    setIsCategorySubmitting(true);
+    try {
+      await apiPost('/api/budget/categories', {
+        name: categoryForm.name,
+        budget: budgetValue,
+        emoji: categoryForm.emoji.trim() || undefined,
+      });
+
+      toast({
+        title: "Категория добавлена",
+        description: `Добавлена категория "${categoryForm.name}" с бюджетом ${categoryForm.budget}₽`,
+      });
+
+      setCategoryForm({ name: '', budget: '', emoji: '' });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+      resetDialog();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Не удалось добавить категорию";
+      toast({
+        title: "Ошибка",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsCategorySubmitting(false);
+    }
   };
 
   const resetDialog = () => {
@@ -417,7 +443,7 @@ const Budget = () => {
                             <Input
                               id="category-emoji"
                               placeholder="🛒"
-                              maxLength={2}
+                              maxLength={10}
                               value={categoryForm.emoji}
                               onChange={(e) => setCategoryForm(prev => ({...prev, emoji: e.target.value}))}
                             />
@@ -430,10 +456,12 @@ const Budget = () => {
                             >
                               Отмена
                             </Button>
-                            <Button 
+                            <Button
                               className="flex-1 bg-gradient-secondary hover:opacity-90"
                               onClick={handleAddCategory}
+                              disabled={isCategorySubmitting}
                             >
+                              {isCategorySubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                               Добавить
                             </Button>
                           </div>

@@ -3,6 +3,7 @@ package pyc.lopatuxin.budget.exception;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -34,9 +35,11 @@ public class GlobalExceptionHandler {
 
         Map<String, String> fieldErrors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach(error -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            fieldErrors.put(fieldName, errorMessage);
+            if (error instanceof FieldError fieldError) {
+                fieldErrors.put(fieldError.getField(), fieldError.getDefaultMessage());
+            } else {
+                fieldErrors.put(error.getObjectName(), error.getDefaultMessage());
+            }
         });
 
         log.warn("Ошибка валидации запроса: {}", fieldErrors);
@@ -89,6 +92,25 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(ResponseApi.error(HttpStatus.NOT_FOUND.value(), ex.getMessage()));
+    }
+
+    /**
+     * Обрабатывает нарушение ограничений целостности данных (например, уникальный constraint).
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ResponseApi<Object>> handleDataIntegrityViolation(
+            DataIntegrityViolationException ex) {
+        String rootMessage = ex.getRootCause() != null ? ex.getRootCause().getMessage() : ex.getMessage();
+        log.warn("Нарушение ограничения целостности данных: {}", rootMessage);
+
+        String userMessage = "Запись с такими данными уже существует";
+        if (rootMessage != null && rootMessage.contains("uq_categories_user_name")) {
+            userMessage = "Категория с таким именем уже существует";
+        }
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ResponseApi.error(HttpStatus.CONFLICT.value(), userMessage));
     }
 
     /**
