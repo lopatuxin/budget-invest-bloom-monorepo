@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import pyc.lopatuxin.budget.dto.common.ApiRequest;
 import pyc.lopatuxin.budget.dto.request.CreateCategoryDto;
+import pyc.lopatuxin.budget.dto.request.UpdateCategoryRequestDto;
 import pyc.lopatuxin.budget.dto.response.CategoryResponseDto;
 import pyc.lopatuxin.budget.dto.response.ResponseApi;
 import pyc.lopatuxin.budget.service.CategoryService;
@@ -92,5 +93,75 @@ public class CategoryController {
                 request.getData()
         );
         return ResponseApi.created("Категория успешно создана", result);
+    }
+
+    /**
+     * Обновляет категорию пользователя.
+     *
+     * @param request запрос с контекстом пользователя и данными для обновления
+     * @return стандартный ответ с обновлёнными данными категории
+     */
+    @PostMapping("/update")
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(
+            summary = "Обновить категорию",
+            description = "Обновляет название и лимит бюджета категории расходов"
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Категория успешно обновлена",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ResponseApi.class)
+            )
+    )
+    @ApiResponse(
+            responseCode = "400",
+            description = "Некорректные параметры запроса",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ResponseApi.class)
+            )
+    )
+    @ApiResponse(
+            responseCode = "401",
+            description = "Не авторизован",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ResponseApi.class)
+            )
+    )
+    @ApiResponse(
+            responseCode = "404",
+            description = "Категория не найдена",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ResponseApi.class)
+            )
+    )
+    @ApiResponse(
+            responseCode = "409",
+            description = "Категория с таким именем уже существует",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ResponseApi.class)
+            )
+    )
+    @ApiResponse(
+            responseCode = "500",
+            description = "Внутренняя ошибка сервера",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ResponseApi.class)
+            )
+    )
+    public ResponseApi<CategoryResponseDto> updateCategory(
+            @RequestBody @Valid ApiRequest<UpdateCategoryRequestDto> request) {
+
+        CategoryResponseDto result = categoryService.updateCategory(
+                request.getUser().getUserId(),
+                request.getData()
+        );
+        return ResponseApi.success("Категория успешно обновлена", result);
     }
 }

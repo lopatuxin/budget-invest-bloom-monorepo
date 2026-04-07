@@ -98,4 +98,64 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
             @Param("userId") UUID userId,
             @Param("year") int year
     );
+
+    /**
+     * Возвращает помесячные суммы расходов пользователя по конкретной категории за указанный год.
+     *
+     * @param userId     идентификатор пользователя
+     * @param categoryId идентификатор категории
+     * @param year       календарный год
+     * @return список пар [номер месяца (Integer), сумма (BigDecimal)]
+     */
+    @Query("""
+            SELECT MONTH(e.date), SUM(e.amount)
+            FROM Expense e
+            WHERE e.userId = :userId
+              AND e.category.id = :categoryId
+              AND YEAR(e.date) = :year
+            GROUP BY MONTH(e.date)
+            ORDER BY MONTH(e.date)
+            """)
+    List<Object[]> findMonthlyExpenseByCategoryAndUserIdAndYear(
+            @Param("userId") UUID userId,
+            @Param("categoryId") UUID categoryId,
+            @Param("year") int year
+    );
+
+    /**
+     * Возвращает годовые суммы расходов пользователя по конкретной категории за все годы.
+     *
+     * @param userId     идентификатор пользователя
+     * @param categoryId идентификатор категории
+     * @return список пар [год (Integer), сумма (BigDecimal)]
+     */
+    @Query("""
+            SELECT YEAR(e.date), SUM(e.amount)
+            FROM Expense e
+            WHERE e.userId = :userId
+              AND e.category.id = :categoryId
+            GROUP BY YEAR(e.date)
+            ORDER BY YEAR(e.date)
+            """)
+    List<Object[]> findYearlyExpenseByCategoryAndUserId(
+            @Param("userId") UUID userId,
+            @Param("categoryId") UUID categoryId
+    );
+
+    /**
+     * Возвращает список расходов пользователя по категории за указанный период,
+     * отсортированных по дате убывания.
+     *
+     * @param userId     идентификатор пользователя
+     * @param categoryId идентификатор категории
+     * @param startDate  первый день периода (включительно)
+     * @param endDate    последний день периода (включительно)
+     * @return список расходов за период
+     */
+    List<Expense> findByUserIdAndCategoryIdAndDateBetweenOrderByDateDesc(
+            UUID userId,
+            UUID categoryId,
+            LocalDate startDate,
+            LocalDate endDate
+    );
 }

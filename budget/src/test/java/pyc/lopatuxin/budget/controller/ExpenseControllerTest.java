@@ -2,12 +2,15 @@ package pyc.lopatuxin.budget.controller;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import pyc.lopatuxin.budget.AbstractIntegrationTest;
 import pyc.lopatuxin.budget.entity.Category;
+import pyc.lopatuxin.budget.entity.Expense;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.comparesEqualTo;
@@ -194,5 +197,148 @@ class ExpenseControllerTest extends AbstractIntegrationTest {
                   }
                 }
                 """.formatted(reqUserId, UUID.randomUUID(), reqCategoryId, amount, description, date);
+    }
+
+    @Nested
+    @DisplayName("Удаление расхода (POST /delete)")
+    class DeleteExpense {
+
+        private static final String DELETE_URL = BASE_URL + "/delete";
+
+        @Test
+        @DisplayName("Должен удалить расход и вернуть статус 200")
+        void shouldDeleteExpenseAndReturn200() throws Exception {
+            Expense expense = expenseRepository.save(Expense.builder()
+                    .userId(userId)
+                    .category(categoryRepository.findById(categoryId).orElseThrow())
+                    .amount(new BigDecimal("1500.00"))
+                    .description("Тестовый расход")
+                    .date(LocalDate.of(2026, 4, 6))
+                    .build());
+
+            String requestBody = buildDeleteRequest(userId, expense.getId());
+
+            mockMvc.perform(post(DELETE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id", notNullValue()))
+                    .andExpect(jsonPath("$.status", is(200)))
+                    .andExpect(jsonPath("$.message", is("Расход успешно удалён")))
+                    .andExpect(jsonPath("$.timestamp", notNullValue()));
+        }
+
+        @Test
+        @DisplayName("Должен вернуть 404 когда расход не найден")
+        void shouldReturn404WhenExpenseNotFound() throws Exception {
+            UUID nonExistentExpenseId = UUID.randomUUID();
+            String requestBody = buildDeleteRequest(userId, nonExistentExpenseId);
+
+            mockMvc.perform(post(DELETE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.status", is(404)))
+                    .andExpect(jsonPath("$.message", is("Расход не найден")));
+        }
+
+        @Test
+        @DisplayName("Должен вернуть 404 при попытке удалить расход другого пользователя")
+        void shouldReturn404WhenExpenseBelongsToAnotherUser() throws Exception {
+            Expense expense = expenseRepository.save(Expense.builder()
+                    .userId(userId)
+                    .category(categoryRepository.findById(categoryId).orElseThrow())
+                    .amount(new BigDecimal("500.00"))
+                    .description("Чужой расход")
+                    .date(LocalDate.of(2026, 4, 6))
+                    .build());
+
+            UUID otherUserId = UUID.randomUUID();
+            String requestBody = buildDeleteRequest(otherUserId, expense.getId());
+
+            mockMvc.perform(post(DELETE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.status", is(404)))
+                    .andExpect(jsonPath("$.message", is("Расход не найден")));
+        }
+
+        @Test
+        @DisplayName("Должен вернуть 400 при отсутствии expenseId (null)")
+        void shouldReturn400WhenExpenseIdIsNull() throws Exception {
+            String requestBody = """
+                    {
+                      "user": {
+                        "userId": "%s",
+                        "email": "test@example.com",
+                        "role": "USER",
+                        "sessionId": "%s"
+                      },
+                      "data": {}
+                    }
+                    """.formatted(userId, UUID.randomUUID());
+
+            mockMvc.perform(post(DELETE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status", is(400)));
+        }
+
+        @Test
+        @DisplayName("Должен вернуть 400 при отсутствии блока user")
+        void shouldReturn400WhenUserBlockIsMissing() throws Exception {
+            String requestBody = """
+                    {
+                      "data": {
+                        "expenseId": "%s"
+                      }
+                    }
+                    """.formatted(UUID.randomUUID());
+
+            mockMvc.perform(post(DELETE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status", is(400)));
+        }
+
+        @Test
+        @DisplayName("Должен вернуть 400 при отсутствии блока data")
+        void shouldReturn400WhenDataBlockIsMissing() throws Exception {
+            String requestBody = """
+                    {
+                      "user": {
+                        "userId": "%s",
+                        "email": "test@example.com",
+                        "role": "USER",
+                        "sessionId": "%s"
+                      }
+                    }
+                    """.formatted(userId, UUID.randomUUID());
+
+            mockMvc.perform(post(DELETE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status", is(400)));
+        }
+
+        private String buildDeleteRequest(UUID reqUserId, UUID expenseId) {
+            return """
+                    {
+                      "user": {
+                        "userId": "%s",
+                        "email": "test@example.com",
+                        "role": "USER",
+                        "sessionId": "%s"
+                      },
+                      "data": {
+                        "expenseId": "%s"
+                      }
+                    }
+                    """.formatted(reqUserId, UUID.randomUUID(), expenseId);
+        }
     }
 }

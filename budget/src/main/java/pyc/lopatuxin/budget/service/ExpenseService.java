@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.budget.dto.request.CreateExpenseDto;
+import pyc.lopatuxin.budget.dto.request.DeleteExpenseRequestDto;
 import pyc.lopatuxin.budget.dto.response.ExpenseResponseDto;
 import pyc.lopatuxin.budget.entity.Category;
 import pyc.lopatuxin.budget.entity.Expense;
@@ -60,5 +61,25 @@ public class ExpenseService {
                 .description(expense.getDescription())
                 .date(expense.getDate())
                 .build();
+    }
+
+    /**
+     * Удаляет расход с проверкой принадлежности пользователю.
+     *
+     * @param userId  идентификатор пользователя
+     * @param request данные для удаления расхода
+     */
+    @Transactional
+    public void deleteExpense(UUID userId, DeleteExpenseRequestDto request) {
+        Expense expense = expenseRepository.findById(request.getExpenseId())
+                .orElseThrow(() -> new EntityNotFoundException("Расход не найден"));
+
+        if (!expense.getUserId().equals(userId)) {
+            throw new EntityNotFoundException("Расход не найден");
+        }
+
+        expenseRepository.delete(expense);
+
+        log.info("Удалён расход {} для пользователя {}", request.getExpenseId(), userId);
     }
 }

@@ -2,13 +2,16 @@ package pyc.lopatuxin.budget.controller;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.http.MediaType;
 import pyc.lopatuxin.budget.AbstractIntegrationTest;
+import pyc.lopatuxin.budget.entity.Category;
 
+import java.math.BigDecimal;
 import java.util.stream.Stream;
 
 import java.util.UUID;
@@ -173,5 +176,145 @@ class CategoryControllerTest extends AbstractIntegrationTest {
                   }
                 }
                 """.formatted(reqUserId, UUID.randomUUID(), name, budget, emojiField);
+    }
+
+    @Nested
+    @DisplayName("Обновление категории (POST /update)")
+    class UpdateCategory {
+
+        private static final String UPDATE_URL = BASE_URL + "/update";
+
+        @Test
+        @DisplayName("Должен обновить категорию и вернуть статус 200 с корректным телом ответа")
+        void shouldUpdateCategoryAndReturn200WithCorrectBody() throws Exception {
+            Category category = categoryRepository.save(Category.builder()
+                    .userId(userId)
+                    .name("Продукты")
+                    .budget(new BigDecimal("15000.00"))
+                    .emoji("\uD83D\uDED2")
+                    .build());
+
+            String requestBody = buildUpdateRequest(userId, category.getId(), "Еда", "20000.00");
+
+            mockMvc.perform(post(UPDATE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id", notNullValue()))
+                    .andExpect(jsonPath("$.status", is(200)))
+                    .andExpect(jsonPath("$.message", is("Категория успешно обновлена")))
+                    .andExpect(jsonPath("$.timestamp", notNullValue()))
+                    .andExpect(jsonPath("$.body.id", is(category.getId().toString())))
+                    .andExpect(jsonPath("$.body.name", is("Еда")))
+                    .andExpect(jsonPath("$.body.budget", comparesEqualTo(20000.00)))
+                    .andExpect(jsonPath("$.body.emoji", is("\uD83D\uDED2")));
+        }
+
+        @Test
+        @DisplayName("Должен вернуть 404 когда категория не найдена")
+        void shouldReturn404WhenCategoryNotFound() throws Exception {
+            UUID nonExistentId = UUID.randomUUID();
+            String requestBody = buildUpdateRequest(userId, nonExistentId, "Еда", "10000.00");
+
+            mockMvc.perform(post(UPDATE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.status", is(404)))
+                    .andExpect(jsonPath("$.message", is("Категория не найдена")));
+        }
+
+        @Test
+        @DisplayName("Должен вернуть 404 при попытке обновить категорию другого пользователя")
+        void shouldReturn404WhenCategoryBelongsToAnotherUser() throws Exception {
+            Category category = categoryRepository.save(Category.builder()
+                    .userId(UUID.randomUUID())
+                    .name("Чужая категория")
+                    .budget(new BigDecimal("5000.00"))
+                    .build());
+
+            String requestBody = buildUpdateRequest(userId, category.getId(), "Моя категория", "10000.00");
+
+            mockMvc.perform(post(UPDATE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.status", is(404)));
+        }
+
+        @Test
+        @DisplayName("Должен вернуть 409 при дубликате имени категории")
+        void shouldReturn409WhenDuplicateCategoryName() throws Exception {
+            categoryRepository.save(Category.builder()
+                    .userId(userId)
+                    .name("Еда")
+                    .budget(new BigDecimal("10000.00"))
+                    .build());
+
+            Category categoryToUpdate = categoryRepository.save(Category.builder()
+                    .userId(userId)
+                    .name("Транспорт")
+                    .budget(new BigDecimal("5000.00"))
+                    .build());
+
+            String requestBody = buildUpdateRequest(userId, categoryToUpdate.getId(), "Еда", "5000.00");
+
+            mockMvc.perform(post(UPDATE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.status", is(409)))
+                    .andExpect(jsonPath("$.message", is("Категория с таким именем уже существует")));
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource("pyc.lopatuxin.budget.controller.CategoryControllerTest#invalidUpdateDataProvider")
+        @DisplayName("Должен вернуть 400 при невалидных данных обновления категории")
+        void shouldReturn400WhenUpdateDataIsInvalid(String scenario, String requestBody) throws Exception {
+            mockMvc.perform(post(UPDATE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status", is(400)));
+        }
+
+        private String buildUpdateRequest(UUID reqUserId, UUID categoryId, String name, String budget) {
+            return """
+                    {
+                      "user": {
+                        "userId": "%s",
+                        "email": "test@example.com",
+                        "role": "USER",
+                        "sessionId": "%s"
+                      },
+                      "data": {
+                        "categoryId": "%s",
+                        "name": "%s",
+                        "budget": %s
+                      }
+                    }
+                    """.formatted(reqUserId, UUID.randomUUID(), categoryId, name, budget);
+        }
+    }
+
+    static Stream<Arguments> invalidUpdateDataProvider() {
+        UUID uid = UUID.randomUUID();
+        UUID sid = UUID.randomUUID();
+        UUID catId = UUID.randomUUID();
+        String userBlock = """
+                "user": {"userId": "%s", "email": "test@example.com", "role": "USER", "sessionId": "%s"}""".formatted(uid, sid);
+
+        return Stream.of(
+                Arguments.of("categoryId отсутствует (null)",
+                        "{%s, \"data\": {\"name\": \"Еда\", \"budget\": 10000.00}}".formatted(userBlock)),
+                Arguments.of("name отсутствует (null)",
+                        "{%s, \"data\": {\"categoryId\": \"%s\", \"budget\": 10000.00}}".formatted(userBlock, catId)),
+                Arguments.of("name пустой (blank)",
+                        "{%s, \"data\": {\"categoryId\": \"%s\", \"name\": \"   \", \"budget\": 10000.00}}".formatted(userBlock, catId)),
+                Arguments.of("budget отсутствует (null)",
+                        "{%s, \"data\": {\"categoryId\": \"%s\", \"name\": \"Еда\"}}".formatted(userBlock, catId)),
+                Arguments.of("budget отрицательный",
+                        "{%s, \"data\": {\"categoryId\": \"%s\", \"name\": \"Еда\", \"budget\": -100.00}}".formatted(userBlock, catId))
+        );
     }
 }

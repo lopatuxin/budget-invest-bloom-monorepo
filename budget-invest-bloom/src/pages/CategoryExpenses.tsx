@@ -5,23 +5,45 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Calendar, TrendingDown, Settings, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
+import { useCategoryAnalytics } from '@/hooks/useCategoryAnalytics';
+import { useUpdateCategory } from '@/hooks/useUpdateCategory';
+import { useDeleteExpense } from '@/hooks/useDeleteExpense';
 
 const CategoryExpenses = () => {
   const { category } = useParams<{ category: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [selectedYear, setSelectedYear] = useState('2024');
-  const [selectedMonth, setSelectedMonth] = useState('12');
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [selectedMonth, setSelectedMonth] = useState((new Date().getMonth() + 1).toString());
   const [chartPeriod, setChartPeriod] = useState<'month' | 'year'>('month');
-  
+
   // Состояние для редактирования категории
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editCategoryName, setEditCategoryName] = useState(category || '');
-  const [editCategoryLimit, setEditCategoryLimit] = useState('30000');
+  const [editCategoryLimit, setEditCategoryLimit] = useState('0');
+
+  // API хуки
+  const { data: analyticsResponse, isLoading } = useCategoryAnalytics(
+    category || '',
+    Number(selectedYear),
+    Number(selectedMonth)
+  );
+  const updateCategoryMutation = useUpdateCategory();
+  const deleteExpenseMutation = useDeleteExpense();
+
+  const analyticsData = analyticsResponse?.body;
+
+  // Инициализируем поля редактирования из данных API
+  useEffect(() => {
+    if (analyticsData) {
+      setEditCategoryName(analyticsData.categoryName || category || '');
+      setEditCategoryLimit(analyticsData.budget?.toString() || '0');
+    }
+  }, [analyticsData]);
 
   const months = [
     { value: '1', label: 'Январь' },
@@ -38,77 +60,85 @@ const CategoryExpenses = () => {
     { value: '12', label: 'Декабрь' },
   ];
 
-  const years = ['2022', '2023', '2024', '2025'];
+  // Динамический массив годов: от 2020 до текущего года + 1
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: currentYear - 2020 + 2 }, (_, i) => String(2020 + i));
 
-  // Примерные данные для графика по месяцам
-  const monthlyData = [
-    { month: 'Янв', amount: 22000 },
-    { month: 'Фев', amount: 25000 },
-    { month: 'Мар', amount: 23000 },
-    { month: 'Апр', amount: 27000 },
-    { month: 'Май', amount: 24000 },
-    { month: 'Июн', amount: 26000 },
-    { month: 'Июл', amount: 28000 },
-    { month: 'Авг', amount: 25000 },
-    { month: 'Сен', amount: 24000 },
-    { month: 'Окт', amount: 26000 },
-    { month: 'Ноя', amount: 27000 },
-    { month: 'Дек', amount: 25000 },
-  ];
+  // Данные для графиков из API
+  const monthlyData = (analyticsData?.monthlyData || []).map(m => ({
+    month: m.monthName,
+    amount: m.amount,
+  }));
 
-  // Примерные данные для графика по годам
-  const yearlyData = [
-    { year: '2021', amount: 280000 },
-    { year: '2022', amount: 295000 },
-    { year: '2023', amount: 310000 },
-    { year: '2024', amount: 300000 },
-  ];
+  const yearlyData = (analyticsData?.yearlyData || []).map(y => ({
+    year: String(y.year),
+    amount: y.amount,
+  }));
 
-  // Примерные данные отчета по дням
-  const [dailyExpenses, setDailyExpenses] = useState([
-    { id: 1, date: '01.12.2024', description: 'Продукты в супермаркете', amount: 1200 },
-    { id: 2, date: '03.12.2024', description: 'Кафе', amount: 850 },
-    { id: 3, date: '05.12.2024', description: 'Продукты на рынке', amount: 2300 },
-    { id: 4, date: '07.12.2024', description: 'Доставка еды', amount: 950 },
-    { id: 5, date: '10.12.2024', description: 'Ресторан', amount: 3200 },
-    { id: 6, date: '12.12.2024', description: 'Продукты', amount: 1800 },
-    { id: 7, date: '15.12.2024', description: 'Кофе', amount: 350 },
-    { id: 8, date: '17.12.2024', description: 'Обед', amount: 1250 },
-    { id: 9, date: '20.12.2024', description: 'Продукты', amount: 2100 },
-    { id: 10, date: '22.12.2024', description: 'Кафе с друзьями', amount: 1650 },
-  ]);
+  const expenses = analyticsData?.expenses || [];
+  const totalMonthExpenses = analyticsData?.totalExpenses || 0;
 
-  const categoryInfo = {
-    'Еда': { color: 'text-blue-500', bgColor: 'bg-blue-500' },
-    'Транспорт': { color: 'text-green-500', bgColor: 'bg-green-500' },
-    'Развлечения': { color: 'text-purple-500', bgColor: 'bg-purple-500' },
-    'Коммунальные': { color: 'text-orange-500', bgColor: 'bg-orange-500' },
-    'Здоровье': { color: 'text-red-500', bgColor: 'bg-red-500' },
-    'Прочее': { color: 'text-gray-500', bgColor: 'bg-gray-500' },
-  };
-
-  const currentCategoryInfo = categoryInfo[category as keyof typeof categoryInfo] || categoryInfo['Прочее'];
   const currentData = chartPeriod === 'month' ? monthlyData : yearlyData;
-  const totalMonthExpenses = dailyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
   // Функция для сохранения изменений категории
   const handleSaveCategory = () => {
-    // Здесь будет логика сохранения изменений
-    toast({
-      title: "Категория обновлена",
-      description: `Название: ${editCategoryName}, Лимит: ₽${Number(editCategoryLimit).toLocaleString()}`,
-    });
-    setIsEditDialogOpen(false);
+    if (!analyticsData?.categoryId) return;
+
+    updateCategoryMutation.mutate(
+      {
+        categoryId: analyticsData.categoryId,
+        name: editCategoryName,
+        budget: Number(editCategoryLimit),
+      },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Категория обновлена",
+            description: `Название: ${editCategoryName}, Лимит: ${Number(editCategoryLimit).toLocaleString()}`,
+          });
+          setIsEditDialogOpen(false);
+          navigate(`/budget/category/${encodeURIComponent(editCategoryName)}`, { replace: true });
+        },
+        onError: () => {
+          toast({
+            title: "Ошибка",
+            description: "Не удалось обновить категорию",
+            variant: "destructive",
+          });
+        },
+      }
+    );
   };
 
   // Функция для удаления расхода
-  const handleDeleteExpense = (id: number) => {
-    setDailyExpenses(dailyExpenses.filter(expense => expense.id !== id));
-    toast({
-      title: "Расход удален",
-      description: "Запись о расходе была успешно удалена",
-    });
+  const handleDeleteExpense = (id: string) => {
+    deleteExpenseMutation.mutate(
+      { expenseId: id },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Расход удален",
+            description: "Запись о расходе была успешно удалена",
+          });
+        },
+        onError: () => {
+          toast({
+            title: "Ошибка",
+            description: "Не удалось удалить расход",
+            variant: "destructive",
+          });
+        },
+      }
+    );
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-background flex items-center justify-center">
+        <p className="text-muted-foreground text-lg">Загрузка...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-background">
@@ -125,12 +155,14 @@ const CategoryExpenses = () => {
           </Button>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`w-6 h-6 rounded-full ${currentCategoryInfo.bgColor}`} />
+              {analyticsData?.emoji && (
+                <span className="text-2xl">{analyticsData.emoji}</span>
+              )}
               <h1 className="text-3xl font-bold text-foreground">
-                Категория: {category}
+                Категория: {analyticsData?.categoryName || category}
               </h1>
             </div>
-            
+
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
@@ -173,8 +205,8 @@ const CategoryExpenses = () => {
                   <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                     Отмена
                   </Button>
-                  <Button onClick={handleSaveCategory}>
-                    Сохранить
+                  <Button onClick={handleSaveCategory} disabled={updateCategoryMutation.isPending}>
+                    {updateCategoryMutation.isPending ? 'Сохранение...' : 'Сохранить'}
                   </Button>
                 </div>
               </DialogContent>
@@ -217,7 +249,7 @@ const CategoryExpenses = () => {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={currentData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
-                <XAxis 
+                <XAxis
                   dataKey={chartPeriod === 'month' ? 'month' : 'year'}
                   stroke="hsl(var(--muted-foreground))"
                 />
@@ -229,7 +261,7 @@ const CategoryExpenses = () => {
                     borderRadius: '8px',
                     color: 'hsl(var(--foreground))'
                   }}
-                  formatter={(value) => [`₽${Number(value).toLocaleString()}`, 'Сумма']}
+                  formatter={(value) => [`${Number(value).toLocaleString()}`, 'Сумма']}
                 />
                 <Line
                   type="monotone"
@@ -252,7 +284,7 @@ const CategoryExpenses = () => {
                 <Calendar className="w-5 h-5" />
                 Отчет по дням
                 <span className="text-sm font-normal text-muted-foreground ml-2">
-                  (Общая сумма: ₽{totalMonthExpenses.toLocaleString()})
+                  (Общая сумма: {totalMonthExpenses.toLocaleString()})
                 </span>
               </CardTitle>
               <div className="flex gap-3">
@@ -285,9 +317,14 @@ const CategoryExpenses = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {dailyExpenses.map((expense, index) => (
-                <div 
-                  key={expense.id} 
+              {expenses.length === 0 && (
+                <p className="text-center text-muted-foreground py-8">
+                  Нет расходов за выбранный период
+                </p>
+              )}
+              {expenses.map((expense) => (
+                <div
+                  key={expense.id}
                   className="relative flex items-center justify-between p-4 rounded-lg border border-transparent hover:border-border/20 transition-all duration-300 hover:shadow-card group overflow-hidden"
                 >
                   <div className="absolute inset-0 bg-gradient-primary opacity-5" />
@@ -303,12 +340,13 @@ const CategoryExpenses = () => {
                   </div>
                   <div className="relative z-10 flex items-center gap-3">
                     <div className="font-semibold text-lg text-foreground">
-                      ₽{expense.amount.toLocaleString()}
+                      {expense.amount.toLocaleString()}
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
                       className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      disabled={deleteExpenseMutation.isPending}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteExpense(expense.id);

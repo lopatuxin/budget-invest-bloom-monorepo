@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import pyc.lopatuxin.budget.dto.common.ApiRequest;
 import pyc.lopatuxin.budget.dto.request.CreateExpenseDto;
+import pyc.lopatuxin.budget.dto.request.DeleteExpenseRequestDto;
 import pyc.lopatuxin.budget.dto.response.ExpenseResponseDto;
 import pyc.lopatuxin.budget.dto.response.ResponseApi;
 import pyc.lopatuxin.budget.service.ExpenseService;
@@ -93,5 +94,67 @@ public class ExpenseController {
                 request.getData()
         );
         return ResponseApi.created("Расход успешно добавлен", result);
+    }
+
+    /**
+     * Удаляет расход пользователя.
+     *
+     * @param request запрос с контекстом пользователя и идентификатором расхода
+     * @return стандартный ответ без тела
+     */
+    @PostMapping("/delete")
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(
+            summary = "Удалить расход",
+            description = "Удаляет расход пользователя по идентификатору"
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Расход успешно удалён",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ResponseApi.class)
+            )
+    )
+    @ApiResponse(
+            responseCode = "400",
+            description = "Некорректные параметры запроса",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ResponseApi.class)
+            )
+    )
+    @ApiResponse(
+            responseCode = "401",
+            description = "Не авторизован",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ResponseApi.class)
+            )
+    )
+    @ApiResponse(
+            responseCode = "404",
+            description = "Расход не найден",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ResponseApi.class)
+            )
+    )
+    @ApiResponse(
+            responseCode = "500",
+            description = "Внутренняя ошибка сервера",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ResponseApi.class)
+            )
+    )
+    public ResponseApi<Void> deleteExpense(
+            @RequestBody @Valid ApiRequest<DeleteExpenseRequestDto> request) {
+
+        expenseService.deleteExpense(
+                request.getUser().getUserId(),
+                request.getData()
+        );
+        return ResponseApi.success("Расход успешно удалён", null);
     }
 }

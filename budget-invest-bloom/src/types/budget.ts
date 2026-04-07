@@ -49,3 +49,28 @@ export interface MetricResponse {
   yearlyMax: number;
   monthlyData: MonthlyMetric[];
 }
+
+export interface CategoryAnalyticsResponse {
+  categoryId: string;
+  categoryName: string;
+  emoji: string;
+  budget: number;
+  monthlyData: MonthlyMetric[];
+  yearlyData: YearlyMetric[];
+  expenses: ExpenseItem[];
+  totalExpenses: number;
+}
+
+export interface YearlyMetric {
+  year: number;
+  amount: number;
+}
+
+export interface ExpenseItem {
+  id: string;
+  categoryId: string;
+  categoryName: string;
+  amount: number;
+  description: string;
+  date: string;
+}

@@ -28,4 +28,13 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
      * @return Optional с категорией, если она принадлежит пользователю
      */
     Optional<Category> findByIdAndUserId(UUID id, UUID userId);
+
+    /**
+     * Находит категорию по названию и идентификатору пользователя.
+     *
+     * @param name   название категории
+     * @param userId идентификатор пользователя
+     * @return Optional с категорией, если она найдена
+     */
+    Optional<Category> findByNameAndUserId(String name, UUID userId);
 }
