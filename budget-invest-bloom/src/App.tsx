@@ -4,8 +4,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import * as Sentry from "@sentry/react";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Navigation from "@/components/Navigation";
+import Sidebar from "@/components/Sidebar";
 import Index from "./pages/Index";
 import Budget from "./pages/Budget";
 import Investments from "./pages/Investments";
@@ -36,6 +37,50 @@ const ErrorFallback = ({ resetError }: { resetError: () => void }) => (
   </div>
 );
 
+const AppLayout = () => {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-background">
+        <Navigation />
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/budget" element={<Budget />} />
+          <Route path="/budget/category/:category" element={<CategoryExpenses />} />
+          <Route path="/budget/metric/:metric" element={<MetricDetails />} />
+          <Route path="/investments" element={<Investments />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </div>
+    );
+  }
+
+  return (
+    <div className="dashboard-bg h-screen overflow-hidden">
+      <Sidebar />
+      <main className="ml-[264px] h-screen overflow-y-auto dashboard-scroll p-6">
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/budget" element={<Budget />} />
+          <Route path="/budget/category/:category" element={<CategoryExpenses />} />
+          <Route path="/budget/metric/:metric" element={<MetricDetails />} />
+          <Route path="/investments" element={<Investments />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </main>
+    </div>
+  );
+};
+
 const App = () => (
   <Sentry.ErrorBoundary fallback={ErrorFallback} showDialog>
     <QueryClientProvider client={queryClient}>
@@ -44,21 +89,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <div className="min-h-screen bg-gradient-background">
-              <Navigation />
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/budget" element={<Budget />} />
-                <Route path="/budget/category/:category" element={<CategoryExpenses />} />
-                <Route path="/budget/metric/:metric" element={<MetricDetails />} />
-                <Route path="/investments" element={<Investments />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </div>
+            <AppLayout />
           </BrowserRouter>
         </AuthProvider>
       </TooltipProvider>
