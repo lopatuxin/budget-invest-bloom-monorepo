@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -21,12 +21,10 @@ const CategoryExpenses = () => {
   const [selectedMonth, setSelectedMonth] = useState((new Date().getMonth() + 1).toString());
   const [chartPeriod, setChartPeriod] = useState<'month' | 'year'>('month');
 
-  // Состояние для редактирования категории
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editCategoryName, setEditCategoryName] = useState(category || '');
   const [editCategoryLimit, setEditCategoryLimit] = useState('0');
 
-  // API хуки
   const { data: analyticsResponse, isLoading } = useCategoryAnalytics(
     category || '',
     Number(selectedYear),
@@ -37,7 +35,6 @@ const CategoryExpenses = () => {
 
   const analyticsData = analyticsResponse?.body;
 
-  // Инициализируем поля редактирования из данных API
   useEffect(() => {
     if (analyticsData) {
       setEditCategoryName(analyticsData.categoryName || category || '');
@@ -60,11 +57,9 @@ const CategoryExpenses = () => {
     { value: '12', label: 'Декабрь' },
   ];
 
-  // Динамический массив годов: от 2020 до текущего года + 1
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - 2020 + 2 }, (_, i) => String(2020 + i));
 
-  // Данные для графиков из API
   const monthlyData = (analyticsData?.monthlyData || []).map(m => ({
     month: m.monthName,
     amount: m.amount,
@@ -80,7 +75,6 @@ const CategoryExpenses = () => {
 
   const currentData = chartPeriod === 'month' ? monthlyData : yearlyData;
 
-  // Функция для сохранения изменений категории
   const handleSaveCategory = () => {
     if (!analyticsData?.categoryId) return;
 
@@ -110,7 +104,6 @@ const CategoryExpenses = () => {
     );
   };
 
-  // Функция для удаления расхода
   const handleDeleteExpense = (id: string) => {
     deleteExpenseMutation.mutate(
       { expenseId: id },
@@ -134,21 +127,20 @@ const CategoryExpenses = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-background flex items-center justify-center">
-        <p className="text-muted-foreground text-lg">Загрузка...</p>
+      <div className="h-[calc(100vh-4rem)] flex items-center justify-center">
+        <p className="text-dashboard-text-muted text-lg">Загрузка...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-background">
+    <div>
       <div className="max-w-7xl mx-auto p-6">
-        {/* Заголовок */}
         <div className="mb-8">
           <Button
             variant="ghost"
             onClick={() => navigate('/budget')}
-            className="mb-4 text-muted-foreground hover:text-foreground hover:bg-muted"
+            className="mb-4 text-dashboard-text-muted hover:text-dashboard-text hover:bg-white/5"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Назад к бюджету
@@ -158,37 +150,37 @@ const CategoryExpenses = () => {
               {analyticsData?.emoji && (
                 <span className="text-2xl">{analyticsData.emoji}</span>
               )}
-              <h1 className="text-3xl font-bold text-foreground">
+              <h1 className="text-3xl font-bold text-dashboard-text">
                 Категория: {analyticsData?.categoryName || category}
               </h1>
             </div>
 
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
+                <Button variant="outline" size="sm" className="gap-2 border-white/10 text-dashboard-text hover:bg-white/5">
                   <Settings className="w-4 h-4" />
                   Редактировать
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
+              <DialogContent className="sm:max-w-[425px] bg-[#0B1929] border-white/10 text-dashboard-text">
                 <DialogHeader>
-                  <DialogTitle>Редактировать категорию</DialogTitle>
+                  <DialogTitle className="text-dashboard-text">Редактировать категорию</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="category-name" className="text-right">
+                    <Label htmlFor="category-name" className="text-right text-dashboard-text">
                       Название
                     </Label>
                     <Input
                       id="category-name"
                       value={editCategoryName}
                       onChange={(e) => setEditCategoryName(e.target.value)}
-                      className="col-span-3"
+                      className="col-span-3 bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
                       placeholder="Название категории"
                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="category-limit" className="text-right">
+                    <Label htmlFor="category-limit" className="text-right text-dashboard-text">
                       Лимит
                     </Label>
                     <Input
@@ -196,32 +188,31 @@ const CategoryExpenses = () => {
                       type="number"
                       value={editCategoryLimit}
                       onChange={(e) => setEditCategoryLimit(e.target.value)}
-                      className="col-span-3"
+                      className="col-span-3 bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
                       placeholder="Лимит расходов"
                     />
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="border-white/10 text-dashboard-text hover:bg-white/5">
                     Отмена
                   </Button>
-                  <Button onClick={handleSaveCategory} disabled={updateCategoryMutation.isPending}>
+                  <Button onClick={handleSaveCategory} disabled={updateCategoryMutation.isPending} className="bg-emerald-500 hover:bg-emerald-600 text-white">
                     {updateCategoryMutation.isPending ? 'Сохранение...' : 'Сохранить'}
                   </Button>
                 </div>
               </DialogContent>
             </Dialog>
           </div>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-dashboard-text-muted mt-2">
             Детальная аналитика расходов по категории
           </p>
         </div>
 
-        {/* График колебаний */}
-        <Card className="mb-8 shadow-card border-0">
+        <div className="glass-card mb-8">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-dashboard-text">
                 <TrendingDown className="w-5 h-5" />
                 График расходов
               </CardTitle>
@@ -230,7 +221,7 @@ const CategoryExpenses = () => {
                   variant={chartPeriod === 'month' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setChartPeriod('month')}
-                  className={chartPeriod === 'month' ? 'bg-gradient-primary hover:opacity-90' : ''}
+                  className={chartPeriod === 'month' ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'border-white/10 text-dashboard-text-muted hover:bg-white/5'}
                 >
                   По месяцам
                 </Button>
@@ -238,7 +229,7 @@ const CategoryExpenses = () => {
                   variant={chartPeriod === 'year' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setChartPeriod('year')}
-                  className={chartPeriod === 'year' ? 'bg-gradient-primary hover:opacity-90' : ''}
+                  className={chartPeriod === 'year' ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'border-white/10 text-dashboard-text-muted hover:bg-white/5'}
                 >
                   По годам
                 </Button>
@@ -248,51 +239,50 @@ const CategoryExpenses = () => {
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={currentData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                 <XAxis
                   dataKey={chartPeriod === 'month' ? 'month' : 'year'}
-                  stroke="hsl(var(--muted-foreground))"
+                  tick={{ fill: '#94A3B8' }}
                 />
-                <YAxis stroke="hsl(var(--muted-foreground))" />
+                <YAxis tick={{ fill: '#94A3B8' }} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    color: 'hsl(var(--foreground))'
+                    backgroundColor: '#0B1929',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '0.75rem',
+                    color: '#d6e3fa'
                   }}
                   formatter={(value) => [`${Number(value).toLocaleString()}`, 'Сумма']}
                 />
                 <Line
                   type="monotone"
                   dataKey="amount"
-                  stroke="hsl(var(--primary))"
+                  stroke="#10B981"
                   strokeWidth={3}
-                  dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 6 }}
-                  activeDot={{ r: 8, stroke: 'hsl(var(--primary))' }}
+                  dot={{ fill: '#10B981', strokeWidth: 2, r: 6 }}
+                  activeDot={{ r: 8, stroke: '#10B981' }}
                 />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
-        </Card>
+        </div>
 
-        {/* Отчет по дням */}
-        <Card className="shadow-card border-0">
+        <div className="glass-card">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-dashboard-text">
                 <Calendar className="w-5 h-5" />
                 Отчет по дням
-                <span className="text-sm font-normal text-muted-foreground ml-2">
+                <span className="text-sm font-normal text-dashboard-text-muted ml-2">
                   (Общая сумма: {totalMonthExpenses.toLocaleString()})
                 </span>
               </CardTitle>
               <div className="flex gap-3">
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger className="w-[140px] bg-white/5 border-white/10 text-dashboard-text">
                     <SelectValue placeholder="Месяц" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-[#0B1929] border-white/10">
                     {months.map((month) => (
                       <SelectItem key={month.value} value={month.value}>
                         {month.label}
@@ -301,10 +291,10 @@ const CategoryExpenses = () => {
                   </SelectContent>
                 </Select>
                 <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger className="w-[100px]">
+                  <SelectTrigger className="w-[100px] bg-white/5 border-white/10 text-dashboard-text">
                     <SelectValue placeholder="Год" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-[#0B1929] border-white/10">
                     {years.map((year) => (
                       <SelectItem key={year} value={year}>
                         {year}
@@ -316,30 +306,30 @@ const CategoryExpenses = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-3 dashboard-scroll">
               {expenses.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">
+                <p className="text-center text-dashboard-text-muted py-8">
                   Нет расходов за выбранный период
                 </p>
               )}
               {expenses.map((expense) => (
                 <div
                   key={expense.id}
-                  className="relative flex items-center justify-between p-4 rounded-lg border border-transparent hover:border-border/20 transition-all duration-300 hover:shadow-card group overflow-hidden"
+                  className="relative flex items-center justify-between p-4 rounded-lg border border-white/10 hover:border-white/20 transition-all duration-300 group overflow-hidden"
                 >
-                  <div className="absolute inset-0 bg-gradient-primary opacity-5" />
+                  <div className="absolute inset-0 bg-white/[0.03]" />
                   <div className="relative z-10 flex items-center gap-4">
                     <div className="flex flex-col">
-                      <div className="font-medium text-foreground">
+                      <div className="font-medium text-dashboard-text">
                         {expense.description}
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-sm text-dashboard-text-muted">
                         {expense.date}
                       </div>
                     </div>
                   </div>
                   <div className="relative z-10 flex items-center gap-3">
-                    <div className="font-semibold text-lg text-foreground">
+                    <div className="font-semibold text-lg text-dashboard-text">
                       {expense.amount.toLocaleString()}
                     </div>
                     <Button
@@ -359,7 +349,7 @@ const CategoryExpenses = () => {
               ))}
             </div>
           </CardContent>
-        </Card>
+        </div>
       </div>
     </div>
   );
