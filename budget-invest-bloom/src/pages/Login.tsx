@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { LogIn, Mail, Lock, Eye, EyeOff } from 'lucide-react';
@@ -140,28 +140,28 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4">
+      <div className="glass-card w-full max-w-md p-0">
         <CardHeader className="text-center">
-          <div className="w-12 h-12 bg-gradient-primary rounded-lg flex items-center justify-center mx-auto mb-4">
-            <LogIn className="w-6 h-6 text-primary-foreground" />
+          <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center mx-auto mb-4">
+            <LogIn className="w-6 h-6 text-emerald-400" />
           </div>
-          <CardTitle className="text-2xl font-bold">Добро пожаловать</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-2xl font-bold text-dashboard-text">Добро пожаловать</CardTitle>
+          <CardDescription className="text-dashboard-text-muted">
             Войдите в свой аккаунт для продолжения
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-dashboard-text">Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-dashboard-text-muted" />
                 <Input
                   id="email"
                   type="email"
                   placeholder="your@email.com"
-                  className="pl-10"
+                  className="pl-10 bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   required
@@ -170,14 +170,14 @@ const Login = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Пароль</Label>
+              <Label htmlFor="password" className="text-dashboard-text">Пароль</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-dashboard-text-muted" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Введите пароль"
-                  className="pl-10 pr-10"
+                  className="pl-10 pr-10 bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
                   value={formData.password}
                   onChange={(e) => handleInputChange('password', e.target.value)}
                   required
@@ -190,9 +190,9 @@ const Login = () => {
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    <EyeOff className="h-4 w-4 text-dashboard-text-muted" />
                   ) : (
-                    <Eye className="h-4 w-4 text-muted-foreground" />
+                    <Eye className="h-4 w-4 text-dashboard-text-muted" />
                   )}
                 </Button>
               </div>
@@ -203,15 +203,16 @@ const Login = () => {
                 id="rememberMe"
                 checked={formData.rememberMe}
                 onCheckedChange={(checked) => handleInputChange('rememberMe', checked as boolean)}
+                className="border-white/20 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
               />
-              <Label htmlFor="rememberMe" className="text-sm font-normal">
+              <Label htmlFor="rememberMe" className="text-sm font-normal text-dashboard-text-muted">
                 Запомнить меня
               </Label>
             </div>
 
             <Button
               type="submit"
-              className="w-full bg-gradient-primary hover:opacity-90"
+              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white"
               disabled={isLoading}
             >
               {isLoading ? "Вход..." : "Войти"}
@@ -219,24 +220,24 @@ const Login = () => {
           </form>
 
           <div className="mt-4 text-center">
-            <Link 
-              to="/forgot-password" 
-              className="text-sm text-primary hover:underline"
+            <Link
+              to="/forgot-password"
+              className="text-sm text-emerald-400 hover:underline"
             >
               Забыли пароль?
             </Link>
           </div>
 
           <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-dashboard-text-muted">
               Нет аккаунта?{' '}
-              <Link to="/register" className="text-primary font-medium hover:underline">
+              <Link to="/register" className="text-emerald-400 font-medium hover:underline">
                 Зарегистрироваться
               </Link>
             </p>
           </div>
         </CardContent>
-      </Card>
+      </div>
     </div>
   );
 };

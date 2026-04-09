@@ -4,7 +4,7 @@ import {Link, useNavigate} from 'react-router-dom';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
+import {CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {useToast} from '@/hooks/use-toast';
 import {Eye, EyeOff, Lock, Mail, User} from 'lucide-react';
 
@@ -99,15 +99,15 @@ const Register = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-background flex items-center justify-center p-4">
-            <Card className="w-full max-w-md">
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4">
+            <div className="glass-card w-full max-w-md p-0">
                 <CardHeader className="text-center">
                     <div
-                        className="w-12 h-12 bg-gradient-primary rounded-lg flex items-center justify-center mx-auto mb-4">
-                        <User className="w-6 h-6 text-primary-foreground"/>
+                        className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center mx-auto mb-4">
+                        <User className="w-6 h-6 text-emerald-400"/>
                     </div>
-                    <CardTitle className="text-2xl font-bold">Создать аккаунт</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-2xl font-bold text-dashboard-text">Создать аккаунт</CardTitle>
+                    <CardDescription className="text-dashboard-text-muted">
                         Заполните данные для создания нового аккаунта
                     </CardDescription>
                 </CardHeader>
@@ -115,22 +115,24 @@ const Register = () => {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="firstName">Имя</Label>
+                                <Label htmlFor="firstName" className="text-dashboard-text">Имя</Label>
                                 <Input
                                     id="firstName"
                                     type="text"
                                     placeholder="Иван"
+                                    className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
                                     value={formData.firstName}
                                     onChange={(e) => handleInputChange('firstName', e.target.value)}
                                     required
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="lastName">Фамилия</Label>
+                                <Label htmlFor="lastName" className="text-dashboard-text">Фамилия</Label>
                                 <Input
                                     id="lastName"
                                     type="text"
                                     placeholder="Иванов"
+                                    className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
                                     value={formData.lastName}
                                     onChange={(e) => handleInputChange('lastName', e.target.value)}
                                     required
@@ -139,14 +141,14 @@ const Register = () => {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="email">Email</Label>
+                            <Label htmlFor="email" className="text-dashboard-text">Email</Label>
                             <div className="relative">
-                                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"/>
+                                <Mail className="absolute left-3 top-3 h-4 w-4 text-dashboard-text-muted"/>
                                 <Input
                                     id="email"
                                     type="email"
                                     placeholder="your@email.com"
-                                    className="pl-10"
+                                    className="pl-10 bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
                                     value={formData.email}
                                     onChange={(e) => handleInputChange('email', e.target.value)}
                                     required
@@ -155,14 +157,14 @@ const Register = () => {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="password">Пароль</Label>
+                            <Label htmlFor="password" className="text-dashboard-text">Пароль</Label>
                             <div className="relative">
-                                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"/>
+                                <Lock className="absolute left-3 top-3 h-4 w-4 text-dashboard-text-muted"/>
                                 <Input
                                     id="password"
                                     type={showPassword ? "text" : "password"}
                                     placeholder="Введите пароль"
-                                    className="pl-10 pr-10"
+                                    className="pl-10 pr-10 bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
                                     value={formData.password}
                                     onChange={(e) => handleInputChange('password', e.target.value)}
                                     required
@@ -175,23 +177,23 @@ const Register = () => {
                                     onClick={() => setShowPassword(!showPassword)}
                                 >
                                     {showPassword ? (
-                                        <EyeOff className="h-4 w-4 text-muted-foreground"/>
+                                        <EyeOff className="h-4 w-4 text-dashboard-text-muted"/>
                                     ) : (
-                                        <Eye className="h-4 w-4 text-muted-foreground"/>
+                                        <Eye className="h-4 w-4 text-dashboard-text-muted"/>
                                     )}
                                 </Button>
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="confirmPassword">Подтвердите пароль</Label>
+                            <Label htmlFor="confirmPassword" className="text-dashboard-text">Подтвердите пароль</Label>
                             <div className="relative">
-                                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"/>
+                                <Lock className="absolute left-3 top-3 h-4 w-4 text-dashboard-text-muted"/>
                                 <Input
                                     id="confirmPassword"
                                     type={showConfirmPassword ? "text" : "password"}
                                     placeholder="Повторите пароль"
-                                    className="pl-10 pr-10"
+                                    className="pl-10 pr-10 bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
                                     value={formData.confirmPassword}
                                     onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
                                     required
@@ -204,9 +206,9 @@ const Register = () => {
                                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                 >
                                     {showConfirmPassword ? (
-                                        <EyeOff className="h-4 w-4 text-muted-foreground"/>
+                                        <EyeOff className="h-4 w-4 text-dashboard-text-muted"/>
                                     ) : (
-                                        <Eye className="h-4 w-4 text-muted-foreground"/>
+                                        <Eye className="h-4 w-4 text-dashboard-text-muted"/>
                                     )}
                                 </Button>
                             </div>
@@ -214,7 +216,7 @@ const Register = () => {
 
                         <Button
                             type="submit"
-                            className="w-full bg-gradient-primary hover:opacity-90"
+                            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white"
                             disabled={isLoading}
                         >
                             {isLoading ? "Создание аккаунта..." : "Создать аккаунт"}
@@ -222,15 +224,15 @@ const Register = () => {
                     </form>
 
                     <div className="mt-6 text-center">
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-dashboard-text-muted">
                             Уже есть аккаунт?{' '}
-                            <Link to="/login" className="text-primary font-medium hover:underline">
+                            <Link to="/login" className="text-emerald-400 font-medium hover:underline">
                                 Войти
                             </Link>
                         </p>
                     </div>
                 </CardContent>
-            </Card>
+            </div>
         </div>
     );
 };

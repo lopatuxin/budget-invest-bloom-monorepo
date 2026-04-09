@@ -21,15 +21,15 @@ const queryClient = new QueryClient();
 
 // Fallback компонент для Error Boundary
 const ErrorFallback = ({ resetError }: { resetError: () => void }) => (
-  <div className="min-h-screen flex items-center justify-center bg-gradient-background">
-    <div className="max-w-md p-8 bg-card rounded-lg shadow-lg text-center">
-      <h1 className="text-2xl font-bold text-destructive mb-4">Что-то пошло не так</h1>
-      <p className="text-muted-foreground mb-6">
+  <div className="dashboard-bg flex items-center justify-center">
+    <div className="max-w-md p-8 glass-card text-center">
+      <h1 className="text-2xl font-bold text-red-400 mb-4">Что-то пошло не так</h1>
+      <p className="text-dashboard-text-muted mb-6">
         Произошла непредвиденная ошибка. Мы уже получили уведомление и работаем над исправлением.
       </p>
       <button
         onClick={resetError}
-        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+        className="px-4 py-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors"
       >
         Попробовать снова
       </button>
@@ -42,7 +42,7 @@ const AppLayout = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-background">
+      <div className="dashboard-bg">
         <Navigation />
         <Routes>
           <Route path="/" element={<Index />} />
