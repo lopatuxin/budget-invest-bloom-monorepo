@@ -1,8 +1,17 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, PieChart } from 'lucide-react';
-import FinanceCard from '@/components/FinanceCard';
 import AddAssetDialog from '@/components/AddAssetDialog';
+
+const DONUT_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#14B8A6'];
+const formatCurrency = (value: number) => value.toLocaleString('ru-RU') + ' \u20BD';
+
+const pluralAssets = (n: number) => {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${n} актив`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${n} актива`;
+  return `${n} активов`;
+};
 
 const Investments = () => {
   // Примерные данные портфеля
@@ -98,141 +107,164 @@ const Investments = () => {
   }, {} as Record<string, typeof holdings>);
 
   const sectors = [
-    { name: 'Технологии', percentage: 45, value: 1282500, color: 'bg-blue-500' },
-    { name: 'Финансы', percentage: 20, value: 570000, color: 'bg-green-500' },
-    { name: 'Здравоохранение', percentage: 15, value: 427500, color: 'bg-purple-500' },
-    { name: 'Потребительские товары', percentage: 12, value: 342000, color: 'bg-orange-500' },
-    { name: 'Прочее', percentage: 8, value: 228000, color: 'bg-gray-500' },
+    { name: 'Технологии', percentage: 45, value: 1282500, color: DONUT_COLORS[0] },
+    { name: 'Финансы', percentage: 20, value: 570000, color: DONUT_COLORS[1] },
+    { name: 'Здравоохранение', percentage: 15, value: 427500, color: DONUT_COLORS[3] },
+    { name: 'Потребительские товары', percentage: 12, value: 342000, color: DONUT_COLORS[2] },
+    { name: 'Прочее', percentage: 8, value: 228000, color: DONUT_COLORS[4] },
   ];
 
+  const kpiCards = [
+    { label: 'ОБЩАЯ СТОИМОСТЬ', value: formatCurrency(totalValue), icon: PieChart, color: '#3B82F6', glow: 'rgba(59, 130, 246, 0.3)' },
+    { label: 'ПРИБЫЛЬ/УБЫТОК', value: formatCurrency(totalGain), icon: TrendingUp, color: '#10B981', glow: 'rgba(16, 185, 129, 0.3)', trend: { value: `+${gainPercentage}%`, isPositive: true } },
+    { label: 'ЗА МЕСЯЦ', value: formatCurrency(monthlyGain), icon: TrendingUp, color: '#8B5CF6', glow: 'rgba(139, 92, 246, 0.3)', trend: { value: '+8.5%', isPositive: true } },
+  ];
+
+  const holdingColorIndex = new Map<string, number>();
+  Object.values(holdingsBySector).flat().forEach((h, i) => holdingColorIndex.set(h.symbol, i));
+
   return (
-    <div className="min-h-screen bg-gradient-background">
-      <div className="max-w-7xl mx-auto p-6">
+    <div className="space-y-6 pb-6">
 
-        {/* Карточки обзора портфеля */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <FinanceCard
-            title="Общая стоимость"
-            value={`₽${totalValue.toLocaleString()}`}
-            icon={<PieChart className="w-5 h-5" />}
-            gradient="primary"
-          />
-          <FinanceCard
-            title="Прибыль/Убыток"
-            value={`₽${totalGain.toLocaleString()}`}
-            icon={<TrendingUp className="w-5 h-5" />}
-            trend={{ value: `+${gainPercentage}%`, isPositive: true }}
-            gradient="success"
-          />
-          <FinanceCard
-            title="За месяц"
-            value={`₽${monthlyGain.toLocaleString()}`}
-            icon={<TrendingUp className="w-5 h-5" />}
-            trend={{ value: "+8.5%", isPositive: true }}
-            gradient="secondary"
-          />
-        </div>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {kpiCards.map(card => {
+          const Icon = card.icon;
+          return (
+            <div
+              key={card.label}
+              className="glass-card p-5 flex items-start justify-between group transition-all duration-300 hover:scale-[1.02]"
+            >
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold tracking-widest text-dashboard-text-muted">
+                  {card.label}
+                </p>
+                <p className="text-2xl font-bold text-dashboard-text">{card.value}</p>
+                {card.trend && (
+                  <div className={`flex items-center gap-1 text-xs font-medium ${card.trend.isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {card.trend.isPositive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                    <span>{card.trend.value}</span>
+                  </div>
+                )}
+              </div>
+              <div
+                className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: `${card.color}20`, boxShadow: `0 0 20px ${card.glow}` }}
+              >
+                <Icon className="w-5 h-5" style={{ color: card.color }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Портфель */}
-          <div className="lg:col-span-2">
-            <Card className="shadow-card border-0">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Мои активы</CardTitle>
-                <AddAssetDialog onAddAsset={handleAddAsset} />
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {Object.entries(holdingsBySector).map(([sectorName, sectorHoldings]) => {
-                    const sectorValue = sectorHoldings.reduce((sum, holding) => sum + holding.value, 0);
-                    const sectorPercentage = ((sectorValue / totalValue) * 100).toFixed(1);
-                    
-                    return (
-                    <div key={sectorName} className="space-y-3">
-                      <div className="flex items-center justify-between border-b border-muted pb-2">
-                        <h3 className="font-semibold text-primary">{sectorName}</h3>
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-medium text-foreground">
-                            {sectorPercentage}%
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            {sectorHoldings.length} активов
-                          </span>
-                        </div>
-                      </div>
-                      <div className="space-y-3">
-                        {sectorHoldings.map((holding, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 bg-muted/20 rounded-lg hover:bg-muted/40 transition-all duration-200">
-                            <div className="flex items-center space-x-4">
-                              <div className="w-10 h-10 bg-gradient-primary rounded-full flex items-center justify-center">
-                                <span className="text-primary-foreground font-bold text-sm">
-                                  {holding.symbol.slice(0, 2)}
-                                </span>
-                              </div>
-                              <div>
-                                <div className="font-semibold">{holding.symbol}</div>
-                                <div className="text-sm text-muted-foreground">{holding.name}</div>
-                                <div className="text-xs text-muted-foreground">
-                                  {holding.shares} акций × ₽{holding.price}
-                                </div>
-                              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Портфель */}
+        <div className="lg:col-span-2">
+          <div className="glass-card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-dashboard-text">Мои активы</h3>
+              <AddAssetDialog onAddAsset={handleAddAsset} />
+            </div>
+            <div className="space-y-6 max-h-[400px] overflow-y-auto dashboard-scroll pr-1">
+              {Object.entries(holdingsBySector).map(([sectorName, sectorHoldings]) => {
+                const sectorValue = sectorHoldings.reduce((sum, holding) => sum + holding.value, 0);
+                const sectorPercentage = ((sectorValue / totalValue) * 100).toFixed(1);
+
+                return (
+                <div key={sectorName} className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                    <h3 className="font-semibold text-dashboard-text">{sectorName}</h3>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-dashboard-text">
+                        {sectorPercentage}%
+                      </span>
+                      <span className="text-sm text-dashboard-text-muted">
+                        {pluralAssets(sectorHoldings.length)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {sectorHoldings.map((holding) => {
+                      const colorIdx = holdingColorIndex.get(holding.symbol)! % DONUT_COLORS.length;
+                      return (
+                        <div key={holding.symbol} className="flex items-center justify-between p-3 bg-white/[0.03] rounded-lg hover:bg-white/[0.07] transition-all duration-200">
+                          <div className="flex items-center space-x-4">
+                            <div
+                              className="w-10 h-10 rounded-full flex items-center justify-center"
+                              style={{ backgroundColor: `${DONUT_COLORS[colorIdx]}20` }}
+                            >
+                              <span
+                                className="font-bold text-sm"
+                                style={{ color: DONUT_COLORS[colorIdx] }}
+                              >
+                                {holding.symbol.slice(0, 2)}
+                              </span>
                             </div>
-                            <div className="text-right">
-                              <div className="font-semibold">₽{holding.value.toLocaleString()}</div>
-                              <div className={`text-sm flex items-center justify-end ${
-                                holding.changePercent >= 0 ? 'text-primary' : 'text-destructive'
-                              }`}>
-                                {holding.changePercent >= 0 ? (
-                                  <TrendingUp className="w-3 h-3 mr-1" />
-                                ) : (
-                                  <TrendingDown className="w-3 h-3 mr-1" />
-                                )}
-                                {holding.changePercent >= 0 ? '+' : ''}{holding.changePercent}%
+                            <div>
+                              <div className="font-semibold text-dashboard-text">{holding.symbol}</div>
+                              <div className="text-sm text-dashboard-text-muted">{holding.name}</div>
+                              <div className="text-xs text-dashboard-text-muted">
+                                {holding.shares} акций × {formatCurrency(holding.price)}
                               </div>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                    );
-                  })}
+                          <div className="text-right">
+                            <div className="font-semibold text-dashboard-text">{formatCurrency(holding.value)}</div>
+                            <div className={`text-sm flex items-center justify-end ${
+                              holding.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'
+                            }`}>
+                              {holding.changePercent >= 0 ? (
+                                <TrendingUp className="w-3 h-3 mr-1" />
+                              ) : (
+                                <TrendingDown className="w-3 h-3 mr-1" />
+                              )}
+                              {holding.changePercent >= 0 ? '+' : ''}{holding.changePercent}%
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+                );
+              })}
+            </div>
           </div>
+        </div>
 
-          {/* Распределение по секторам */}
-          <Card className="shadow-card border-0">
-            <CardHeader>
-              <CardTitle>Распределение по секторам</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {sectors.map((sector, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-3 h-3 rounded-full ${sector.color}`} />
-                      <span className="font-medium text-sm">{sector.name}</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-semibold text-sm">
-                        {sector.percentage}%
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        ₽{sector.value.toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2">
+        {/* Распределение по секторам */}
+        <div className="glass-card p-5">
+          <h3 className="text-sm font-semibold text-dashboard-text mb-4">Распределение по секторам</h3>
+          <div className="space-y-4">
+            {sectors.map((sector, index) => (
+              <div key={index} className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-3">
                     <div
-                      className="h-2 rounded-full bg-gradient-primary transition-all duration-500"
-                      style={{ width: `${sector.percentage}%` }}
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: sector.color }}
                     />
+                    <span className="font-medium text-sm text-dashboard-text">{sector.name}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold text-sm text-dashboard-text">
+                      {sector.percentage}%
+                    </div>
+                    <div className="text-xs text-dashboard-text-muted">
+                      {formatCurrency(sector.value)}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
+                <div className="w-full bg-white/5 rounded-full h-2">
+                  <div
+                    className="h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${sector.percentage}%`, backgroundColor: sector.color }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

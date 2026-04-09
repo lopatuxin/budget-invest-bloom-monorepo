@@ -1,17 +1,23 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Minus, DollarSign, Wallet, TrendingUp, Loader2 } from 'lucide-react';
-import FinanceCard from '@/components/FinanceCard';
+import { Plus, Minus, DollarSign, Wallet, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useBudgetSummary } from '@/hooks/useBudgetSummary';
 import { apiPost } from '@/lib/api';
+
+const formatCurrency = (value: number) => value.toLocaleString('ru-RU') + ' \u20BD';
+
+const DONUT_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#14B8A6'];
+
+const Skeleton = ({ className = '' }: { className?: string }) => (
+  <div className={`animate-pulse bg-white/10 rounded-xl ${className}`} />
+);
 
 const Budget = () => {
   const { toast } = useToast();
@@ -57,9 +63,11 @@ const Budget = () => {
   const categories = summary?.categories ?? [];
   const trends = summary?.trends;
 
-  const parseTrend = (trendStr?: string) => {
-    if (!trendStr) return { value: "0%", isPositive: true };
-    return { value: trendStr, isPositive: trendStr.startsWith('+') };
+  const parseTrend = (trend: string | null | undefined) => {
+    if (!trend) return null;
+    const num = parseFloat(trend);
+    if (isNaN(num)) return null;
+    return { value: trend, isPositive: num >= 0 };
   };
 
   const months = [
@@ -112,7 +120,7 @@ const Budget = () => {
 
       toast({
         title: "Расход добавлен",
-        description: `Добавлен расход ${expenseForm.amount}₽`,
+        description: `Добавлен расход ${expenseForm.amount}\u20BD`,
       });
 
       setExpenseForm({ amount: '', category: '', description: '' });
@@ -142,7 +150,7 @@ const Budget = () => {
 
     toast({
       title: "Доход добавлен",
-      description: `Добавлен доход ${incomeForm.amount}₽ из источника "${incomeForm.source}"`,
+      description: `Добавлен доход ${incomeForm.amount}\u20BD из источника "${incomeForm.source}"`,
     });
 
     setIncomeForm({ amount: '', source: '', description: '' });
@@ -175,7 +183,7 @@ const Budget = () => {
 
       toast({
         title: "Категория добавлена",
-        description: `Добавлена категория "${categoryForm.name}" с бюджетом ${categoryForm.budget}₽`,
+        description: `Добавлена категория "${categoryForm.name}" с бюджетом ${categoryForm.budget}\u20BD`,
       });
 
       setCategoryForm({ name: '', budget: '', emoji: '' });
@@ -201,347 +209,329 @@ const Budget = () => {
     setIncomeForm({ amount: '', source: '', description: '' });
   };
 
+  const kpiCards = [
+    { label: 'ДОХОДЫ', value: formatCurrency(income), trend: trends?.income, icon: Plus, color: '#10B981', glow: 'rgba(16, 185, 129, 0.3)', path: '/budget/metric/income' },
+    { label: 'РАСХОДЫ', value: formatCurrency(expenses), trend: trends?.expenses, icon: Minus, color: '#F59E0B', glow: 'rgba(245, 158, 11, 0.3)', path: '/budget/metric/expenses' },
+    { label: 'ОСТАТОК', value: formatCurrency(balance), trend: trends?.balance, icon: DollarSign, color: '#3B82F6', glow: 'rgba(59, 130, 246, 0.3)', path: '/budget/metric/balance' },
+    { label: 'КАПИТАЛ', value: formatCurrency(capital), trend: trends?.capital, icon: Wallet, color: '#8B5CF6', glow: 'rgba(139, 92, 246, 0.3)', path: '/budget/metric/capital' },
+    { label: 'ИНФЛЯЦИЯ', value: `${personalInflation}%`, trend: trends?.inflation, icon: TrendingUp, color: '#EC4899', glow: 'rgba(236, 72, 153, 0.3)', path: '/budget/metric/inflation' },
+  ];
+
   return (
-    <div className="h-[calc(100vh-4rem)] bg-gradient-background overflow-hidden">
-      <div className="max-w-7xl mx-auto p-6">
-
-        {isLoading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        )}
-
-        {/* Карточки обзора */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
-          <FinanceCard
-            title="Доходы"
-            value={`₽${income.toLocaleString()}`}
-            icon={<Plus className="w-5 h-5" />}
-            trend={parseTrend(trends?.income)}
-            gradient="success"
-            onClick={() => navigate('/budget/metric/income')}
-          />
-          <FinanceCard
-            title="Расходы"
-            value={`₽${expenses.toLocaleString()}`}
-            icon={<Minus className="w-5 h-5" />}
-            trend={parseTrend(trends?.expenses)}
-            gradient="secondary"
-            onClick={() => navigate('/budget/metric/expenses')}
-          />
-          <FinanceCard
-            title="Остаток"
-            value={`₽${balance.toLocaleString()}`}
-            icon={<DollarSign className="w-5 h-5" />}
-            trend={parseTrend(trends?.balance)}
-            gradient="primary"
-            onClick={() => navigate('/budget/metric/balance')}
-          />
-          <FinanceCard
-            title="Капитал"
-            value={`₽${capital.toLocaleString()}`}
-            icon={<Wallet className="w-5 h-5" />}
-            trend={parseTrend(trends?.capital)}
-            gradient="primary"
-            onClick={() => navigate('/budget/metric/capital')}
-          />
-          <FinanceCard
-            title="Личная инфляция"
-            value={`${personalInflation}%`}
-            icon={<TrendingUp className="w-5 h-5" />}
-            trend={parseTrend(trends?.inflation)}
-            gradient="secondary"
-            onClick={() => navigate('/budget/metric/inflation')}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Категории расходов */}
-          <Card className="shadow-card border-0">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Категории расходов</span>
-              <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) resetDialog(); else setIsDialogOpen(true); }}>
-                <DialogTrigger asChild>
-                  <Button 
-                    size="sm" 
-                    className="bg-gradient-primary hover:opacity-90"
-                    onClick={() => setSelectedOperationType('expense')}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Добавить
-                  </Button>
-                </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                      <div className="flex flex-wrap gap-2 justify-center">
-                        <Button 
-                          variant={selectedOperationType === 'expense' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setSelectedOperationType('expense')}
-                          className={selectedOperationType === 'expense' ? 'bg-gradient-primary hover:opacity-90' : ''}
-                        >
-                          <Minus className="w-4 h-4 mr-2" />
-                          Расход
-                        </Button>
-                        <Button 
-                          variant={selectedOperationType === 'income' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setSelectedOperationType('income')}
-                          className={selectedOperationType === 'income' ? 'bg-gradient-success hover:opacity-90' : ''}
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Доход
-                        </Button>
-                        <Button 
-                          variant={selectedOperationType === 'category' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setSelectedOperationType('category')}
-                          className={selectedOperationType === 'category' ? 'bg-gradient-secondary hover:opacity-90' : ''}
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Категория
-                        </Button>
+    <div className="space-y-6 pb-6">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5">
+        {isLoading
+          ? Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-[130px]" />)
+          : kpiCards.map(card => {
+              const Icon = card.icon;
+              const trend = parseTrend(card.trend);
+              return (
+                <div
+                  key={card.label}
+                  className="glass-card p-5 flex items-start justify-between group transition-all duration-300 hover:scale-[1.02] cursor-pointer"
+                  onClick={() => navigate(card.path)}
+                >
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold tracking-widest text-dashboard-text-muted">
+                      {card.label}
+                    </p>
+                    <p className="text-2xl font-bold text-dashboard-text">{card.value}</p>
+                    {trend && (
+                      <div className={`flex items-center gap-1 text-xs font-medium ${trend.isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {trend.isPositive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                        <span>{trend.value}</span>
                       </div>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      {selectedOperationType === 'expense' ? (
-                        // Форма добавления расхода
-                        <>
-                          <div className="grid gap-2">
-                            <Label htmlFor="expense-amount">Сумма *</Label>
-                            <Input
-                              id="expense-amount"
-                              type="number"
-                              placeholder="0"
-                              value={expenseForm.amount}
-                              onChange={(e) => setExpenseForm(prev => ({...prev, amount: e.target.value}))}
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="expense-category">Категория *</Label>
-                            <Select 
-                              value={expenseForm.category} 
-                              onValueChange={(value) => setExpenseForm(prev => ({...prev, category: value}))}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Выберите категорию" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {categories.map((category) => (
-                                  <SelectItem key={category.id} value={category.id}>
-                                    {category.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="expense-description">Описание</Label>
-                            <Input
-                              id="expense-description"
-                              placeholder="Описание расхода (необязательно)"
-                              value={expenseForm.description}
-                              onChange={(e) => setExpenseForm(prev => ({...prev, description: e.target.value}))}
-                            />
-                          </div>
-                          <div className="flex gap-2 pt-4">
-                            <Button 
-                              variant="outline" 
-                              className="flex-1"
-                              onClick={() => resetDialog()}
-                            >
-                              Отмена
-                            </Button>
-                            <Button
-                              className="flex-1 bg-gradient-primary hover:opacity-90"
-                              onClick={handleAddExpense}
-                              disabled={isExpenseSubmitting}
-                            >
-                              {isExpenseSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                              Добавить
-                            </Button>
-                          </div>
-                        </>
-                      ) : selectedOperationType === 'income' ? (
-                        // Форма добавления дохода
-                        <>
-                          <div className="grid gap-2">
-                            <Label htmlFor="income-amount">Сумма *</Label>
-                            <Input
-                              id="income-amount"
-                              type="number"
-                              placeholder="0"
-                              value={incomeForm.amount}
-                              onChange={(e) => setIncomeForm(prev => ({...prev, amount: e.target.value}))}
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="income-source">Источник *</Label>
-                            <Select 
-                              value={incomeForm.source} 
-                              onValueChange={(value) => setIncomeForm(prev => ({...prev, source: value}))}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Выберите источник" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {incomeSources.map((source) => (
-                                  <SelectItem key={source} value={source}>
-                                    {source}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="income-description">Описание</Label>
-                            <Input
-                              id="income-description"
-                              placeholder="Описание дохода (необязательно)"
-                              value={incomeForm.description}
-                              onChange={(e) => setIncomeForm(prev => ({...prev, description: e.target.value}))}
-                            />
-                          </div>
-                          <div className="flex gap-2 pt-4">
-                            <Button 
-                              variant="outline" 
-                              className="flex-1"
-                              onClick={() => resetDialog()}
-                            >
-                              Отмена
-                            </Button>
-                            <Button 
-                              className="flex-1 bg-gradient-success hover:opacity-90"
-                              onClick={handleAddIncome}
-                            >
-                              Добавить
-                            </Button>
-                          </div>
-                        </>
-                      ) : (
-                        // Форма добавления категории
-                        <>
-                          <div className="grid gap-2">
-                            <Label htmlFor="category-name">Название категории *</Label>
-                            <Input
-                              id="category-name"
-                              placeholder="Название категории"
-                              value={categoryForm.name}
-                              onChange={(e) => setCategoryForm(prev => ({...prev, name: e.target.value}))}
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="category-budget">Бюджет *</Label>
-                            <Input
-                              id="category-budget"
-                              type="number"
-                              placeholder="0"
-                              value={categoryForm.budget}
-                              onChange={(e) => setCategoryForm(prev => ({...prev, budget: e.target.value}))}
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="category-emoji">Эмодзи</Label>
-                            <Input
-                              id="category-emoji"
-                              placeholder="🛒"
-                              maxLength={10}
-                              value={categoryForm.emoji}
-                              onChange={(e) => setCategoryForm(prev => ({...prev, emoji: e.target.value}))}
-                            />
-                          </div>
-                          <div className="flex gap-2 pt-4">
-                            <Button 
-                              variant="outline" 
-                              className="flex-1"
-                              onClick={() => resetDialog()}
-                            >
-                              Отмена
-                            </Button>
-                            <Button
-                              className="flex-1 bg-gradient-secondary hover:opacity-90"
-                              onClick={handleAddCategory}
-                              disabled={isCategorySubmitting}
-                            >
-                              {isCategorySubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                              Добавить
-                            </Button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </CardTitle>
-              <div className="flex gap-3 mt-4">
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Месяц" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {months.map((month) => (
-                      <SelectItem key={month.value} value={month.value}>
-                        {month.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue placeholder="Год" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {years.map((year) => (
-                      <SelectItem key={year} value={year}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto">
-              {categories.map((category) => {
-                const percentage = getProgressPercentage(category.amount, category.budget);
-                const isOverBudget = category.amount > category.budget;
-
-                return (
-                  <div
-                    key={category.id || category.name}
-                    className="relative space-y-2 p-2 rounded-lg transition-all duration-300 hover:shadow-card hover:scale-105 cursor-pointer border border-transparent hover:border-border/20 overflow-hidden"
-                    onClick={() => navigate(`/budget/category/${encodeURIComponent(category.name)}`)}
-                  >
-                    <div className="absolute inset-0 bg-gradient-primary opacity-5" />
-                    <div className="relative z-10 flex justify-between items-center">
-                      <div className="flex items-center space-x-3">
-                        <span className="text-lg">{category.emoji}</span>
-                        <span className="font-medium">{category.name}</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold">
-                          ₽{category.amount.toLocaleString()}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          из ₽{category.budget.toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="relative z-10 w-full bg-muted rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full transition-all duration-500 ${
-                          isOverBudget ? 'bg-destructive' : 'bg-gradient-primary'
-                        }`}
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
+                    )}
                   </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        </div>
+                  <div
+                    className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: `${card.color}20`, boxShadow: `0 0 20px ${card.glow}` }}
+                  >
+                    <Icon className="w-5 h-5" style={{ color: card.color }} />
+                  </div>
+                </div>
+              );
+            })}
       </div>
+
+      {/* Categories Section */}
+      {isLoading ? (
+        <Skeleton className="h-[400px]" />
+      ) : (
+        <div className="glass-card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-dashboard-text">Категории расходов</h3>
+            <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) resetDialog(); else setIsDialogOpen(true); }}>
+              <DialogTrigger asChild>
+                <Button
+                  size="sm"
+                  className="bg-gradient-primary hover:opacity-90"
+                  onClick={() => setSelectedOperationType('expense')}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Добавить
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    <Button
+                      variant={selectedOperationType === 'expense' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedOperationType('expense')}
+                      className={selectedOperationType === 'expense' ? 'bg-gradient-primary hover:opacity-90' : ''}
+                    >
+                      <Minus className="w-4 h-4 mr-2" />
+                      Расход
+                    </Button>
+                    <Button
+                      variant={selectedOperationType === 'income' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedOperationType('income')}
+                      className={selectedOperationType === 'income' ? 'bg-gradient-success hover:opacity-90' : ''}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Доход
+                    </Button>
+                    <Button
+                      variant={selectedOperationType === 'category' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedOperationType('category')}
+                      className={selectedOperationType === 'category' ? 'bg-gradient-secondary hover:opacity-90' : ''}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Категория
+                    </Button>
+                  </div>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  {selectedOperationType === 'expense' ? (
+                    <>
+                      <div className="grid gap-2">
+                        <Label htmlFor="expense-amount">Сумма *</Label>
+                        <Input
+                          id="expense-amount"
+                          type="number"
+                          placeholder="0"
+                          value={expenseForm.amount}
+                          onChange={(e) => setExpenseForm(prev => ({...prev, amount: e.target.value}))}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="expense-category">Категория *</Label>
+                        <Select
+                          value={expenseForm.category}
+                          onValueChange={(value) => setExpenseForm(prev => ({...prev, category: value}))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Выберите категорию" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.map((category) => (
+                              <SelectItem key={category.id} value={category.id}>
+                                {category.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="expense-description">Описание</Label>
+                        <Input
+                          id="expense-description"
+                          placeholder="Описание расхода (необязательно)"
+                          value={expenseForm.description}
+                          onChange={(e) => setExpenseForm(prev => ({...prev, description: e.target.value}))}
+                        />
+                      </div>
+                      <div className="flex gap-2 pt-4">
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => resetDialog()}
+                        >
+                          Отмена
+                        </Button>
+                        <Button
+                          className="flex-1 bg-gradient-primary hover:opacity-90"
+                          onClick={handleAddExpense}
+                          disabled={isExpenseSubmitting}
+                        >
+                          {isExpenseSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                          Добавить
+                        </Button>
+                      </div>
+                    </>
+                  ) : selectedOperationType === 'income' ? (
+                    <>
+                      <div className="grid gap-2">
+                        <Label htmlFor="income-amount">Сумма *</Label>
+                        <Input
+                          id="income-amount"
+                          type="number"
+                          placeholder="0"
+                          value={incomeForm.amount}
+                          onChange={(e) => setIncomeForm(prev => ({...prev, amount: e.target.value}))}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="income-source">Источник *</Label>
+                        <Select
+                          value={incomeForm.source}
+                          onValueChange={(value) => setIncomeForm(prev => ({...prev, source: value}))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Выберите источник" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {incomeSources.map((source) => (
+                              <SelectItem key={source} value={source}>
+                                {source}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="income-description">Описание</Label>
+                        <Input
+                          id="income-description"
+                          placeholder="Описание дохода (необязательно)"
+                          value={incomeForm.description}
+                          onChange={(e) => setIncomeForm(prev => ({...prev, description: e.target.value}))}
+                        />
+                      </div>
+                      <div className="flex gap-2 pt-4">
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => resetDialog()}
+                        >
+                          Отмена
+                        </Button>
+                        <Button
+                          className="flex-1 bg-gradient-success hover:opacity-90"
+                          onClick={handleAddIncome}
+                        >
+                          Добавить
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="grid gap-2">
+                        <Label htmlFor="category-name">Название категории *</Label>
+                        <Input
+                          id="category-name"
+                          placeholder="Название категории"
+                          value={categoryForm.name}
+                          onChange={(e) => setCategoryForm(prev => ({...prev, name: e.target.value}))}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="category-budget">Бюджет *</Label>
+                        <Input
+                          id="category-budget"
+                          type="number"
+                          placeholder="0"
+                          value={categoryForm.budget}
+                          onChange={(e) => setCategoryForm(prev => ({...prev, budget: e.target.value}))}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="category-emoji">Эмодзи</Label>
+                        <Input
+                          id="category-emoji"
+                          placeholder="🛒"
+                          maxLength={10}
+                          value={categoryForm.emoji}
+                          onChange={(e) => setCategoryForm(prev => ({...prev, emoji: e.target.value}))}
+                        />
+                      </div>
+                      <div className="flex gap-2 pt-4">
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => resetDialog()}
+                        >
+                          Отмена
+                        </Button>
+                        <Button
+                          className="flex-1 bg-gradient-secondary hover:opacity-90"
+                          onClick={handleAddCategory}
+                          disabled={isCategorySubmitting}
+                        >
+                          {isCategorySubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                          Добавить
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+          <div className="flex gap-3 mb-4">
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Месяц" />
+              </SelectTrigger>
+              <SelectContent>
+                {months.map((month) => (
+                  <SelectItem key={month.value} value={month.value}>
+                    {month.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="w-[100px]">
+                <SelectValue placeholder="Год" />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((year) => (
+                  <SelectItem key={year} value={year}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2 max-h-[400px] overflow-y-auto dashboard-scroll pr-1">
+            {categories.map((cat, i) => (
+              <button
+                key={cat.id || cat.name}
+                onClick={() => navigate(`/budget/category/${encodeURIComponent(cat.name)}`)}
+                className="w-full flex items-center gap-4 px-4 py-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] transition-all duration-200 text-left group"
+              >
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"
+                  style={{ backgroundColor: `${DONUT_COLORS[i % DONUT_COLORS.length]}20` }}
+                >
+                  {cat.emoji}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-dashboard-text truncate">{cat.name}</p>
+                  <div className="w-full bg-white/5 rounded-full h-1.5 mt-1.5">
+                    <div
+                      className="h-1.5 rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.min(getProgressPercentage(cat.amount, cat.budget), 100)}%`,
+                        backgroundColor: cat.amount > cat.budget ? '#EF4444' : DONUT_COLORS[i % DONUT_COLORS.length],
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-semibold text-dashboard-text">{formatCurrency(cat.amount)}</p>
+                  <p className="text-xs text-dashboard-text-muted">из {formatCurrency(cat.budget)}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
