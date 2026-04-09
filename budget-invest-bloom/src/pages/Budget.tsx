@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Minus, DollarSign, Wallet, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
@@ -273,7 +273,7 @@ const Budget = () => {
                   Добавить
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
+              <DialogContent className="sm:max-w-[425px] bg-[#0B1929] border-white/10 text-dashboard-text">
                 <DialogHeader>
                   <div className="flex flex-wrap gap-2 justify-center">
                     <Button
@@ -309,22 +309,23 @@ const Budget = () => {
                   {selectedOperationType === 'expense' ? (
                     <>
                       <div className="grid gap-2">
-                        <Label htmlFor="expense-amount">Сумма *</Label>
+                        <Label htmlFor="expense-amount" className="text-dashboard-text-muted">Сумма *</Label>
                         <Input
                           id="expense-amount"
                           type="number"
                           placeholder="0"
                           value={expenseForm.amount}
                           onChange={(e) => setExpenseForm(prev => ({...prev, amount: e.target.value}))}
+                          className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="expense-category">Категория *</Label>
+                        <Label htmlFor="expense-category" className="text-dashboard-text-muted">Категория *</Label>
                         <Select
                           value={expenseForm.category}
                           onValueChange={(value) => setExpenseForm(prev => ({...prev, category: value}))}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="bg-white/5 border-white/10 text-dashboard-text">
                             <SelectValue placeholder="Выберите категорию" />
                           </SelectTrigger>
                           <SelectContent>
@@ -337,18 +338,19 @@ const Budget = () => {
                         </Select>
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="expense-description">Описание</Label>
+                        <Label htmlFor="expense-description" className="text-dashboard-text-muted">Описание</Label>
                         <Input
                           id="expense-description"
                           placeholder="Описание расхода (необязательно)"
                           value={expenseForm.description}
                           onChange={(e) => setExpenseForm(prev => ({...prev, description: e.target.value}))}
+                          className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
                         />
                       </div>
                       <div className="flex gap-2 pt-4">
                         <Button
                           variant="outline"
-                          className="flex-1"
+                          className="flex-1 border-white/10 text-dashboard-text hover:bg-white/5"
                           onClick={() => resetDialog()}
                         >
                           Отмена
@@ -366,22 +368,23 @@ const Budget = () => {
                   ) : selectedOperationType === 'income' ? (
                     <>
                       <div className="grid gap-2">
-                        <Label htmlFor="income-amount">Сумма *</Label>
+                        <Label htmlFor="income-amount" className="text-dashboard-text-muted">Сумма *</Label>
                         <Input
                           id="income-amount"
                           type="number"
                           placeholder="0"
                           value={incomeForm.amount}
                           onChange={(e) => setIncomeForm(prev => ({...prev, amount: e.target.value}))}
+                          className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="income-source">Источник *</Label>
+                        <Label htmlFor="income-source" className="text-dashboard-text-muted">Источник *</Label>
                         <Select
                           value={incomeForm.source}
                           onValueChange={(value) => setIncomeForm(prev => ({...prev, source: value}))}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="bg-white/5 border-white/10 text-dashboard-text">
                             <SelectValue placeholder="Выберите источник" />
                           </SelectTrigger>
                           <SelectContent>
@@ -394,18 +397,19 @@ const Budget = () => {
                         </Select>
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="income-description">Описание</Label>
+                        <Label htmlFor="income-description" className="text-dashboard-text-muted">Описание</Label>
                         <Input
                           id="income-description"
                           placeholder="Описание дохода (необязательно)"
                           value={incomeForm.description}
                           onChange={(e) => setIncomeForm(prev => ({...prev, description: e.target.value}))}
+                          className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
                         />
                       </div>
                       <div className="flex gap-2 pt-4">
                         <Button
                           variant="outline"
-                          className="flex-1"
+                          className="flex-1 border-white/10 text-dashboard-text hover:bg-white/5"
                           onClick={() => resetDialog()}
                         >
                           Отмена
@@ -421,38 +425,41 @@ const Budget = () => {
                   ) : (
                     <>
                       <div className="grid gap-2">
-                        <Label htmlFor="category-name">Название категории *</Label>
+                        <Label htmlFor="category-name" className="text-dashboard-text-muted">Название категории *</Label>
                         <Input
                           id="category-name"
                           placeholder="Название категории"
                           value={categoryForm.name}
                           onChange={(e) => setCategoryForm(prev => ({...prev, name: e.target.value}))}
+                          className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="category-budget">Бюджет *</Label>
+                        <Label htmlFor="category-budget" className="text-dashboard-text-muted">Бюджет *</Label>
                         <Input
                           id="category-budget"
                           type="number"
                           placeholder="0"
                           value={categoryForm.budget}
                           onChange={(e) => setCategoryForm(prev => ({...prev, budget: e.target.value}))}
+                          className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="category-emoji">Эмодзи</Label>
+                        <Label htmlFor="category-emoji" className="text-dashboard-text-muted">Эмодзи</Label>
                         <Input
                           id="category-emoji"
                           placeholder="🛒"
                           maxLength={10}
                           value={categoryForm.emoji}
                           onChange={(e) => setCategoryForm(prev => ({...prev, emoji: e.target.value}))}
+                          className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
                         />
                       </div>
                       <div className="flex gap-2 pt-4">
                         <Button
                           variant="outline"
-                          className="flex-1"
+                          className="flex-1 border-white/10 text-dashboard-text hover:bg-white/5"
                           onClick={() => resetDialog()}
                         >
                           Отмена

@@ -107,13 +107,13 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
           Добавить актив
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] bg-[#0B1929] border-white/10 text-dashboard-text">
         <DialogHeader>
           <DialogTitle>Добавить новый актив</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="asset">Выберите актив</Label>
+            <Label htmlFor="asset" className="text-dashboard-text-muted">Выберите актив</Label>
             <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
               <PopoverTrigger asChild>
                 <Input
@@ -126,13 +126,13 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
                     setComboboxOpen(true);
                   }}
                   onFocus={() => setComboboxOpen(true)}
-                  className="w-full"
+                  className="w-full bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
                 />
               </PopoverTrigger>
-              <PopoverContent className="z-[70] w-[var(--radix-popover-trigger-width)] p-0 bg-popover border border-border shadow-lg">
+              <PopoverContent className="z-[70] w-[var(--radix-popover-trigger-width)] p-0 bg-[#0B1929] border-white/10 shadow-lg">
                 <ScrollArea className="h-64 w-full overscroll-contain" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
                   {filteredAssets.length === 0 ? (
-                    <div className="py-6 text-center text-sm text-muted-foreground">
+                    <div className="py-6 text-center text-sm text-dashboard-text-muted">
                       Активы не найдены
                     </div>
                   ) : (
@@ -141,7 +141,7 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
                         <li key={asset.symbol}>
                           <button
                             type="button"
-                            className="w-full text-left px-3 py-2 hover:bg-accent focus:bg-accent focus:outline-none flex flex-col"
+                            className="w-full text-left px-3 py-2 hover:bg-white/5 focus:bg-white/5 focus:outline-none flex flex-col"
                             onClick={() => {
                               handleInputChange('asset', asset.symbol);
                               setQuery(asset.name);
@@ -149,7 +149,7 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
                             }}
                           >
                             <span className="font-medium">{asset.symbol}</span>
-                            <span className="text-sm text-muted-foreground">{asset.name}</span>
+                            <span className="text-sm text-dashboard-text-muted">{asset.name}</span>
                           </button>
                         </li>
                       ))}
@@ -162,7 +162,7 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="shares">Количество акций</Label>
+              <Label htmlFor="shares" className="text-dashboard-text-muted">Количество акций</Label>
               <Input
                 id="shares"
                 type="number"
@@ -171,26 +171,27 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
                 onChange={(e) => handleInputChange('shares', e.target.value)}
                 min="0"
                 step="1"
+                className="bg-white/5 border-white/10 text-dashboard-text"
               />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="price">Цена за акцию (₽)</Label>
+              <Label htmlFor="price" className="text-dashboard-text-muted">Цена за акцию (₽)</Label>
               <Input
                 id="price"
                 type="number"
                 placeholder="Выберите актив"
                 value={selectedAsset ? selectedAsset.price.toString() : ''}
                 readOnly
-                className="bg-muted/30"
+                className="bg-white/5 border-white/10 text-dashboard-text"
               />
             </div>
           </div>
 
-          <div className="bg-muted/20 p-4 rounded-lg">
+          <div className="bg-white/5 p-4 rounded-lg">
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-muted-foreground">Общая стоимость:</span>
-              <span className="text-lg font-bold text-primary">
+              <span className="text-sm font-medium text-dashboard-text-muted">Общая стоимость:</span>
+              <span className="text-lg font-bold text-emerald-400">
                 ₽{totalValue.toLocaleString()}
               </span>
             </div>
@@ -198,10 +199,11 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
 
 
           <div className="flex justify-end space-x-2 pt-4">
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => setOpen(false)}
+              className="border-white/10 text-dashboard-text hover:bg-white/5"
             >
               Отмена
             </Button>
