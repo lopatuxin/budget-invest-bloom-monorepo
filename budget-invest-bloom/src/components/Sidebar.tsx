@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Wallet, TrendingUp, BarChart3, LogOut, User, CirclePlus } from 'lucide-react';
+import { LayoutDashboard, Wallet, TrendingUp, BarChart3, LogOut, User, CirclePlus, FolderPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -96,6 +96,13 @@ const Sidebar = () => {
         >
           <CirclePlus className="w-4 h-4 shrink-0" />
           <span>Добавить доход</span>
+        </Link>
+        <Link
+          to="/budget?action=category"
+          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all duration-200"
+        >
+          <FolderPlus className="w-4 h-4 shrink-0" />
+          <span>Добавить категорию</span>
         </Link>
       </div>
 

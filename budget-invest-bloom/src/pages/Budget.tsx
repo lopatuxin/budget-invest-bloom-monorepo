@@ -1,12 +1,12 @@
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Minus, DollarSign, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useBudgetSummary } from '@/hooks/useBudgetSummary';
 import { apiPost } from '@/lib/api';
@@ -15,19 +15,23 @@ const formatCurrency = (value: number) => value.toLocaleString('ru-RU') + ' \u20
 
 const DONUT_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#14B8A6'];
 
+const EMOJI_OPTIONS = ['🛒', '🍽️', '🏠', '🚗', '💊', '🎓', '🎮', '👕', '✈️', '💰', '📱', '🎬', '🐱', '💡', '🎁', '💇'];
+
 const Skeleton = ({ className = '' }: { className?: string }) => (
   <div className={`animate-pulse bg-white/10 rounded-xl ${className}`} />
 );
+
+type DialogType = 'expense' | 'income' | 'category' | null;
 
 const Budget = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(String(now.getMonth() + 1));
   const [selectedYear, setSelectedYear] = useState(String(now.getFullYear()));
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedOperationType, setSelectedOperationType] = useState<'expense' | 'income' | 'category' | null>(null);
+  const [openDialog, setOpenDialog] = useState<DialogType>(null);
   const [expenseForm, setExpenseForm] = useState({
     amount: '',
     category: '',
@@ -55,6 +59,15 @@ const Budget = () => {
       });
     }
   }, [error, toast]);
+
+  // Open dialog from query param (read once on mount / navigation)
+  const actionParam = searchParams.get('action');
+  useEffect(() => {
+    if (actionParam === 'expense' || actionParam === 'income' || actionParam === 'category') {
+      setOpenDialog(actionParam);
+      setSearchParams({}, { replace: true });
+    }
+  }, [actionParam, setSearchParams]);
 
   const summary = summaryData?.body;
   const income = summary?.income ?? 0;
@@ -203,8 +216,7 @@ const Budget = () => {
   };
 
   const resetDialog = () => {
-    setSelectedOperationType(null);
-    setIsDialogOpen(false);
+    setOpenDialog(null);
     setCategoryForm({ name: '', budget: '', emoji: '' });
     setExpenseForm({ amount: '', category: '', description: '' });
     setIncomeForm({ amount: '', source: '', description: '' });
@@ -267,222 +279,6 @@ const Budget = () => {
         <div className="glass-card p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-dashboard-text">Категории расходов</h3>
-            <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) resetDialog(); else setIsDialogOpen(true); }}>
-              <DialogTrigger asChild>
-                <Button
-                  size="sm"
-                  className="bg-gradient-primary hover:opacity-90"
-                  onClick={() => setSelectedOperationType('expense')}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Добавить
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px] bg-[#0B1929] border-white/10 text-dashboard-text">
-                <DialogHeader>
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    <Button
-                      variant={selectedOperationType === 'expense' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedOperationType('expense')}
-                      className={selectedOperationType === 'expense' ? 'bg-gradient-primary hover:opacity-90' : ''}
-                    >
-                      <Minus className="w-4 h-4 mr-2" />
-                      Расход
-                    </Button>
-                    <Button
-                      variant={selectedOperationType === 'income' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedOperationType('income')}
-                      className={selectedOperationType === 'income' ? 'bg-gradient-success hover:opacity-90' : ''}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Доход
-                    </Button>
-                    <Button
-                      variant={selectedOperationType === 'category' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedOperationType('category')}
-                      className={selectedOperationType === 'category' ? 'bg-gradient-secondary hover:opacity-90' : ''}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Категория
-                    </Button>
-                  </div>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  {selectedOperationType === 'expense' ? (
-                    <>
-                      <div className="grid gap-2">
-                        <Label htmlFor="expense-amount" className="text-dashboard-text-muted">Сумма *</Label>
-                        <Input
-                          id="expense-amount"
-                          type="number"
-                          placeholder="0"
-                          value={expenseForm.amount}
-                          onChange={(e) => setExpenseForm(prev => ({...prev, amount: e.target.value}))}
-                          className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="expense-category" className="text-dashboard-text-muted">Категория *</Label>
-                        <Select
-                          value={expenseForm.category}
-                          onValueChange={(value) => setExpenseForm(prev => ({...prev, category: value}))}
-                        >
-                          <SelectTrigger className="bg-white/5 border-white/10 text-dashboard-text">
-                            <SelectValue placeholder="Выберите категорию" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categories.map((category) => (
-                              <SelectItem key={category.id} value={category.id}>
-                                {category.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="expense-description" className="text-dashboard-text-muted">Описание</Label>
-                        <Input
-                          id="expense-description"
-                          placeholder="Описание расхода (необязательно)"
-                          value={expenseForm.description}
-                          onChange={(e) => setExpenseForm(prev => ({...prev, description: e.target.value}))}
-                          className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
-                        />
-                      </div>
-                      <div className="flex gap-2 pt-4">
-                        <Button
-                          variant="outline"
-                          className="flex-1 border-white/10 text-dashboard-text hover:bg-white/5"
-                          onClick={() => resetDialog()}
-                        >
-                          Отмена
-                        </Button>
-                        <Button
-                          className="flex-1 bg-gradient-primary hover:opacity-90"
-                          onClick={handleAddExpense}
-                          disabled={isExpenseSubmitting}
-                        >
-                          {isExpenseSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                          Добавить
-                        </Button>
-                      </div>
-                    </>
-                  ) : selectedOperationType === 'income' ? (
-                    <>
-                      <div className="grid gap-2">
-                        <Label htmlFor="income-amount" className="text-dashboard-text-muted">Сумма *</Label>
-                        <Input
-                          id="income-amount"
-                          type="number"
-                          placeholder="0"
-                          value={incomeForm.amount}
-                          onChange={(e) => setIncomeForm(prev => ({...prev, amount: e.target.value}))}
-                          className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="income-source" className="text-dashboard-text-muted">Источник *</Label>
-                        <Select
-                          value={incomeForm.source}
-                          onValueChange={(value) => setIncomeForm(prev => ({...prev, source: value}))}
-                        >
-                          <SelectTrigger className="bg-white/5 border-white/10 text-dashboard-text">
-                            <SelectValue placeholder="Выберите источник" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {incomeSources.map((source) => (
-                              <SelectItem key={source} value={source}>
-                                {source}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="income-description" className="text-dashboard-text-muted">Описание</Label>
-                        <Input
-                          id="income-description"
-                          placeholder="Описание дохода (необязательно)"
-                          value={incomeForm.description}
-                          onChange={(e) => setIncomeForm(prev => ({...prev, description: e.target.value}))}
-                          className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
-                        />
-                      </div>
-                      <div className="flex gap-2 pt-4">
-                        <Button
-                          variant="outline"
-                          className="flex-1 border-white/10 text-dashboard-text hover:bg-white/5"
-                          onClick={() => resetDialog()}
-                        >
-                          Отмена
-                        </Button>
-                        <Button
-                          className="flex-1 bg-gradient-success hover:opacity-90"
-                          onClick={handleAddIncome}
-                        >
-                          Добавить
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="grid gap-2">
-                        <Label htmlFor="category-name" className="text-dashboard-text-muted">Название категории *</Label>
-                        <Input
-                          id="category-name"
-                          placeholder="Название категории"
-                          value={categoryForm.name}
-                          onChange={(e) => setCategoryForm(prev => ({...prev, name: e.target.value}))}
-                          className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="category-budget" className="text-dashboard-text-muted">Бюджет *</Label>
-                        <Input
-                          id="category-budget"
-                          type="number"
-                          placeholder="0"
-                          value={categoryForm.budget}
-                          onChange={(e) => setCategoryForm(prev => ({...prev, budget: e.target.value}))}
-                          className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="category-emoji" className="text-dashboard-text-muted">Эмодзи</Label>
-                        <Input
-                          id="category-emoji"
-                          placeholder="🛒"
-                          maxLength={10}
-                          value={categoryForm.emoji}
-                          onChange={(e) => setCategoryForm(prev => ({...prev, emoji: e.target.value}))}
-                          className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
-                        />
-                      </div>
-                      <div className="flex gap-2 pt-4">
-                        <Button
-                          variant="outline"
-                          className="flex-1 border-white/10 text-dashboard-text hover:bg-white/5"
-                          onClick={() => resetDialog()}
-                        >
-                          Отмена
-                        </Button>
-                        <Button
-                          className="flex-1 bg-gradient-secondary hover:opacity-90"
-                          onClick={handleAddCategory}
-                          disabled={isCategorySubmitting}
-                        >
-                          {isCategorySubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                          Добавить
-                        </Button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </DialogContent>
-            </Dialog>
           </div>
           <div className="flex gap-3 mb-4">
             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
@@ -544,6 +340,220 @@ const Budget = () => {
           </div>
         </div>
       )}
+
+      {/* Expense Dialog */}
+      <Dialog open={openDialog === 'expense'} onOpenChange={(open) => { if (!open) resetDialog(); }}>
+        <DialogContent className="sm:max-w-[425px] bg-[#0B1929] border-white/10 text-dashboard-text">
+          <DialogHeader>
+            <DialogTitle>Добавить расход</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="expense-amount" className="text-dashboard-text-muted">Сумма *</Label>
+              <div className="relative">
+                <Input
+                  id="expense-amount"
+                  type="number"
+                  placeholder="0"
+                  autoFocus
+                  value={expenseForm.amount}
+                  onChange={(e) => setExpenseForm(prev => ({...prev, amount: e.target.value}))}
+                  className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted pr-8"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-dashboard-text-muted text-sm pointer-events-none">&#8381;</span>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="expense-category" className="text-dashboard-text-muted">Категория *</Label>
+              <Select
+                value={expenseForm.category}
+                onValueChange={(value) => setExpenseForm(prev => ({...prev, category: value}))}
+              >
+                <SelectTrigger className="bg-white/5 border-white/10 text-dashboard-text">
+                  <SelectValue placeholder="Выберите категорию" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="expense-description" className="text-dashboard-text-muted">Описание</Label>
+              <Input
+                id="expense-description"
+                placeholder="Описание расхода (необязательно)"
+                value={expenseForm.description}
+                onChange={(e) => setExpenseForm(prev => ({...prev, description: e.target.value}))}
+                className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
+              />
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button
+                variant="outline"
+                className="flex-1 border-white/10 text-dashboard-text hover:bg-white/5"
+                onClick={() => resetDialog()}
+              >
+                Отмена
+              </Button>
+              <Button
+                className="flex-1 bg-gradient-primary hover:opacity-90"
+                onClick={handleAddExpense}
+                disabled={isExpenseSubmitting}
+              >
+                {isExpenseSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Добавить
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Income Dialog */}
+      <Dialog open={openDialog === 'income'} onOpenChange={(open) => { if (!open) resetDialog(); }}>
+        <DialogContent className="sm:max-w-[425px] bg-[#0B1929] border-white/10 text-dashboard-text">
+          <DialogHeader>
+            <DialogTitle>Добавить доход</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="income-amount" className="text-dashboard-text-muted">Сумма *</Label>
+              <div className="relative">
+                <Input
+                  id="income-amount"
+                  type="number"
+                  placeholder="0"
+                  autoFocus
+                  value={incomeForm.amount}
+                  onChange={(e) => setIncomeForm(prev => ({...prev, amount: e.target.value}))}
+                  className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted pr-8"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-dashboard-text-muted text-sm pointer-events-none">&#8381;</span>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="income-source" className="text-dashboard-text-muted">Источник *</Label>
+              <Select
+                value={incomeForm.source}
+                onValueChange={(value) => setIncomeForm(prev => ({...prev, source: value}))}
+              >
+                <SelectTrigger className="bg-white/5 border-white/10 text-dashboard-text">
+                  <SelectValue placeholder="Выберите источник" />
+                </SelectTrigger>
+                <SelectContent>
+                  {incomeSources.map((source) => (
+                    <SelectItem key={source} value={source}>
+                      {source}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="income-description" className="text-dashboard-text-muted">Описание</Label>
+              <Input
+                id="income-description"
+                placeholder="Описание дохода (необязательно)"
+                value={incomeForm.description}
+                onChange={(e) => setIncomeForm(prev => ({...prev, description: e.target.value}))}
+                className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
+              />
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button
+                variant="outline"
+                className="flex-1 border-white/10 text-dashboard-text hover:bg-white/5"
+                onClick={() => resetDialog()}
+              >
+                Отмена
+              </Button>
+              <Button
+                className="flex-1 bg-gradient-success hover:opacity-90"
+                onClick={handleAddIncome}
+              >
+                Добавить
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Category Dialog */}
+      <Dialog open={openDialog === 'category'} onOpenChange={(open) => { if (!open) resetDialog(); }}>
+        <DialogContent className="sm:max-w-[425px] bg-[#0B1929] border-white/10 text-dashboard-text">
+          <DialogHeader>
+            <DialogTitle>Новая категория</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="category-name" className="text-dashboard-text-muted">Название категории *</Label>
+              <Input
+                id="category-name"
+                placeholder="Название категории"
+                autoFocus
+                value={categoryForm.name}
+                onChange={(e) => setCategoryForm(prev => ({...prev, name: e.target.value}))}
+                className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="category-budget" className="text-dashboard-text-muted">Бюджет *</Label>
+              <div className="relative">
+                <Input
+                  id="category-budget"
+                  type="number"
+                  placeholder="0"
+                  value={categoryForm.budget}
+                  onChange={(e) => setCategoryForm(prev => ({...prev, budget: e.target.value}))}
+                  className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted pr-8"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-dashboard-text-muted text-sm pointer-events-none">&#8381;</span>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-dashboard-text-muted">Эмодзи</Label>
+              <div className="grid grid-cols-8 gap-1.5">
+                {EMOJI_OPTIONS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    aria-label={`Выбрать эмодзи ${emoji}`}
+                    aria-pressed={categoryForm.emoji === emoji}
+                    onClick={() => setCategoryForm(prev => ({...prev, emoji}))}
+                    className={`w-9 h-9 rounded-lg text-lg flex items-center justify-center transition-all duration-150 ${
+                      categoryForm.emoji === emoji
+                        ? 'bg-white/15 ring-1 ring-white/30'
+                        : 'hover:bg-white/10'
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button
+                variant="outline"
+                className="flex-1 border-white/10 text-dashboard-text hover:bg-white/5"
+                onClick={() => resetDialog()}
+              >
+                Отмена
+              </Button>
+              <Button
+                className="flex-1 bg-gradient-secondary hover:opacity-90"
+                onClick={handleAddCategory}
+                disabled={isCategorySubmitting}
+              >
+                {isCategorySubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Добавить
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
