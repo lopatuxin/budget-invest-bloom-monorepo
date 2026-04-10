@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   ShoppingCart,
@@ -31,6 +32,45 @@ const formatCurrency = (value: number) => value.toLocaleString('ru-RU') + ' \u20
 
 const DONUT_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#14B8A6'];
 
+// Time range options for chart period selector
+type TimeRange = '3m' | '6m' | '1y';
+const TIME_RANGES: { key: TimeRange; label: string }[] = [
+  { key: '3m', label: '3 мес' },
+  { key: '6m', label: '6 мес' },
+  { key: '1y', label: 'Год' },
+];
+
+// Pill-style time range selector
+const TimeRangeSelector = ({
+  value,
+  onChange,
+}: {
+  value: TimeRange;
+  onChange: (v: TimeRange) => void;
+}) => (
+  <div className="flex gap-1">
+    {TIME_RANGES.map(r => (
+      <button
+        key={r.key}
+        onClick={() => onChange(r.key)}
+        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+          value === r.key
+            ? 'bg-white/15 text-dashboard-text'
+            : 'text-dashboard-text-muted hover:text-dashboard-text'
+        }`}
+      >
+        {r.label}
+      </button>
+    ))}
+  </div>
+);
+
+const sliceByRange = <T,>(data: T[], range: TimeRange): T[] => {
+  if (range === '3m') return data.slice(-3);
+  if (range === '6m') return data.slice(-6);
+  return data;
+};
+
 // Loading skeleton
 const Skeleton = ({ className = '' }: { className?: string }) => (
   <div className={`animate-pulse bg-white/10 rounded-xl ${className}`} />
@@ -52,6 +92,10 @@ const Index = () => {
 
   const { data: expenseResponse, isLoading: expenseLoading } = useExpenseMetric(currentYear, isAuthenticated);
   const expenseMetric = expenseResponse?.body;
+
+  // Time range state for bar chart and area chart (must be before conditional return)
+  const [barTimeRange, setBarTimeRange] = useState<TimeRange>('6m');
+  const [areaTimeRange, setAreaTimeRange] = useState<TimeRange>('6m');
 
   // If not authenticated, show landing page
   if (!isAuthenticated) {
@@ -109,8 +153,8 @@ const Index = () => {
     );
   }
 
-  // Build chart data for bar chart (last 6 months)
-  const barChartData = (() => {
+  // Build chart data for bar chart (all months, sliced by range later)
+  const allBarChartData = (() => {
     if (!incomeMetric?.monthlyData && !expenseMetric?.monthlyData) return [];
     const incomeMap = new Map((incomeMetric?.monthlyData || []).map(d => [d.month, d]));
     const expenseMap = new Map((expenseMetric?.monthlyData || []).map(d => [d.month, d]));
@@ -120,13 +164,13 @@ const Index = () => {
     ]);
     return Array.from(allMonths)
       .sort((a, b) => a - b)
-      .slice(-6)
       .map(month => ({
         name: incomeMap.get(month)?.monthName || expenseMap.get(month)?.monthName || String(month),
         income: incomeMap.get(month)?.amount || 0,
         expenses: expenseMap.get(month)?.amount || 0,
       }));
   })();
+  const barChartData = sliceByRange(allBarChartData, barTimeRange);
 
   // Donut data from categories
   const donutData = (summary?.categories || []).map((cat, i) => ({
@@ -137,10 +181,10 @@ const Index = () => {
   const totalCategoryAmount = donutData.reduce((sum, d) => sum + d.value, 0);
 
   // Area chart data for income trend
-  const incomeAreaData = (incomeMetric?.monthlyData || []).slice(-6).map(d => ({
-    name: d.monthName,
-    amount: d.amount,
-  }));
+  const incomeAreaData = sliceByRange(
+    (incomeMetric?.monthlyData || []).map(d => ({ name: d.monthName, amount: d.amount })),
+    areaTimeRange,
+  );
 
   const isChartsLoading = incomeLoading || expenseLoading;
 
@@ -302,12 +346,15 @@ const Index = () => {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
         {/* Bar Chart */}
         <div className="lg:col-span-3 glass-card p-5">
-          <h3 className="text-sm font-semibold text-dashboard-text mb-4">Динамика расходов и доходов</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-dashboard-text">Динамика расходов и доходов</h3>
+            <TimeRangeSelector value={barTimeRange} onChange={setBarTimeRange} />
+          </div>
           {isChartsLoading ? (
             <Skeleton className="h-[280px]" />
           ) : (
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={barChartData} barGap={4}>
+              <BarChart data={barChartData} barGap={4} style={{ cursor: 'pointer' }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                 <XAxis dataKey="name" tick={{ fill: '#94A3B8', fontSize: 12 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: '#94A3B8', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
@@ -316,8 +363,8 @@ const Index = () => {
                   formatter={(value: number) => formatCurrency(value)}
                 />
                 <Legend wrapperStyle={{ color: '#94A3B8', fontSize: 12 }} />
-                <Bar dataKey="income" name="Доходы" fill="#10B981" radius={[6, 6, 0, 0]} maxBarSize={32} />
-                <Bar dataKey="expenses" name="Расходы" fill="#F59E0B" radius={[6, 6, 0, 0]} maxBarSize={32} />
+                <Bar dataKey="income" name="Доходы" fill="#10B981" radius={[6, 6, 0, 0]} maxBarSize={32} activeBar={{ fillOpacity: 0.7 }} onClick={() => navigate('/budget/metric/income')} />
+                <Bar dataKey="expenses" name="Расходы" fill="#F59E0B" radius={[6, 6, 0, 0]} maxBarSize={32} activeBar={{ fillOpacity: 0.7 }} onClick={() => navigate('/budget/metric/expenses')} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -334,32 +381,37 @@ const Index = () => {
             </div>
           ) : (
             <div>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={donutData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={85}
-                    paddingAngle={3}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {donutData.map((entry, index) => (
-                      <Cell key={index} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{ background: '#0B1929', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, color: '#d6e3fa' }}
-                    formatter={(value: number) => formatCurrency(value)}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              {/* Center total */}
-              <div className="text-center -mt-[130px] mb-[90px]">
-                <p className="text-xs text-dashboard-text-muted">Всего</p>
-                <p className="text-lg font-bold text-dashboard-text font-mono">{formatCurrency(totalCategoryAmount)}</p>
+              {/* Donut with centered total overlay */}
+              <div className="relative">
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={donutData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={85}
+                      paddingAngle={3}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {donutData.map((entry, index) => (
+                        <Cell key={index} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: '#0B1929', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, color: '#d6e3fa' }}
+                      formatter={(value: number) => formatCurrency(value)}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                {/* Center total */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="text-center">
+                    <p className="text-xs text-dashboard-text-muted">Всего</p>
+                    <p className="text-lg font-bold text-dashboard-text font-mono">{formatCurrency(totalCategoryAmount)}</p>
+                  </div>
+                </div>
               </div>
               {/* Legend */}
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-2">
@@ -369,6 +421,9 @@ const Index = () => {
                     <span className="truncate">{item.name}</span>
                   </div>
                 ))}
+                {donutData.length > 6 && (
+                  <div className="text-xs text-dashboard-text-muted">+ ещё {donutData.length - 6}</div>
+                )}
               </div>
             </div>
           )}
@@ -426,7 +481,10 @@ const Index = () => {
 
         {/* Income Trend */}
         <div className="lg:col-span-5 glass-card p-5">
-          <h3 className="text-sm font-semibold text-dashboard-text mb-4">Тренд доходов</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-dashboard-text">Тренд доходов</h3>
+            <TimeRangeSelector value={areaTimeRange} onChange={setAreaTimeRange} />
+          </div>
           {incomeLoading ? (
             <Skeleton className="h-[220px]" />
           ) : incomeAreaData.length === 0 ? (
