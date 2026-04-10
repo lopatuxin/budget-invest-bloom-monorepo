@@ -13,6 +13,26 @@ import { apiPost } from '@/lib/api';
 
 const formatCurrency = (value: number) => value.toLocaleString('ru-RU') + ' \u20BD';
 
+// Animated count-up hook with easeOutCubic easing
+const useCountUp = (target: number, duration = 800) => {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (target === 0) { setValue(0); return; }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setValue(target); return; }
+    let rafId: number;
+    const start = performance.now();
+    const step = (now: number) => {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(target * eased));
+      if (progress < 1) rafId = requestAnimationFrame(step);
+    };
+    rafId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafId);
+  }, [target, duration]);
+  return value;
+};
+
 const DONUT_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#14B8A6'];
 
 const EMOJI_OPTIONS = ['🛒', '🍽️', '🏠', '🚗', '💊', '🎓', '🎮', '👕', '✈️', '💰', '📱', '🎬', '🐱', '💡', '🎁', '💇'];
@@ -222,11 +242,17 @@ const Budget = () => {
     setIncomeForm({ amount: '', source: '', description: '' });
   };
 
+  // Animated KPI values (count-up from 0)
+  const animIncome = useCountUp(!isLoading && summary ? income : 0);
+  const animExpenses = useCountUp(!isLoading && summary ? expenses : 0);
+  const animBalance = useCountUp(!isLoading && summary ? balance : 0);
+  const animInflation = useCountUp(!isLoading && summary ? personalInflation : 0);
+
   const kpiCards = [
-    { label: 'ДОХОДЫ', value: formatCurrency(income), trend: trends?.income, icon: Plus, color: '#10B981', glow: 'rgba(16, 185, 129, 0.3)', path: '/budget/metric/income' },
-    { label: 'РАСХОДЫ', value: formatCurrency(expenses), trend: trends?.expenses, icon: Minus, color: '#F59E0B', glow: 'rgba(245, 158, 11, 0.3)', path: '/budget/metric/expenses' },
-    { label: 'СВОБОДНЫЕ СРЕДСТВА', value: formatCurrency(balance), trend: trends?.balance, icon: DollarSign, color: '#3B82F6', glow: 'rgba(59, 130, 246, 0.3)', path: '/budget/metric/balance' },
-    { label: 'ЛИЧНАЯ ИНФЛЯЦИЯ', value: `${personalInflation}%`, trend: trends?.inflation, icon: TrendingUp, color: '#EC4899', glow: 'rgba(236, 72, 153, 0.3)', path: '/budget/metric/inflation' },
+    { label: 'ДОХОДЫ', value: formatCurrency(animIncome), trend: trends?.income, icon: Plus, color: '#10B981', glow: 'rgba(16, 185, 129, 0.3)', path: '/budget/metric/income' },
+    { label: 'РАСХОДЫ', value: formatCurrency(animExpenses), trend: trends?.expenses, icon: Minus, color: '#F59E0B', glow: 'rgba(245, 158, 11, 0.3)', path: '/budget/metric/expenses' },
+    { label: 'СВОБОДНЫЕ СРЕДСТВА', value: formatCurrency(animBalance), trend: trends?.balance, icon: DollarSign, color: '#3B82F6', glow: 'rgba(59, 130, 246, 0.3)', path: '/budget/metric/balance' },
+    { label: 'ЛИЧНАЯ ИНФЛЯЦИЯ', value: `${animInflation}%`, trend: trends?.inflation, icon: TrendingUp, color: '#EC4899', glow: 'rgba(236, 72, 153, 0.3)', path: '/budget/metric/inflation' },
   ];
 
   return (
@@ -235,7 +261,7 @@ const Budget = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         {isLoading
           ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[130px]" />)
-          : kpiCards.map(card => {
+          : kpiCards.map((card, index) => {
               const Icon = card.icon;
               const trend = parseTrend(card.trend);
               const isNegativeTrend = trend && !trend.isPositive;
@@ -243,10 +269,11 @@ const Budget = () => {
               return (
                 <div
                   key={card.label}
-                  className="glass-card p-5 flex items-start justify-between group transition-all duration-300 hover:scale-[1.02] cursor-pointer"
+                  className="glass-card p-5 flex items-start justify-between group transition-all duration-300 hover:scale-[1.02] cursor-pointer animate-fade-slide-up"
                   onClick={() => navigate(card.path)}
                   style={{
                     borderLeft: `3px solid ${isNegativeTrend ? '#EF4444' : card.color}`,
+                    animationDelay: `${index * 60}ms`,
                   }}
                 >
                   <div className="space-y-2">
@@ -276,7 +303,7 @@ const Budget = () => {
       {isLoading ? (
         <Skeleton className="h-[400px]" />
       ) : (
-        <div className="glass-card p-5">
+        <div className="glass-card p-5 animate-fade-slide-up" style={{ animationDelay: '300ms' }}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-dashboard-text">Категории расходов</h3>
           </div>
@@ -323,10 +350,11 @@ const Budget = () => {
                   <p className="text-sm font-medium text-dashboard-text truncate">{cat.name}</p>
                   <div className="w-full bg-white/5 rounded-full h-1.5 mt-1.5">
                     <div
-                      className="h-1.5 rounded-full transition-all duration-500"
+                      className="h-1.5 rounded-full animate-progress-grow"
                       style={{
                         width: `${Math.min(getProgressPercentage(cat.amount, cat.budget), 100)}%`,
                         backgroundColor: cat.amount > cat.budget ? '#EF4444' : DONUT_COLORS[i % DONUT_COLORS.length],
+                        animationDelay: `${400 + i * 80}ms`,
                       }}
                     />
                   </div>

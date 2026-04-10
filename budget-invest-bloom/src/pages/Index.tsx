@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   ShoppingCart,
@@ -29,6 +29,26 @@ import { useExpenseMetric } from '@/hooks/useExpenseMetric';
 import { useIncomeMetric } from '@/hooks/useIncomeMetric';
 
 const formatCurrency = (value: number) => value.toLocaleString('ru-RU') + ' \u20BD';
+
+// Animated count-up hook with easeOutCubic easing
+const useCountUp = (target: number, duration = 800) => {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (target === 0) { setValue(0); return; }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setValue(target); return; }
+    let rafId: number;
+    const start = performance.now();
+    const step = (now: number) => {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(target * eased));
+      if (progress < 1) rafId = requestAnimationFrame(step);
+    };
+    rafId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafId);
+  }, [target, duration]);
+  return value;
+};
 
 const DONUT_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#14B8A6'];
 
@@ -195,6 +215,13 @@ const Index = () => {
     ? Math.max(-99, Math.min(99, Math.round((summary.income - summary.expenses) / summary.income * 100)))
     : 0;
 
+  // Animated KPI values (count-up from 0)
+  const animCapital = useCountUp(!summaryLoading && summary ? (summary.capital ?? summary.balance) : 0);
+  const animExpenses = useCountUp(!summaryLoading && summary ? summary.expenses : 0);
+  const animBudget = useCountUp(!summaryLoading && summary ? totalBudget : 0);
+  const animSavingsRate = useCountUp(!summaryLoading && summary ? savingsRate : 0);
+  const animPortfolio = useCountUp(2850000);
+
   // Sparkline data for capital card (reuse income monthly data)
   const sparklineData = (incomeMetric?.monthlyData || []).slice(-6).map(d => d.amount);
 
@@ -213,7 +240,7 @@ const Index = () => {
   const kpiCards: KpiCard[] = [
     {
       label: 'ЧИСТЫЙ КАПИТАЛ',
-      value: summary ? formatCurrency(summary.capital ?? summary.balance) : '--',
+      value: summary ? formatCurrency(animCapital) : '--',
       trend: summary?.trends?.capital,
       icon: Wallet,
       color: '#10B981',
@@ -222,7 +249,7 @@ const Index = () => {
     },
     {
       label: 'РАСХОД / БЮДЖЕТ',
-      value: summary ? `${formatCurrency(summary.expenses)} / ${formatCurrency(totalBudget)}` : '--',
+      value: summary ? `${formatCurrency(animExpenses)} / ${formatCurrency(animBudget)}` : '--',
       trend: summary?.trends?.expenses,
       icon: ShoppingCart,
       color: '#F59E0B',
@@ -231,7 +258,7 @@ const Index = () => {
     },
     {
       label: 'НОРМА СБЕРЕЖЕНИЙ',
-      value: summary ? `${savingsRate}%` : '--',
+      value: summary ? `${animSavingsRate}%` : '--',
       trend: summary?.trends?.balance,
       icon: PiggyBank,
       color: '#8B5CF6',
@@ -239,7 +266,7 @@ const Index = () => {
     },
     {
       label: 'ПОРТФЕЛЬ',
-      value: '2 850 000 \u20BD', // TODO: connect to investments API
+      value: formatCurrency(animPortfolio), // TODO: connect to investments API
       trend: '+15.6%', // TODO: calculate from real data
       icon: Gem,
       color: '#3B82F6',
@@ -260,7 +287,7 @@ const Index = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         {summaryLoading
           ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[130px]" />)
-          : kpiCards.map(card => {
+          : kpiCards.map((card, index) => {
               const Icon = card.icon;
               const trend = parseTrend(card.trend);
               const hasProgress = card.progressPercent != null;
@@ -270,9 +297,10 @@ const Index = () => {
               return (
                 <div
                   key={card.label}
-                  className="glass-card p-5 flex flex-col justify-between group transition-all duration-300 hover:scale-[1.02] relative overflow-hidden"
+                  className="glass-card p-5 flex flex-col justify-between group transition-all duration-300 hover:scale-[1.02] relative overflow-hidden animate-fade-slide-up"
                   style={{
                     borderLeft: `3px solid ${isNegativeTrend ? '#EF4444' : card.color}`,
+                    animationDelay: `${index * 60}ms`,
                   }}
                 >
                   <div className="flex items-start justify-between">
@@ -328,10 +356,11 @@ const Index = () => {
                       </div>
                       <div className="w-full bg-white/5 rounded-full h-1.5">
                         <div
-                          className="h-1.5 rounded-full transition-all duration-500"
+                          className="h-1.5 rounded-full animate-progress-grow"
                           style={{
                             width: `${card.progressPercent}%`,
                             backgroundColor: (card.progressPercent ?? 0) > 80 ? '#EF4444' : card.color,
+                            animationDelay: '300ms',
                           }}
                         />
                       </div>
@@ -345,7 +374,7 @@ const Index = () => {
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
         {/* Bar Chart */}
-        <div className="lg:col-span-3 glass-card p-5">
+        <div className="lg:col-span-3 glass-card p-5 animate-fade-slide-up" style={{ animationDelay: '300ms' }}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-dashboard-text">Динамика расходов и доходов</h3>
             <TimeRangeSelector value={barTimeRange} onChange={setBarTimeRange} />
@@ -363,15 +392,15 @@ const Index = () => {
                   formatter={(value: number) => formatCurrency(value)}
                 />
                 <Legend wrapperStyle={{ color: '#94A3B8', fontSize: 12 }} />
-                <Bar dataKey="income" name="Доходы" fill="#10B981" radius={[6, 6, 0, 0]} maxBarSize={32} activeBar={{ fillOpacity: 0.7 }} onClick={() => navigate('/budget/metric/income')} />
-                <Bar dataKey="expenses" name="Расходы" fill="#F59E0B" radius={[6, 6, 0, 0]} maxBarSize={32} activeBar={{ fillOpacity: 0.7 }} onClick={() => navigate('/budget/metric/expenses')} />
+                <Bar dataKey="income" name="Доходы" fill="#10B981" radius={[6, 6, 0, 0]} maxBarSize={32} activeBar={{ fillOpacity: 0.7 }} onClick={() => navigate('/budget/metric/income')} animationDuration={800} animationBegin={200} />
+                <Bar dataKey="expenses" name="Расходы" fill="#F59E0B" radius={[6, 6, 0, 0]} maxBarSize={32} activeBar={{ fillOpacity: 0.7 }} onClick={() => navigate('/budget/metric/expenses')} animationDuration={800} animationBegin={200} />
               </BarChart>
             </ResponsiveContainer>
           )}
         </div>
 
         {/* Donut Chart */}
-        <div className="lg:col-span-2 glass-card p-5">
+        <div className="lg:col-span-2 glass-card p-5 animate-fade-slide-up" style={{ animationDelay: '380ms' }}>
           <h3 className="text-sm font-semibold text-dashboard-text mb-4">Распределение по категориям</h3>
           {summaryLoading ? (
             <Skeleton className="h-[280px]" />
@@ -394,6 +423,8 @@ const Index = () => {
                       paddingAngle={3}
                       dataKey="value"
                       stroke="none"
+                      animationDuration={800}
+                      animationBegin={200}
                     >
                       {donutData.map((entry, index) => (
                         <Cell key={index} fill={entry.color} />
@@ -433,7 +464,7 @@ const Index = () => {
       {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Category List */}
-        <div className="lg:col-span-7 glass-card p-5">
+        <div className="lg:col-span-7 glass-card p-5 animate-fade-slide-up" style={{ animationDelay: '460ms' }}>
           <h3 className="text-sm font-semibold text-dashboard-text mb-4">Основные категории трат</h3>
           {summaryLoading ? (
             <div className="space-y-3">
@@ -461,10 +492,11 @@ const Index = () => {
                     <p className="text-sm font-medium text-dashboard-text truncate">{cat.name}</p>
                     <div className="w-full bg-white/5 rounded-full h-1.5 mt-1.5">
                       <div
-                        className="h-1.5 rounded-full transition-all duration-500"
+                        className="h-1.5 rounded-full animate-progress-grow"
                         style={{
                           width: `${Math.min(cat.percentUsed, 100)}%`,
                           backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length],
+                          animationDelay: `${500 + i * 80}ms`,
                         }}
                       />
                     </div>
@@ -480,7 +512,7 @@ const Index = () => {
         </div>
 
         {/* Income Trend */}
-        <div className="lg:col-span-5 glass-card p-5">
+        <div className="lg:col-span-5 glass-card p-5 animate-fade-slide-up" style={{ animationDelay: '540ms' }}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-dashboard-text">Тренд доходов</h3>
             <TimeRangeSelector value={areaTimeRange} onChange={setAreaTimeRange} />
@@ -508,7 +540,7 @@ const Index = () => {
                     contentStyle={{ background: '#0B1929', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, color: '#d6e3fa' }}
                     formatter={(value: number) => formatCurrency(value)}
                   />
-                  <Area type="monotone" dataKey="amount" name="Доход" stroke="#10B981" strokeWidth={2} fill="url(#incomeGrad)" />
+                  <Area type="monotone" dataKey="amount" name="Доход" stroke="#10B981" strokeWidth={2} fill="url(#incomeGrad)" animationDuration={800} animationBegin={200} />
                 </AreaChart>
               </ResponsiveContainer>
               {incomeMetric && (
