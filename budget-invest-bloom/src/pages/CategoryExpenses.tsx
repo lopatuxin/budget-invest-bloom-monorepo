@@ -273,7 +273,7 @@ const CategoryExpenses = () => {
               <CardTitle className="flex items-center gap-2 text-dashboard-text">
                 <Calendar className="w-5 h-5" />
                 Отчет по дням
-                <span className="text-sm font-normal text-dashboard-text-muted ml-2">
+                <span className="text-sm font-normal text-dashboard-text-muted ml-2 font-mono">
                   (Общая сумма: {totalMonthExpenses.toLocaleString()})
                 </span>
               </CardTitle>
@@ -329,7 +329,7 @@ const CategoryExpenses = () => {
                     </div>
                   </div>
                   <div className="relative z-10 flex items-center gap-3">
-                    <div className="font-semibold text-lg text-dashboard-text">
+                    <div className="font-semibold text-lg text-dashboard-text font-mono">
                       {expense.amount.toLocaleString()}
                     </div>
                     <Button

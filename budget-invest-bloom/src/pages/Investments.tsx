@@ -139,11 +139,11 @@ const Investments = () => {
                 <p className="text-[11px] font-semibold tracking-widest text-dashboard-text-muted">
                   {card.label}
                 </p>
-                <p className="text-2xl font-bold text-dashboard-text">{card.value}</p>
+                <p className="text-2xl font-bold text-dashboard-text font-mono">{card.value}</p>
                 {card.trend && (
                   <div className={`flex items-center gap-1 text-xs font-medium ${card.trend.isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
                     {card.trend.isPositive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                    <span>{card.trend.value}</span>
+                    <span className="font-mono">{card.trend.value}</span>
                   </div>
                 )}
               </div>
@@ -176,7 +176,7 @@ const Investments = () => {
                   <div className="flex items-center justify-between border-b border-white/10 pb-2">
                     <h3 className="font-semibold text-dashboard-text">{sectorName}</h3>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-dashboard-text">
+                      <span className="text-sm font-medium font-mono text-dashboard-text">
                         {sectorPercentage}%
                       </span>
                       <span className="text-sm text-dashboard-text-muted">
@@ -204,14 +204,14 @@ const Investments = () => {
                             <div>
                               <div className="font-semibold text-dashboard-text">{holding.symbol}</div>
                               <div className="text-sm text-dashboard-text-muted">{holding.name}</div>
-                              <div className="text-xs text-dashboard-text-muted">
+                              <div className="text-xs text-dashboard-text-muted font-mono">
                                 {holding.shares} акций × {formatCurrency(holding.price)}
                               </div>
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="font-semibold text-dashboard-text">{formatCurrency(holding.value)}</div>
-                            <div className={`text-sm flex items-center justify-end ${
+                            <div className="font-semibold text-dashboard-text font-mono">{formatCurrency(holding.value)}</div>
+                            <div className={`text-sm flex items-center justify-end font-mono ${
                               holding.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'
                             }`}>
                               {holding.changePercent >= 0 ? (
@@ -248,10 +248,10 @@ const Investments = () => {
                     <span className="font-medium text-sm text-dashboard-text">{sector.name}</span>
                   </div>
                   <div className="text-right">
-                    <div className="font-semibold text-sm text-dashboard-text">
+                    <div className="font-semibold text-sm text-dashboard-text font-mono">
                       {sector.percentage}%
                     </div>
-                    <div className="text-xs text-dashboard-text-muted">
+                    <div className="text-xs text-dashboard-text-muted font-mono">
                       {formatCurrency(sector.value)}
                     </div>
                   </div>

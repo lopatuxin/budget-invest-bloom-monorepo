@@ -125,6 +125,17 @@
   }
 }
 
+/* Typography: DM Sans for headings, Manrope for body text */
+@layer base {
+  body {
+    font-family: 'Manrope Variable', 'Manrope', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'DM Sans Variable', 'DM Sans', sans-serif;
+  }
+}
+
 /* Dashboard dark theme glassmorphism */
 @layer components {
   .glass-card {
@@ -143,6 +154,13 @@
   .dashboard-bg {
     background: linear-gradient(135deg, #0B1929 0%, #0E2A3A 100%);
     min-height: 100vh;
+  }
+}
+
+/* Tabular nums for mono font */
+@layer utilities {
+  .font-mono {
+    font-variant-numeric: tabular-nums;
   }
 }
 

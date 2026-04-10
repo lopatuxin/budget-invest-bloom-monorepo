@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Minus, DollarSign, Wallet, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -46,13 +46,15 @@ const Budget = () => {
 
   const { data: summaryData, isLoading, error } = useBudgetSummary(selectedMonth, selectedYear);
 
-  if (error) {
-    toast({
-      title: "Ошибка загрузки",
-      description: summaryData?.message || "Не удалось загрузить данные бюджета",
-      variant: "destructive",
-    });
-  }
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: "Ошибка загрузки",
+        description: error instanceof Error ? error.message : "Не удалось загрузить данные бюджета",
+        variant: "destructive",
+      });
+    }
+  }, [error, toast]);
 
   const summary = summaryData?.body;
   const income = summary?.income ?? 0;
@@ -236,11 +238,11 @@ const Budget = () => {
                     <p className="text-[11px] font-semibold tracking-widest text-dashboard-text-muted">
                       {card.label}
                     </p>
-                    <p className="text-2xl font-bold text-dashboard-text">{card.value}</p>
+                    <p className="text-2xl font-bold text-dashboard-text font-mono">{card.value}</p>
                     {trend && (
                       <div className={`flex items-center gap-1 text-xs font-medium ${trend.isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
                         {trend.isPositive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                        <span>{trend.value}</span>
+                        <span className="font-mono">{trend.value}</span>
                       </div>
                     )}
                   </div>
@@ -531,8 +533,8 @@ const Budget = () => {
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-semibold text-dashboard-text">{formatCurrency(cat.amount)}</p>
-                  <p className="text-xs text-dashboard-text-muted">из {formatCurrency(cat.budget)}</p>
+                  <p className="text-sm font-semibold text-dashboard-text font-mono">{formatCurrency(cat.amount)}</p>
+                  <p className="text-xs text-dashboard-text-muted font-mono">из {formatCurrency(cat.budget)}</p>
                 </div>
               </button>
             ))}

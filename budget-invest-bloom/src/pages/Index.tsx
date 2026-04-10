@@ -206,11 +206,11 @@ const Index = () => {
                     <p className="text-[11px] font-semibold tracking-widest text-dashboard-text-muted">
                       {card.label}
                     </p>
-                    <p className="text-2xl font-bold text-dashboard-text">{card.value}</p>
+                    <p className="text-2xl font-bold text-dashboard-text font-mono">{card.value}</p>
                     {trend && (
                       <div className={`flex items-center gap-1 text-xs font-medium ${trend.isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
                         {trend.isPositive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                        <span>{trend.value}</span>
+                        <span className="font-mono">{trend.value}</span>
                       </div>
                     )}
                   </div>
@@ -286,7 +286,7 @@ const Index = () => {
               {/* Center total */}
               <div className="text-center -mt-[130px] mb-[90px]">
                 <p className="text-xs text-dashboard-text-muted">Всего</p>
-                <p className="text-lg font-bold text-dashboard-text">{formatCurrency(totalCategoryAmount)}</p>
+                <p className="text-lg font-bold text-dashboard-text font-mono">{formatCurrency(totalCategoryAmount)}</p>
               </div>
               {/* Legend */}
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-2">
@@ -342,8 +342,8 @@ const Index = () => {
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-semibold text-dashboard-text">{formatCurrency(cat.amount)}</p>
-                    <p className="text-xs text-dashboard-text-muted">{cat.percentUsed}%</p>
+                    <p className="text-sm font-semibold text-dashboard-text font-mono">{formatCurrency(cat.amount)}</p>
+                    <p className="text-xs text-dashboard-text-muted font-mono">{cat.percentUsed}%</p>
                   </div>
                 </button>
               ))}
@@ -384,11 +384,11 @@ const Index = () => {
                 <div className="flex gap-6 mt-3 pt-3 border-t border-white/8">
                   <div>
                     <p className="text-[11px] text-dashboard-text-muted tracking-wide">Средний доход</p>
-                    <p className="text-sm font-semibold text-dashboard-text">{formatCurrency(incomeMetric.yearlyAverage)}</p>
+                    <p className="text-sm font-semibold text-dashboard-text font-mono">{formatCurrency(incomeMetric.yearlyAverage)}</p>
                   </div>
                   <div>
                     <p className="text-[11px] text-dashboard-text-muted tracking-wide">Максимум</p>
-                    <p className="text-sm font-semibold text-dashboard-text">{formatCurrency(incomeMetric.yearlyMax)}</p>
+                    <p className="text-sm font-semibold text-dashboard-text font-mono">{formatCurrency(incomeMetric.yearlyMax)}</p>
                   </div>
                 </div>
               )}

@@ -1,3 +1,6 @@
+import '@fontsource-variable/dm-sans';
+import '@fontsource-variable/jetbrains-mono';
+import '@fontsource-variable/manrope';
 import { createRoot } from 'react-dom/client'
 import React from 'react'
 import * as Sentry from '@sentry/react'

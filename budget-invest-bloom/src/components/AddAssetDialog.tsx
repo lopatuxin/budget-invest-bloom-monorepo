@@ -191,7 +191,7 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
           <div className="bg-white/5 p-4 rounded-lg">
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium text-dashboard-text-muted">Общая стоимость:</span>
-              <span className="text-lg font-bold text-emerald-400">
+              <span className="text-lg font-bold font-mono text-emerald-400">
                 ₽{totalValue.toLocaleString()}
               </span>
             </div>
