@@ -239,6 +239,10 @@
   animation: shimmer 1.5s ease-in-out;
 }
 
+/* Hidden scrollbar for mobile horizontal scroll */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* Respect reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-slide-up {

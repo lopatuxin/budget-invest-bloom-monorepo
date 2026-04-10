@@ -8,7 +8,7 @@ const navItems = [
   { href: '/', label: 'Обзор', icon: LayoutDashboard },
   { href: '/budget', label: 'Бюджет', icon: Wallet },
   { href: '/investments', label: 'Инвестиции', icon: TrendingUp },
-  { href: '/budget/metric/expenses', label: 'Аналитика', icon: BarChart3 },
+  { href: '/budget/metric', label: 'Аналитика', icon: BarChart3, linkTo: '/budget/metric/expenses' },
 ];
 
 const Sidebar = () => {
@@ -40,7 +40,7 @@ const Sidebar = () => {
 
   return (
     <aside
-      className="fixed left-4 top-4 bottom-4 w-[240px] z-50 flex flex-col rounded-2xl border border-white/10"
+      className="fixed left-4 top-4 bottom-4 w-[240px] z-50 hidden lg:flex flex-col rounded-2xl border border-white/10"
       style={{ background: 'linear-gradient(to bottom, #0F3547, #0A2A3D)' }}
     >
       {/* Logo */}
@@ -55,12 +55,12 @@ const Sidebar = () => {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 mt-4 space-y-1">
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {navItems.map(({ href, label, icon: Icon, linkTo }) => {
           const active = isActive(href);
           return (
             <Link
               key={href}
-              to={href}
+              to={linkTo || href}
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 relative',
                 active

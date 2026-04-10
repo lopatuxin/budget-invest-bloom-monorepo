@@ -284,9 +284,9 @@ const Index = () => {
   return (
     <div className="space-y-6 pb-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+      <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:grid lg:grid-cols-2 xl:grid-cols-4 lg:gap-5 lg:overflow-visible lg:pb-0 hide-scrollbar">
         {summaryLoading
-          ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[130px]" />)
+          ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[130px] min-w-[260px] snap-start lg:min-w-0" />)
           : kpiCards.map((card, index) => {
               const Icon = card.icon;
               const trend = parseTrend(card.trend);
@@ -297,7 +297,7 @@ const Index = () => {
               return (
                 <div
                   key={card.label}
-                  className="glass-card p-5 flex flex-col justify-between group transition-all duration-300 hover:scale-[1.02] relative overflow-hidden animate-fade-slide-up"
+                  className="glass-card p-5 flex flex-col justify-between group transition-all duration-300 hover:scale-[1.02] relative overflow-hidden animate-fade-slide-up min-w-[260px] snap-start lg:min-w-0"
                   style={{
                     borderLeft: `3px solid ${isNegativeTrend ? '#EF4444' : card.color}`,
                     animationDelay: `${index * 60}ms`,

@@ -7,6 +7,7 @@ import * as Sentry from "@sentry/react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Navigation from "@/components/Navigation";
 import Sidebar from "@/components/Sidebar";
+import BottomNav from "@/components/BottomNav";
 import Index from "./pages/Index";
 import Budget from "./pages/Budget";
 import Investments from "./pages/Investments";
@@ -63,7 +64,8 @@ const AppLayout = () => {
   return (
     <div className="dashboard-bg h-screen overflow-hidden">
       <Sidebar />
-      <main className="ml-[264px] h-screen overflow-y-auto dashboard-scroll p-6">
+      <BottomNav />
+      <main className="lg:ml-[264px] h-screen overflow-y-auto dashboard-scroll p-4 lg:p-6 pb-20 lg:pb-6">
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/budget" element={<Budget />} />
