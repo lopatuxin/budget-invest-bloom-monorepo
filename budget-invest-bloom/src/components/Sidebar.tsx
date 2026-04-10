@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Wallet, TrendingUp, BarChart3, Settings, LogOut, User } from 'lucide-react';
+import { LayoutDashboard, Wallet, TrendingUp, BarChart3, LogOut, User, CirclePlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -17,7 +17,10 @@ const Sidebar = () => {
 
   const isActive = (href: string) => {
     if (href === '/') return location.pathname === '/';
-    return location.pathname.startsWith(href);
+    const matches = location.pathname === href || location.pathname.startsWith(href + '/');
+    if (!matches) return false;
+    // Prefer the most specific matching nav item
+    return !navItems.some(item => item.href !== href && item.href.startsWith(href + '/') && (location.pathname === item.href || location.pathname.startsWith(item.href + '/')));
   };
 
   const handleLogout = async () => {
@@ -61,12 +64,12 @@ const Sidebar = () => {
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 relative',
                 active
-                  ? 'text-emerald-400 bg-emerald-500/10'
+                  ? 'text-emerald-400 bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
                   : 'text-dashboard-text-muted hover:text-dashboard-text hover:bg-white/5'
               )}
             >
               {active && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-emerald-400 rounded-r-full" />
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3.5px] h-6 bg-emerald-400 rounded-r-full shadow-[0_0_6px_rgba(16,185,129,0.4)]" />
               )}
               <Icon className="w-[18px] h-[18px] shrink-0" />
               <span>{label}</span>
@@ -74,6 +77,27 @@ const Sidebar = () => {
           );
         })}
       </nav>
+
+      {/* Quick actions */}
+      <div className="px-3 mt-1 mb-2 space-y-1.5 border-t border-white/8 pt-3">
+        <p className="px-3 text-[11px] font-medium uppercase tracking-wider text-dashboard-text-muted/60 mb-1">
+          Быстрые действия
+        </p>
+        <Link
+          to="/budget?action=expense"
+          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-all duration-200"
+        >
+          <CirclePlus className="w-4 h-4 shrink-0" />
+          <span>Добавить расход</span>
+        </Link>
+        <Link
+          to="/budget?action=income"
+          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all duration-200"
+        >
+          <CirclePlus className="w-4 h-4 shrink-0" />
+          <span>Добавить доход</span>
+        </Link>
+      </div>
 
       {/* Bottom section */}
       <div className="px-3 pb-5 space-y-1 border-t border-white/8 pt-3 mt-2">
@@ -84,14 +108,6 @@ const Sidebar = () => {
           </div>
           <span className="text-sm text-dashboard-text truncate">{displayName}</span>
         </div>
-
-        <Link
-          to="/settings"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-dashboard-text-muted hover:text-dashboard-text hover:bg-white/5 transition-all duration-200"
-        >
-          <Settings className="w-[18px] h-[18px]" />
-          <span>Настройки</span>
-        </Link>
 
         <button
           onClick={handleLogout}
