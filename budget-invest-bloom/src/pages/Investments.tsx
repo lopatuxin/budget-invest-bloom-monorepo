@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TrendingUp, TrendingDown, PieChart } from 'lucide-react';
+import { TrendingUp, TrendingDown, PieChart, Coins } from 'lucide-react';
 import AddAssetDialog from '@/components/AddAssetDialog';
 
 const DONUT_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#14B8A6'];
@@ -115,9 +115,10 @@ const Investments = () => {
   ];
 
   const kpiCards = [
-    { label: 'ОБЩАЯ СТОИМОСТЬ', value: formatCurrency(totalValue), icon: PieChart, color: '#3B82F6', glow: 'rgba(59, 130, 246, 0.3)' },
-    { label: 'ПРИБЫЛЬ/УБЫТОК', value: formatCurrency(totalGain), icon: TrendingUp, color: '#10B981', glow: 'rgba(16, 185, 129, 0.3)', trend: { value: `+${gainPercentage}%`, isPositive: true } },
+    { label: 'СТОИМОСТЬ ПОРТФЕЛЯ', value: formatCurrency(totalValue), icon: PieChart, color: '#3B82F6', glow: 'rgba(59, 130, 246, 0.3)' },
+    { label: 'ОБЩАЯ ДОХОДНОСТЬ', value: formatCurrency(totalGain), icon: TrendingUp, color: '#10B981', glow: 'rgba(16, 185, 129, 0.3)', trend: { value: `+${gainPercentage}%`, isPositive: true } },
     { label: 'ЗА МЕСЯЦ', value: formatCurrency(monthlyGain), icon: TrendingUp, color: '#8B5CF6', glow: 'rgba(139, 92, 246, 0.3)', trend: { value: '+8.5%', isPositive: true } },
+    { label: 'ДИВИДЕНДЫ', value: '48 500 \u20BD', icon: Coins, color: '#F59E0B', glow: 'rgba(245, 158, 11, 0.3)', trend: { value: '+12.3%', isPositive: true } }, // TODO: connect to dividends API
   ];
 
   const holdingColorIndex = new Map<string, number>();
@@ -127,13 +128,18 @@ const Investments = () => {
     <div className="space-y-6 pb-6">
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         {kpiCards.map(card => {
           const Icon = card.icon;
+          const isNegativeTrend = card.trend && !card.trend.isPositive;
+
           return (
             <div
               key={card.label}
               className="glass-card p-5 flex items-start justify-between group transition-all duration-300 hover:scale-[1.02]"
+              style={{
+                borderLeft: `3px solid ${isNegativeTrend ? '#EF4444' : card.color}`,
+              }}
             >
               <div className="space-y-2">
                 <p className="text-[11px] font-semibold tracking-widest text-dashboard-text-muted">

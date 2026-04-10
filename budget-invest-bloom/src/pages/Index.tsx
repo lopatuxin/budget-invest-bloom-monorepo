@@ -1,12 +1,11 @@
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  Banknote,
-  LineChart,
   ShoppingCart,
   PiggyBank,
   TrendingUp,
   TrendingDown,
   Wallet,
+  Gem,
 } from 'lucide-react';
 import {
   BarChart,
@@ -145,39 +144,64 @@ const Index = () => {
 
   const isChartsLoading = incomeLoading || expenseLoading;
 
+  // Derived KPI values
+  const totalBudget = (summary?.categories || []).reduce((sum, cat) => sum + (cat.budget || 0), 0);
+  const budgetUsedPercent = totalBudget > 0 ? Math.min(Math.round((summary?.expenses ?? 0) / totalBudget * 100), 100) : 0;
+  const savingsRate = summary && summary.income > 0
+    ? Math.max(-99, Math.min(99, Math.round((summary.income - summary.expenses) / summary.income * 100)))
+    : 0;
+
+  // Sparkline data for capital card (reuse income monthly data)
+  const sparklineData = (incomeMetric?.monthlyData || []).slice(-6).map(d => d.amount);
+
   // KPI cards config
-  const kpiCards = [
+  interface KpiCard {
+    label: string;
+    value: string;
+    trend: string | null | undefined;
+    icon: typeof Wallet;
+    color: string;
+    glow: string;
+    accent?: boolean;
+    sparkline?: number[];
+    progressPercent?: number;
+  }
+
+  const kpiCards: KpiCard[] = [
     {
-      label: 'БАЛАНС СЧЕТА',
-      value: summary ? formatCurrency(summary.balance) : '--',
-      trend: summary?.trends?.balance,
-      icon: Banknote,
+      label: 'ЧИСТЫЙ КАПИТАЛ',
+      value: summary ? formatCurrency(summary.capital ?? summary.balance) : '--',
+      trend: summary?.trends?.capital,
+      icon: Wallet,
       color: '#10B981',
       glow: 'rgba(16, 185, 129, 0.3)',
+      accent: true,
+      sparkline: sparklineData,
     },
     {
-      label: 'ИНВЕСТИЦИИ',
-      value: '\u2014',
-      trend: null,
-      icon: LineChart,
-      color: '#3B82F6',
-      glow: 'rgba(59, 130, 246, 0.3)',
-    },
-    {
-      label: 'РАСХОДЫ МЕС.',
-      value: summary ? formatCurrency(summary.expenses) : '--',
+      label: 'РАСХОД / БЮДЖЕТ',
+      value: summary ? `${formatCurrency(summary.expenses)} / ${formatCurrency(totalBudget)}` : '--',
       trend: summary?.trends?.expenses,
       icon: ShoppingCart,
       color: '#F59E0B',
       glow: 'rgba(245, 158, 11, 0.3)',
+      progressPercent: budgetUsedPercent,
     },
     {
-      label: 'СБЕРЕЖЕНИЯ',
-      value: summary ? formatCurrency(summary.capital) : '--',
-      trend: summary?.trends?.capital,
+      label: 'НОРМА СБЕРЕЖЕНИЙ',
+      value: summary ? `${savingsRate}%` : '--',
+      trend: summary?.trends?.balance,
       icon: PiggyBank,
       color: '#8B5CF6',
       glow: 'rgba(139, 92, 246, 0.3)',
+    },
+    {
+      label: 'ПОРТФЕЛЬ',
+      value: '2 850 000 \u20BD', // TODO: connect to investments API
+      trend: '+15.6%', // TODO: calculate from real data
+      icon: Gem,
+      color: '#3B82F6',
+      glow: 'rgba(59, 130, 246, 0.3)',
     },
   ];
 
@@ -193,33 +217,88 @@ const Index = () => {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         {summaryLoading
-          ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[130px]" />)
+          ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className={`h-[130px] ${i === 0 ? 'xl:col-span-2' : ''}`} />)
           : kpiCards.map(card => {
               const Icon = card.icon;
               const trend = parseTrend(card.trend);
+              const isAccent = card.accent;
+              const hasProgress = card.progressPercent != null;
+              const hasSparkline = card.sparkline && card.sparkline.length > 1;
+              const isNegativeTrend = trend && !trend.isPositive;
+
               return (
                 <div
                   key={card.label}
-                  className="glass-card p-5 flex items-start justify-between group transition-all duration-300 hover:scale-[1.02]"
+                  className={`glass-card p-5 flex flex-col justify-between group transition-all duration-300 hover:scale-[1.02] relative overflow-hidden ${isAccent ? 'xl:col-span-2' : ''}`}
+                  style={{
+                    borderLeft: `3px solid ${isNegativeTrend ? '#EF4444' : card.color}`,
+                    background: isAccent
+                      ? 'linear-gradient(135deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.04) 100%)'
+                      : undefined,
+                  }}
                 >
-                  <div className="space-y-2">
-                    <p className="text-[11px] font-semibold tracking-widest text-dashboard-text-muted">
-                      {card.label}
-                    </p>
-                    <p className="text-2xl font-bold text-dashboard-text font-mono">{card.value}</p>
-                    {trend && (
-                      <div className={`flex items-center gap-1 text-xs font-medium ${trend.isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {trend.isPositive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                        <span className="font-mono">{trend.value}</span>
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-semibold tracking-widest text-dashboard-text-muted">
+                        {card.label}
+                      </p>
+                      <p className={`font-bold text-dashboard-text font-mono ${isAccent ? 'text-3xl' : 'text-2xl'}`}>{card.value}</p>
+                      {trend && (
+                        <div className={`flex items-center gap-1 text-xs font-medium ${trend.isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {trend.isPositive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                          <span className="font-mono">{trend.value}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {/* Mini sparkline for accent card */}
+                      {isAccent && hasSparkline && (() => {
+                        const data = card.sparkline!;
+                        const max = Math.max(...data);
+                        const min = Math.min(...data);
+                        const range = max - min || 1;
+                        const w = 60;
+                        const h = 30;
+                        const points = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * h}`).join(' ');
+                        return (
+                          <svg width={w} height={h} className="opacity-60">
+                            <polyline
+                              points={points}
+                              fill="none"
+                              stroke={card.color}
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        );
+                      })()}
+                      <div
+                        className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: `${card.color}20`, boxShadow: `0 0 20px ${card.glow}` }}
+                      >
+                        <Icon className="w-5 h-5" style={{ color: card.color }} />
                       </div>
-                    )}
+                    </div>
                   </div>
-                  <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: `${card.color}20`, boxShadow: `0 0 20px ${card.glow}` }}
-                  >
-                    <Icon className="w-5 h-5" style={{ color: card.color }} />
-                  </div>
+                  {/* Progress bar for budget card */}
+                  {hasProgress && (
+                    <div className="mt-3">
+                      <div className="flex justify-between text-[10px] text-dashboard-text-muted mb-1">
+                        <span>Использовано</span>
+                        <span className="font-mono">{card.progressPercent}%</span>
+                      </div>
+                      <div className="w-full bg-white/5 rounded-full h-1.5">
+                        <div
+                          className="h-1.5 rounded-full transition-all duration-500"
+                          style={{
+                            width: `${card.progressPercent}%`,
+                            backgroundColor: (card.progressPercent ?? 0) > 80 ? '#EF4444' : card.color,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

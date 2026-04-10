@@ -3,7 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Minus, DollarSign, Wallet, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
+import { Plus, Minus, DollarSign, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
@@ -60,7 +60,6 @@ const Budget = () => {
   const income = summary?.income ?? 0;
   const expenses = summary?.expenses ?? 0;
   const balance = summary?.balance ?? 0;
-  const capital = summary?.capital ?? 0;
   const personalInflation = summary?.personalInflation ?? 0;
   const categories = summary?.categories ?? [];
   const trends = summary?.trends;
@@ -214,25 +213,29 @@ const Budget = () => {
   const kpiCards = [
     { label: 'ДОХОДЫ', value: formatCurrency(income), trend: trends?.income, icon: Plus, color: '#10B981', glow: 'rgba(16, 185, 129, 0.3)', path: '/budget/metric/income' },
     { label: 'РАСХОДЫ', value: formatCurrency(expenses), trend: trends?.expenses, icon: Minus, color: '#F59E0B', glow: 'rgba(245, 158, 11, 0.3)', path: '/budget/metric/expenses' },
-    { label: 'ОСТАТОК', value: formatCurrency(balance), trend: trends?.balance, icon: DollarSign, color: '#3B82F6', glow: 'rgba(59, 130, 246, 0.3)', path: '/budget/metric/balance' },
-    { label: 'КАПИТАЛ', value: formatCurrency(capital), trend: trends?.capital, icon: Wallet, color: '#8B5CF6', glow: 'rgba(139, 92, 246, 0.3)', path: '/budget/metric/capital' },
-    { label: 'ИНФЛЯЦИЯ', value: `${personalInflation}%`, trend: trends?.inflation, icon: TrendingUp, color: '#EC4899', glow: 'rgba(236, 72, 153, 0.3)', path: '/budget/metric/inflation' },
+    { label: 'СВОБОДНЫЕ СРЕДСТВА', value: formatCurrency(balance), trend: trends?.balance, icon: DollarSign, color: '#3B82F6', glow: 'rgba(59, 130, 246, 0.3)', path: '/budget/metric/balance' },
+    { label: 'ЛИЧНАЯ ИНФЛЯЦИЯ', value: `${personalInflation}%`, trend: trends?.inflation, icon: TrendingUp, color: '#EC4899', glow: 'rgba(236, 72, 153, 0.3)', path: '/budget/metric/inflation' },
   ];
 
   return (
     <div className="space-y-6 pb-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         {isLoading
-          ? Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-[130px]" />)
+          ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[130px]" />)
           : kpiCards.map(card => {
               const Icon = card.icon;
               const trend = parseTrend(card.trend);
+              const isNegativeTrend = trend && !trend.isPositive;
+
               return (
                 <div
                   key={card.label}
                   className="glass-card p-5 flex items-start justify-between group transition-all duration-300 hover:scale-[1.02] cursor-pointer"
                   onClick={() => navigate(card.path)}
+                  style={{
+                    borderLeft: `3px solid ${isNegativeTrend ? '#EF4444' : card.color}`,
+                  }}
                 >
                   <div className="space-y-2">
                     <p className="text-[11px] font-semibold tracking-widest text-dashboard-text-muted">
