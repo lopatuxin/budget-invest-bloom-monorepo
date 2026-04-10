@@ -162,7 +162,6 @@ const Index = () => {
     icon: typeof Wallet;
     color: string;
     glow: string;
-    accent?: boolean;
     sparkline?: number[];
     progressPercent?: number;
   }
@@ -175,7 +174,6 @@ const Index = () => {
       icon: Wallet,
       color: '#10B981',
       glow: 'rgba(16, 185, 129, 0.3)',
-      accent: true,
       sparkline: sparklineData,
     },
     {
@@ -217,11 +215,10 @@ const Index = () => {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         {summaryLoading
-          ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className={`h-[130px] ${i === 0 ? 'xl:col-span-2' : ''}`} />)
+          ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[130px]" />)
           : kpiCards.map(card => {
               const Icon = card.icon;
               const trend = parseTrend(card.trend);
-              const isAccent = card.accent;
               const hasProgress = card.progressPercent != null;
               const hasSparkline = card.sparkline && card.sparkline.length > 1;
               const isNegativeTrend = trend && !trend.isPositive;
@@ -229,12 +226,9 @@ const Index = () => {
               return (
                 <div
                   key={card.label}
-                  className={`glass-card p-5 flex flex-col justify-between group transition-all duration-300 hover:scale-[1.02] relative overflow-hidden ${isAccent ? 'xl:col-span-2' : ''}`}
+                  className="glass-card p-5 flex flex-col justify-between group transition-all duration-300 hover:scale-[1.02] relative overflow-hidden"
                   style={{
                     borderLeft: `3px solid ${isNegativeTrend ? '#EF4444' : card.color}`,
-                    background: isAccent
-                      ? 'linear-gradient(135deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.04) 100%)'
-                      : undefined,
                   }}
                 >
                   <div className="flex items-start justify-between">
@@ -242,7 +236,7 @@ const Index = () => {
                       <p className="text-[11px] font-semibold tracking-widest text-dashboard-text-muted">
                         {card.label}
                       </p>
-                      <p className={`font-bold text-dashboard-text font-mono ${isAccent ? 'text-3xl' : 'text-2xl'}`}>{card.value}</p>
+                      <p className="text-2xl font-bold text-dashboard-text font-mono">{card.value}</p>
                       {trend && (
                         <div className={`flex items-center gap-1 text-xs font-medium ${trend.isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
                           {trend.isPositive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
@@ -251,8 +245,8 @@ const Index = () => {
                       )}
                     </div>
                     <div className="flex items-center gap-3">
-                      {/* Mini sparkline for accent card */}
-                      {isAccent && hasSparkline && (() => {
+                      {/* Mini sparkline */}
+                      {hasSparkline && (() => {
                         const data = card.sparkline!;
                         const max = Math.max(...data);
                         const min = Math.min(...data);
