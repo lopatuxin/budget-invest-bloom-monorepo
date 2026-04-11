@@ -162,7 +162,7 @@ const CategoryExpenses = () => {
                   Редактировать
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px] bg-[#0B1929] border-white/10 text-dashboard-text">
+              <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                   <DialogTitle className="text-dashboard-text">Редактировать категорию</DialogTitle>
                 </DialogHeader>
@@ -194,10 +194,10 @@ const CategoryExpenses = () => {
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="border-white/10 text-dashboard-text hover:bg-white/5">
+                  <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                     Отмена
                   </Button>
-                  <Button onClick={handleSaveCategory} disabled={updateCategoryMutation.isPending} className="btn-cta">
+                  <Button onClick={handleSaveCategory} disabled={updateCategoryMutation.isPending} className="bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20">
                     {updateCategoryMutation.isPending ? 'Сохранение...' : 'Сохранить'}
                   </Button>
                 </div>

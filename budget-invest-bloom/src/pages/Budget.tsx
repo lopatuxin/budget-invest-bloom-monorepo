@@ -383,7 +383,7 @@ const Budget = () => {
 
       {/* Expense Dialog */}
       <Dialog open={openDialog === 'expense'} onOpenChange={(open) => { if (!open) resetDialog(); }}>
-        <DialogContent className="sm:max-w-[425px] bg-[#0B1929] border-white/10 text-dashboard-text">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Добавить расход</DialogTitle>
           </DialogHeader>
@@ -434,13 +434,13 @@ const Budget = () => {
             <div className="flex gap-2 pt-4">
               <Button
                 variant="outline"
-                className="flex-1 border-white/10 text-dashboard-text hover:bg-white/5"
+                className="flex-1"
                 onClick={() => resetDialog()}
               >
                 Отмена
               </Button>
               <Button
-                className="flex-1 bg-gradient-primary hover:opacity-90"
+                className="flex-1 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
                 onClick={handleAddExpense}
                 disabled={isExpenseSubmitting}
               >
@@ -454,7 +454,7 @@ const Budget = () => {
 
       {/* Income Dialog */}
       <Dialog open={openDialog === 'income'} onOpenChange={(open) => { if (!open) resetDialog(); }}>
-        <DialogContent className="sm:max-w-[425px] bg-[#0B1929] border-white/10 text-dashboard-text">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Добавить доход</DialogTitle>
           </DialogHeader>
@@ -505,13 +505,13 @@ const Budget = () => {
             <div className="flex gap-2 pt-4">
               <Button
                 variant="outline"
-                className="flex-1 border-white/10 text-dashboard-text hover:bg-white/5"
+                className="flex-1"
                 onClick={() => resetDialog()}
               >
                 Отмена
               </Button>
               <Button
-                className="flex-1 bg-gradient-success hover:opacity-90"
+                className="flex-1 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
                 onClick={handleAddIncome}
               >
                 Добавить
@@ -523,7 +523,7 @@ const Budget = () => {
 
       {/* Category Dialog */}
       <Dialog open={openDialog === 'category'} onOpenChange={(open) => { if (!open) resetDialog(); }}>
-        <DialogContent className="sm:max-w-[425px] bg-[#0B1929] border-white/10 text-dashboard-text">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Новая категория</DialogTitle>
           </DialogHeader>
@@ -577,13 +577,13 @@ const Budget = () => {
             <div className="flex gap-2 pt-4">
               <Button
                 variant="outline"
-                className="flex-1 border-white/10 text-dashboard-text hover:bg-white/5"
+                className="flex-1"
                 onClick={() => resetDialog()}
               >
                 Отмена
               </Button>
               <Button
-                className="flex-1 bg-gradient-secondary hover:opacity-90"
+                className="flex-1 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20"
                 onClick={handleAddCategory}
                 disabled={isCategorySubmitting}
               >

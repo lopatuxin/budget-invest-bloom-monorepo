@@ -107,7 +107,7 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
           Добавить актив
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px] bg-[#0B1929] border-white/10 text-dashboard-text">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Добавить новый актив</DialogTitle>
         </DialogHeader>
@@ -203,11 +203,10 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
-              className="border-white/10 text-dashboard-text hover:bg-white/5"
             >
               Отмена
             </Button>
-            <Button type="submit" className="bg-gradient-primary hover:opacity-90">
+            <Button type="submit" className="bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20">
               Добавить актив
             </Button>
           </div>
