@@ -212,7 +212,7 @@ const Login = () => {
 
             <Button
               type="submit"
-              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white"
+              className="w-full btn-cta"
               disabled={isLoading}
             >
               {isLoading ? "Вход..." : "Войти"}

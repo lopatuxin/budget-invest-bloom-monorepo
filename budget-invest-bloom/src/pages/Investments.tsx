@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown, PieChart, Coins } from 'lucide-react';
 import AddAssetDialog from '@/components/AddAssetDialog';
 
 const DONUT_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#14B8A6'];
+const DANGER_COLOR = '#EF4444';
 const formatCurrency = (value: number) => value.toLocaleString('ru-RU') + ' \u20BD';
 
 // Animated count-up hook with easeOutCubic easing
@@ -164,7 +165,7 @@ const Investments = () => {
               key={card.label}
               className="glass-card p-5 flex items-start justify-between group transition-all duration-300 hover:scale-[1.02] animate-fade-slide-up min-w-[260px] snap-start lg:min-w-0"
               style={{
-                borderLeft: `3px solid ${isNegativeTrend ? '#EF4444' : card.color}`,
+                borderLeft: `3px solid ${isNegativeTrend ? DANGER_COLOR : card.color}`,
                 animationDelay: `${index * 60}ms`,
               }}
             >

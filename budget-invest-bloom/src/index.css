@@ -153,6 +153,15 @@
     border-color: rgba(255, 255, 255, 0.18);
   }
 
+  .btn-cta {
+    @apply bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-600 hover:to-teal-500 text-white font-semibold transition-all duration-200;
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+  }
+
+  .btn-cta:hover {
+    box-shadow: 0 0 25px rgba(16, 185, 129, 0.25);
+  }
+
   .dashboard-bg {
     background: linear-gradient(135deg, #0B1929 0%, #0E2A3A 100%);
     min-height: 100vh;

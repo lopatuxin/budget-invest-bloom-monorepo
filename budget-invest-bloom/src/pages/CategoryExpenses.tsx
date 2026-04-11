@@ -197,7 +197,7 @@ const CategoryExpenses = () => {
                   <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="border-white/10 text-dashboard-text hover:bg-white/5">
                     Отмена
                   </Button>
-                  <Button onClick={handleSaveCategory} disabled={updateCategoryMutation.isPending} className="bg-emerald-500 hover:bg-emerald-600 text-white">
+                  <Button onClick={handleSaveCategory} disabled={updateCategoryMutation.isPending} className="btn-cta">
                     {updateCategoryMutation.isPending ? 'Сохранение...' : 'Сохранить'}
                   </Button>
                 </div>

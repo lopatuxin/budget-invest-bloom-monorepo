@@ -53,6 +53,7 @@ const useCountUp = (target: number, duration = 800) => {
 };
 
 const DONUT_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#14B8A6'];
+const DANGER_COLOR = '#EF4444';
 
 // Time range options for chart period selector
 type TimeRange = '3m' | '6m' | '1y';
@@ -133,7 +134,7 @@ const Index = () => {
             Контролируйте расходы, планируйте бюджет и отслеживайте инвестиции в одном приложении
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
-            <Link to="/register" className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-3 rounded-xl font-semibold text-lg transition-colors">
+            <Link to="/register" className="btn-cta px-8 py-3 rounded-xl text-lg">
               Начать бесплатно
             </Link>
             <Link to="/login" className="bg-white/[0.06] border border-white/[0.12] rounded-xl px-8 py-3 text-dashboard-text hover:bg-white/10 font-semibold text-lg transition-colors">
@@ -301,7 +302,7 @@ const Index = () => {
                   key={card.label}
                   className="glass-card p-5 flex flex-col justify-between group transition-all duration-300 hover:scale-[1.02] relative overflow-hidden animate-fade-slide-up min-w-[260px] snap-start lg:min-w-0"
                   style={{
-                    borderLeft: `3px solid ${isNegativeTrend ? '#EF4444' : card.color}`,
+                    borderLeft: `3px solid ${isNegativeTrend ? DANGER_COLOR : card.color}`,
                     animationDelay: `${index * 60}ms`,
                   }}
                 >
@@ -361,7 +362,7 @@ const Index = () => {
                           className="h-1.5 rounded-full animate-progress-grow"
                           style={{
                             width: `${card.progressPercent}%`,
-                            backgroundColor: (card.progressPercent ?? 0) > 80 ? '#EF4444' : card.color,
+                            backgroundColor: (card.progressPercent ?? 0) > 80 ? DANGER_COLOR : card.color,
                             animationDelay: '300ms',
                           }}
                         />

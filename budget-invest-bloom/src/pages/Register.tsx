@@ -216,7 +216,7 @@ const Register = () => {
 
                         <Button
                             type="submit"
-                            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white"
+                            className="w-full btn-cta"
                             disabled={isLoading}
                         >
                             {isLoading ? "Создание аккаунта..." : "Создать аккаунт"}

@@ -69,8 +69,8 @@ export default {
 					blue: '#3B82F6',
 					amber: '#F59E0B',
 					purple: '#8B5CF6',
+					red: '#EF4444',
 					text: '#d6e3fa',
-					'text-variant': '#bbcabf',
 					'text-muted': '#94A3B8',
 				},
 				sidebar: {

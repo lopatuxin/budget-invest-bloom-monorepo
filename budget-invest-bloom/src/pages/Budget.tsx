@@ -35,6 +35,7 @@ const useCountUp = (target: number, duration = 800) => {
 };
 
 const DONUT_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#14B8A6'];
+const DANGER_COLOR = '#EF4444';
 
 const EMOJI_OPTIONS = ['🛒', '🍽️', '🏠', '🚗', '💊', '🎓', '🎮', '👕', '✈️', '💰', '📱', '🎬', '🐱', '💡', '🎁', '💇'];
 
@@ -273,7 +274,7 @@ const Budget = () => {
                   className="glass-card p-5 flex items-start justify-between group transition-all duration-300 hover:scale-[1.02] cursor-pointer animate-fade-slide-up min-w-[260px] snap-start lg:min-w-0"
                   onClick={() => navigate(card.path)}
                   style={{
-                    borderLeft: `3px solid ${isNegativeTrend ? '#EF4444' : card.color}`,
+                    borderLeft: `3px solid ${isNegativeTrend ? DANGER_COLOR : card.color}`,
                     animationDelay: `${index * 60}ms`,
                   }}
                 >
@@ -310,7 +311,7 @@ const Budget = () => {
           </div>
           <div className="flex gap-3 mb-4">
             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-[140px] bg-white/5 border-white/10 text-dashboard-text hover:bg-white/[0.08] transition-colors">
                 <SelectValue placeholder="Месяц" />
               </SelectTrigger>
               <SelectContent>
@@ -322,7 +323,7 @@ const Budget = () => {
               </SelectContent>
             </Select>
             <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger className="w-[100px]">
+              <SelectTrigger className="w-[100px] bg-white/5 border-white/10 text-dashboard-text hover:bg-white/[0.08] transition-colors">
                 <SelectValue placeholder="Год" />
               </SelectTrigger>
               <SelectContent>
@@ -363,7 +364,7 @@ const Budget = () => {
                       className="h-1.5 rounded-full animate-progress-grow"
                       style={{
                         width: `${Math.min(getProgressPercentage(cat.amount, cat.budget), 100)}%`,
-                        backgroundColor: cat.amount > cat.budget ? '#EF4444' : DONUT_COLORS[i % DONUT_COLORS.length],
+                        backgroundColor: cat.amount > cat.budget ? DANGER_COLOR : DONUT_COLORS[i % DONUT_COLORS.length],
                         animationDelay: `${400 + i * 80}ms`,
                       }}
                     />
