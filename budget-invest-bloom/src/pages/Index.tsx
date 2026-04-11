@@ -7,7 +7,9 @@ import {
   TrendingDown,
   Wallet,
   Gem,
+  PieChart as LucidePieChart,
 } from 'lucide-react';
+import EmptyState from '@/components/EmptyState';
 import {
   BarChart,
   Bar,
@@ -405,8 +407,14 @@ const Index = () => {
           {summaryLoading ? (
             <Skeleton className="h-[280px]" />
           ) : donutData.length === 0 ? (
-            <div className="h-[280px] flex items-center justify-center text-dashboard-text-muted text-sm">
-              Нет данных по категориям
+            <div className="h-[280px]">
+              <EmptyState
+                icon={<LucidePieChart className="w-10 h-10" />}
+                title="Нет данных по категориям"
+                description="Добавьте расход, чтобы увидеть распределение"
+                actionLabel="Перейти в бюджет"
+                onAction={() => navigate('/budget?action=expense')}
+              />
             </div>
           ) : (
             <div>
@@ -471,8 +479,14 @@ const Index = () => {
               {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14" />)}
             </div>
           ) : !summary?.categories?.length ? (
-            <div className="h-[200px] flex items-center justify-center text-dashboard-text-muted text-sm">
-              Нет данных по категориям
+            <div className="h-[200px]">
+              <EmptyState
+                icon={<ShoppingCart className="w-10 h-10" />}
+                title="Нет категорий трат"
+                description="Создайте категорию и добавьте первый расход"
+                actionLabel="Перейти в бюджет"
+                onAction={() => navigate('/budget?action=category')}
+              />
             </div>
           ) : (
             <div className="space-y-2 max-h-[300px] overflow-y-auto dashboard-scroll pr-1">
@@ -520,8 +534,14 @@ const Index = () => {
           {incomeLoading ? (
             <Skeleton className="h-[220px]" />
           ) : incomeAreaData.length === 0 ? (
-            <div className="h-[220px] flex items-center justify-center text-dashboard-text-muted text-sm">
-              Нет данных по доходам
+            <div className="h-[220px]">
+              <EmptyState
+                icon={<TrendingUp className="w-10 h-10" />}
+                title="Нет данных по доходам"
+                description="Запишите доход, чтобы отслеживать тренд"
+                actionLabel="Перейти в бюджет"
+                onAction={() => navigate('/budget?action=income')}
+              />
             </div>
           ) : (
             <>

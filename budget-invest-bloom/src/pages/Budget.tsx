@@ -3,7 +3,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Minus, DollarSign, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
+import { Plus, Minus, DollarSign, TrendingUp, TrendingDown, Loader2, ShoppingCart } from 'lucide-react';
+import EmptyState from '@/components/EmptyState';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -333,6 +334,15 @@ const Budget = () => {
               </SelectContent>
             </Select>
           </div>
+          {categories.length === 0 ? (
+            <EmptyState
+              icon={<ShoppingCart className="w-10 h-10" />}
+              title="Нет категорий"
+              description="Создайте первую категорию для учёта расходов"
+              actionLabel="Создать категорию"
+              onAction={() => setOpenDialog('category')}
+            />
+          ) : (
           <div className="space-y-2 max-h-[400px] overflow-y-auto dashboard-scroll pr-1">
             {categories.map((cat, i) => (
               <button
@@ -366,6 +376,7 @@ const Budget = () => {
               </button>
             ))}
           </div>
+          )}
         </div>
       )}
 
