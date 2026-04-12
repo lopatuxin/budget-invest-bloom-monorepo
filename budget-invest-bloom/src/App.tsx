@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import HealthGate from "@/components/HealthGate";
 import Navigation from "@/components/Navigation";
 import Sidebar from "@/components/Sidebar";
 import BottomNav from "@/components/BottomNav";
@@ -88,11 +89,13 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AppLayout />
-          </BrowserRouter>
+          <HealthGate>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppLayout />
+            </BrowserRouter>
+          </HealthGate>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

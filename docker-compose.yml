@@ -64,10 +64,10 @@ services:
       - finance-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/auth/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      interval: ${HEALTHCHECK_INTERVAL:-3s}
+      timeout: 2s
+      retries: 30
+      start_period: 90s
 
   # ========================================
   # BUDGET SERVICE - Database
@@ -129,10 +129,10 @@ services:
       - finance-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      interval: ${HEALTHCHECK_INTERVAL:-3s}
+      timeout: 2s
+      retries: 30
+      start_period: 90s
 
   # ========================================
   # GATEWAY SERVICE - Application
@@ -177,10 +177,10 @@ services:
       - finance-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      interval: ${HEALTHCHECK_INTERVAL:-3s}
+      timeout: 2s
+      retries: 30
+      start_period: 90s
 
   # ========================================
   # FRONTEND - Development
