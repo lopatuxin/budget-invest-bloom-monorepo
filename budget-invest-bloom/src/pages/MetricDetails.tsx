@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Wallet, CreditCard, Plus, Minus, Loader2, AlertCircle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useIncomeMetric } from '@/hooks/useIncomeMetric';
@@ -12,13 +14,18 @@ import { useInflationMetric } from '@/hooks/useInflationMetric';
 const MetricDetails = () => {
   const { metric } = useParams<{ metric: string }>();
   const navigate = useNavigate();
-  const currentYear = String(new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
 
-  const { data: incomeMetric, isLoading: incomeLoading, error: incomeError } = useIncomeMetric(currentYear, metric === 'income');
-  const { data: expenseMetric, isLoading: expenseLoading, error: expenseError } = useExpenseMetric(currentYear, metric === 'expenses');
-  const { data: balanceMetric, isLoading: balanceLoading, error: balanceError } = useBalanceMetric(currentYear, metric === 'balance');
-  const { data: capitalMetric, isLoading: capitalLoading, error: capitalError } = useCapitalMetric(currentYear, metric === 'capital');
-  const { data: inflationMetric, isLoading: inflationLoading, error: inflationError } = useInflationMetric(currentYear, metric === 'inflation');
+  const years = Array.from(
+    { length: new Date().getFullYear() - 2022 + 1 },
+    (_, i) => String(2022 + i)
+  );
+
+  const { data: incomeMetric, isLoading: incomeLoading, error: incomeError } = useIncomeMetric(selectedYear, metric === 'income');
+  const { data: expenseMetric, isLoading: expenseLoading, error: expenseError } = useExpenseMetric(selectedYear, metric === 'expenses');
+  const { data: balanceMetric, isLoading: balanceLoading, error: balanceError } = useBalanceMetric(selectedYear, metric === 'balance');
+  const { data: capitalMetric, isLoading: capitalLoading, error: capitalError } = useCapitalMetric(selectedYear, metric === 'capital');
+  const { data: inflationMetric, isLoading: inflationLoading, error: inflationError } = useInflationMetric(selectedYear, metric === 'inflation');
 
   // Данные для графиков (примерные данные за последние 12 месяцев — для метрик кроме income)
   const fallbackData = [
@@ -142,10 +149,14 @@ const MetricDetails = () => {
     previousValue = activeMetric.body.previousValue;
     const parsed = parseFloat(activeMetric.body.changePercent.replace('%', '').replace('+', ''));
     change = isNaN(parsed) ? 0 : parsed;
-  } else {
+  } else if (monthlyData.length >= 2) {
     currentValue = Number(monthlyData[monthlyData.length - 1][config.dataKey as keyof typeof monthlyData[0]]);
     previousValue = Number(monthlyData[monthlyData.length - 2][config.dataKey as keyof typeof monthlyData[0]]);
     change = previousValue === 0 ? 0 : ((currentValue - previousValue) / previousValue) * 100;
+  } else {
+    currentValue = 0;
+    previousValue = 0;
+    change = 0;
   }
 
   const formatValue = (value: number) => {
@@ -155,58 +166,60 @@ const MetricDetails = () => {
     return `₽${value.toLocaleString()}`;
   };
 
-  if (activeError) {
-    return (
-      <div className="h-[calc(100vh-4rem)] flex items-center justify-center">
-        <div className="glass-card max-w-md w-full mx-4">
-          <CardContent className="flex flex-col items-center gap-4 pt-6">
-            <AlertCircle className="w-12 h-12 text-red-400" />
-            <p className="text-lg font-medium text-center text-dashboard-text">Не удалось загрузить данные: {config.title.toLowerCase()}</p>
-            <p className="text-sm text-dashboard-text-muted text-center">{activeError.message}</p>
-            <Button variant="outline" onClick={() => navigate('/budget')} className="text-dashboard-text-muted hover:text-dashboard-text hover:bg-white/5 border-white/10">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Назад к бюджету
-            </Button>
-          </CardContent>
-        </div>
-      </div>
-    );
-  }
-
-  if (activeLoading) {
-    return (
-      <div className="h-[calc(100vh-4rem)] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-dashboard-text-muted" />
-      </div>
-    );
-  }
-
   return (
     <div className="h-[calc(100vh-4rem)] overflow-auto dashboard-scroll">
       <div className="max-w-7xl mx-auto p-6">
-        <div className="flex items-center gap-4 mb-6">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/budget')}
-            className="flex items-center gap-2 text-dashboard-text-muted hover:text-dashboard-text hover:bg-white/5 border-white/10"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Назад к бюджету
-          </Button>
-          <div className="flex items-center gap-3">
-            <div className={`p-3 rounded-lg bg-gradient-${config.gradient}`}>
-              <div className="text-white">
-                {config.icon}
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/budget')}
+              className="flex items-center gap-2 text-dashboard-text-muted hover:text-dashboard-text hover:bg-white/5 border-white/10"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Назад к бюджету
+            </Button>
+            <div className="flex items-center gap-3">
+              <div className={`p-3 rounded-lg bg-gradient-${config.gradient}`}>
+                <div className="text-white">
+                  {config.icon}
+                </div>
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-dashboard-text">{config.title}</h1>
+                <p className="text-dashboard-text-muted">{config.description}</p>
               </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-dashboard-text">{config.title}</h1>
-              <p className="text-dashboard-text-muted">{config.description}</p>
-            </div>
           </div>
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-[100px] bg-white/5 border-white/10 text-dashboard-text hover:bg-white/[0.08] transition-colors">
+              <SelectValue placeholder="Год" />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((year) => (
+                <SelectItem key={year} value={year}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
+        {activeError ? (
+          <div className="glass-card max-w-md w-full mx-auto">
+            <CardContent className="flex flex-col items-center gap-4 pt-6">
+              <AlertCircle className="w-12 h-12 text-red-400" />
+              <p className="text-lg font-medium text-center text-dashboard-text">Не удалось загрузить данные: {config.title.toLowerCase()}</p>
+              <p className="text-sm text-dashboard-text-muted text-center">{activeError.message}</p>
+            </CardContent>
+          </div>
+        ) : activeLoading ? (
+          <div className="flex items-center justify-center py-24">
+            <Loader2 className="w-8 h-8 animate-spin text-dashboard-text-muted" />
+          </div>
+        ) : (
+          <>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="glass-card">
             <CardHeader>
@@ -263,7 +276,7 @@ const MetricDetails = () => {
                   <YAxis tickFormatter={(value) => metric === 'inflation' ? `${value}%` : `₽${(value / 1000).toFixed(0)}k`} tick={{ fill: '#94A3B8' }} />
                   <Tooltip
                     formatter={(value) => [formatValue(Number(value)), config.title]}
-                    labelFormatter={(label) => `${label} ${currentYear}`}
+                    labelFormatter={(label) => `${label} ${selectedYear}`}
                     contentStyle={{ backgroundColor: '#0B1929', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', color: '#d6e3fa' }}
                   />
                   <Line
@@ -289,7 +302,7 @@ const MetricDetails = () => {
               {monthlyData.map((data, index) => (
                 <div key={index} className="p-4 rounded-lg border border-white/10 hover:border-white/20 transition-colors">
                   <div className="flex justify-between items-center">
-                    <span className="font-medium text-dashboard-text">{data.month} {currentYear}</span>
+                    <span className="font-medium text-dashboard-text">{data.month} {selectedYear}</span>
                     <span className="text-lg font-bold text-dashboard-text">
                       {formatValue(Number(data[config.dataKey as keyof typeof data]))}
                     </span>
@@ -299,6 +312,8 @@ const MetricDetails = () => {
             </div>
           </CardContent>
         </div>
+          </>
+        )}
       </div>
     </div>
   );
