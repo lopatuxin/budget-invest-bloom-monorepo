@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Minus, DollarSign, TrendingUp, TrendingDown, Loader2, ShoppingCart } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
+import { CategoryEmojiPicker } from '@/components/CategoryEmojiPicker';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -37,7 +38,6 @@ const useCountUp = (target: number, duration = 800) => {
 const DONUT_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#14B8A6'];
 const DANGER_COLOR = '#EF4444';
 
-const EMOJI_OPTIONS = ['🛒', '🍽️', '🏠', '🚗', '💊', '🎓', '🎮', '👕', '✈️', '💰', '📱', '🎬', '🐱', '💡', '🎁', '💇'];
 
 const Skeleton = ({ className = '' }: { className?: string }) => (
   <div className={`animate-pulse bg-white/10 rounded-xl ${className}`} />
@@ -555,24 +555,10 @@ const Budget = () => {
             </div>
             <div className="grid gap-2">
               <Label className="text-dashboard-text-muted">Эмодзи</Label>
-              <div className="grid grid-cols-8 gap-1.5">
-                {EMOJI_OPTIONS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    aria-label={`Выбрать эмодзи ${emoji}`}
-                    aria-pressed={categoryForm.emoji === emoji}
-                    onClick={() => setCategoryForm(prev => ({...prev, emoji}))}
-                    className={`w-9 h-9 rounded-lg text-lg flex items-center justify-center transition-all duration-150 ${
-                      categoryForm.emoji === emoji
-                        ? 'bg-white/15 ring-1 ring-white/30'
-                        : 'hover:bg-white/10'
-                    }`}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
+              <CategoryEmojiPicker
+                value={categoryForm.emoji}
+                onChange={(emoji) => setCategoryForm(prev => ({ ...prev, emoji }))}
+              />
             </div>
             <div className="flex gap-2 pt-4">
               <Button

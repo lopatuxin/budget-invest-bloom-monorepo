@@ -44,6 +44,13 @@ public class UpdateCategoryRequestDto {
     private String name;
 
     /**
+     * Emoji icon for the category. Null means do not change; empty string resets the emoji.
+     */
+    @Size(max = 10, message = "Emoji не должен превышать 10 символов")
+    @Schema(description = "Emoji-иконка категории (null — не менять, пустая строка — сбросить)", example = "🛒")
+    private String emoji;
+
+    /**
      * Новый лимит бюджета категории.
      */
     @NotNull(message = "Лимит бюджета обязателен")

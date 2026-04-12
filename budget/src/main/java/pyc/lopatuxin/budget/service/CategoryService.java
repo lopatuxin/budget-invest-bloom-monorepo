@@ -68,6 +68,9 @@ public class CategoryService {
 
         category.setName(request.getName());
         category.setBudget(request.getBudget());
+        if (request.getEmoji() != null) {
+            category.setEmoji(request.getEmoji().isBlank() ? null : request.getEmoji());
+        }
 
         category = categoryRepository.save(category);
 

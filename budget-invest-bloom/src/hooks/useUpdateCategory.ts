@@ -6,6 +6,7 @@ interface UpdateCategoryParams {
   categoryId: string;
   name: string;
   budget: number;
+  emoji?: string;
 }
 
 export function useUpdateCategory() {
@@ -16,7 +17,7 @@ export function useUpdateCategory() {
       apiPost<ApiResponse<unknown>>('/api/budget/categories/update', params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categoryAnalytics'] });
-      queryClient.invalidateQueries({ queryKey: ['budgetSummary'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
     },
   });
 }

@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCategoryAnalytics } from '@/hooks/useCategoryAnalytics';
 import { useUpdateCategory } from '@/hooks/useUpdateCategory';
 import { useDeleteExpense } from '@/hooks/useDeleteExpense';
+import { CategoryEmojiPicker } from '@/components/CategoryEmojiPicker';
 
 const CategoryExpenses = () => {
   const { category } = useParams<{ category: string }>();
@@ -24,6 +25,7 @@ const CategoryExpenses = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editCategoryName, setEditCategoryName] = useState(category || '');
   const [editCategoryLimit, setEditCategoryLimit] = useState('0');
+  const [editCategoryEmoji, setEditCategoryEmoji] = useState('');
 
   const { data: analyticsResponse, isLoading } = useCategoryAnalytics(
     category || '',
@@ -39,6 +41,7 @@ const CategoryExpenses = () => {
     if (analyticsData) {
       setEditCategoryName(analyticsData.categoryName || category || '');
       setEditCategoryLimit(analyticsData.budget?.toString() || '0');
+      setEditCategoryEmoji(analyticsData.emoji ?? '');
     }
   }, [analyticsData]);
 
@@ -83,6 +86,7 @@ const CategoryExpenses = () => {
         categoryId: analyticsData.categoryId,
         name: editCategoryName,
         budget: Number(editCategoryLimit),
+        emoji: editCategoryEmoji,
       },
       {
         onSuccess: () => {
@@ -155,7 +159,14 @@ const CategoryExpenses = () => {
               </h1>
             </div>
 
-            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+              if (open && analyticsData) {
+                setEditCategoryName(analyticsData.categoryName || category || '');
+                setEditCategoryLimit(analyticsData.budget?.toString() || '0');
+                setEditCategoryEmoji(analyticsData.emoji ?? '');
+              }
+              setIsEditDialogOpen(open);
+            }}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2 border-white/10 text-dashboard-text hover:bg-white/5">
                   <Settings className="w-4 h-4" />
@@ -191,6 +202,10 @@ const CategoryExpenses = () => {
                       className="col-span-3 bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
                       placeholder="Лимит расходов"
                     />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="text-dashboard-text-muted">Эмодзи</Label>
+                    <CategoryEmojiPicker value={editCategoryEmoji} onChange={setEditCategoryEmoji} />
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">

@@ -9,11 +9,15 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pyc.lopatuxin.budget.dto.request.CreateCategoryDto;
+import pyc.lopatuxin.budget.dto.request.UpdateCategoryRequestDto;
 import pyc.lopatuxin.budget.dto.response.CategoryResponseDto;
 import pyc.lopatuxin.budget.entity.Category;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
 
+import jakarta.persistence.EntityNotFoundException;
+
 import java.math.BigDecimal;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -132,5 +136,86 @@ class CategoryServiceUnitTest {
 
         assertThat(result.getId()).isEqualTo(categoryId);
         assertThat(result.getBudget()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("updateCategory: должен установить новое emoji, если оно передано")
+    void updateCategory_shouldSetNewEmoji_whenEmojiProvided() {
+        UUID categoryId = UUID.randomUUID();
+        Category existing = Category.builder()
+                .id(categoryId)
+                .userId(userId)
+                .name("Продукты")
+                .budget(new BigDecimal("10000.00"))
+                .emoji("\uD83D\uDED2")
+                .build();
+
+        UpdateCategoryRequestDto request = UpdateCategoryRequestDto.builder()
+                .categoryId(categoryId)
+                .name("Продукты")
+                .budget(new BigDecimal("10000.00"))
+                .emoji("\uD83C\uDF55")
+                .build();
+
+        when(categoryRepository.findByIdAndUserId(categoryId, userId)).thenReturn(Optional.of(existing));
+        when(categoryRepository.save(any(Category.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CategoryResponseDto result = categoryService.updateCategory(userId, request);
+
+        assertThat(result.getEmoji()).isEqualTo("\uD83C\uDF55");
+    }
+
+    @Test
+    @DisplayName("updateCategory: должен сохранить старое emoji, если в запросе emoji = null")
+    void updateCategory_shouldKeepOldEmoji_whenEmojiIsNull() {
+        UUID categoryId = UUID.randomUUID();
+        Category existing = Category.builder()
+                .id(categoryId)
+                .userId(userId)
+                .name("Транспорт")
+                .budget(new BigDecimal("5000.00"))
+                .emoji("\uD83D\uDE8C")
+                .build();
+
+        UpdateCategoryRequestDto request = UpdateCategoryRequestDto.builder()
+                .categoryId(categoryId)
+                .name("Транспорт")
+                .budget(new BigDecimal("5000.00"))
+                .emoji(null)
+                .build();
+
+        when(categoryRepository.findByIdAndUserId(categoryId, userId)).thenReturn(Optional.of(existing));
+        when(categoryRepository.save(any(Category.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CategoryResponseDto result = categoryService.updateCategory(userId, request);
+
+        assertThat(result.getEmoji()).isEqualTo("\uD83D\uDE8C");
+    }
+
+    @Test
+    @DisplayName("updateCategory: должен сбросить emoji в null, если передана пустая строка")
+    void updateCategory_shouldResetEmojiToNull_whenEmojiIsBlank() {
+        UUID categoryId = UUID.randomUUID();
+        Category existing = Category.builder()
+                .id(categoryId)
+                .userId(userId)
+                .name("Развлечения")
+                .budget(new BigDecimal("3000.00"))
+                .emoji("\uD83C\uDFAC")
+                .build();
+
+        UpdateCategoryRequestDto request = UpdateCategoryRequestDto.builder()
+                .categoryId(categoryId)
+                .name("Развлечения")
+                .budget(new BigDecimal("3000.00"))
+                .emoji("")
+                .build();
+
+        when(categoryRepository.findByIdAndUserId(categoryId, userId)).thenReturn(Optional.of(existing));
+        when(categoryRepository.save(any(Category.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CategoryResponseDto result = categoryService.updateCategory(userId, request);
+
+        assertThat(result.getEmoji()).isNull();
     }
 }
