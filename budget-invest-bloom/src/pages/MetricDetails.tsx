@@ -80,55 +80,55 @@ const MetricDetails = () => {
       case 'income':
         return {
           title: 'Доходы',
-          icon: <Plus className="w-6 h-6" />,
+          icon: <Plus className="w-5 h-5" />,
           dataKey: 'income',
-          color: '#22c55e',
-          gradient: 'success',
+          color: '#10B981',
+          glow: 'rgba(16, 185, 129, 0.3)',
           description: 'Ваши ежемесячные доходы'
         };
       case 'expenses':
         return {
           title: 'Расходы',
-          icon: <Minus className="w-6 h-6" />,
+          icon: <Minus className="w-5 h-5" />,
           dataKey: 'expenses',
-          color: '#ef4444',
-          gradient: 'secondary',
+          color: '#F59E0B',
+          glow: 'rgba(245, 158, 11, 0.3)',
           description: 'Ваши ежемесячные расходы'
         };
       case 'balance':
         return {
           title: 'Остаток',
-          icon: <DollarSign className="w-6 h-6" />,
+          icon: <DollarSign className="w-5 h-5" />,
           dataKey: 'balance',
-          color: '#3b82f6',
-          gradient: 'primary',
+          color: '#3B82F6',
+          glow: 'rgba(59, 130, 246, 0.3)',
           description: 'Разница между доходами и расходами'
         };
       case 'capital':
         return {
           title: 'Капитал',
-          icon: <Wallet className="w-6 h-6" />,
+          icon: <Wallet className="w-5 h-5" />,
           dataKey: 'capital',
-          color: '#8b5cf6',
-          gradient: 'primary',
+          color: '#8B5CF6',
+          glow: 'rgba(139, 92, 246, 0.3)',
           description: 'Общая стоимость ваших активов'
         };
       case 'inflation':
         return {
           title: 'Личная инфляция',
-          icon: <TrendingUp className="w-6 h-6" />,
+          icon: <TrendingUp className="w-5 h-5" />,
           dataKey: 'inflation',
-          color: '#f59e0b',
-          gradient: 'secondary',
+          color: '#EC4899',
+          glow: 'rgba(236, 72, 153, 0.3)',
           description: 'Рост ваших личных расходов в процентах'
         };
       default:
         return {
           title: 'Неизвестная метрика',
-          icon: <CreditCard className="w-6 h-6" />,
+          icon: <CreditCard className="w-5 h-5" />,
           dataKey: 'balance',
-          color: '#6b7280',
-          gradient: 'primary',
+          color: '#6B7280',
+          glow: 'rgba(107, 114, 128, 0.3)',
           description: ''
         };
     }
@@ -181,8 +181,11 @@ const MetricDetails = () => {
               Назад к бюджету
             </Button>
             <div className="flex items-center gap-3">
-              <div className={`p-3 rounded-lg bg-gradient-${config.gradient}`}>
-                <div className="text-white">
+              <div
+                className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: `${config.color}20`, boxShadow: `0 0 20px ${config.glow}` }}
+              >
+                <div style={{ color: config.color }}>
                   {config.icon}
                 </div>
               </div>
