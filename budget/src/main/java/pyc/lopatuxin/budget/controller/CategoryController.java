@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import pyc.lopatuxin.budget.dto.common.ApiRequest;
 import pyc.lopatuxin.budget.dto.request.CreateCategoryDto;
+import pyc.lopatuxin.budget.dto.request.DeleteCategoryRequestDto;
 import pyc.lopatuxin.budget.dto.request.UpdateCategoryRequestDto;
 import pyc.lopatuxin.budget.dto.response.CategoryResponseDto;
 import pyc.lopatuxin.budget.dto.response.ResponseApi;
@@ -163,5 +164,39 @@ public class CategoryController {
                 request.getData()
         );
         return ResponseApi.success("Категория успешно обновлена", result);
+    }
+
+    /**
+     * Удаляет категорию пользователя.
+     *
+     * @param request запрос с контекстом пользователя и идентификатором категории
+     * @return стандартный ответ без тела
+     */
+    @PostMapping("/delete")
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(
+            summary = "Удалить категорию",
+            description = "Удаляет категорию пользователя. Если есть связанные расходы и force=false/null, возвращает 409. При force=true удаляет категорию вместе со всеми её расходами."
+    )
+    @ApiResponse(responseCode = "200", description = "Категория успешно удалена",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ResponseApi.class)))
+    @ApiResponse(responseCode = "400", description = "Некорректные параметры запроса",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ResponseApi.class)))
+    @ApiResponse(responseCode = "401", description = "Не авторизован",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ResponseApi.class)))
+    @ApiResponse(responseCode = "404", description = "Категория не найдена",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ResponseApi.class)))
+    @ApiResponse(responseCode = "409", description = "Категория содержит расходы (требуется force=true для каскадного удаления)",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ResponseApi.class)))
+    @ApiResponse(responseCode = "500", description = "Внутренняя ошибка сервера",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ResponseApi.class)))
+    public ResponseApi<Void> deleteCategory(
+            @RequestBody @Valid ApiRequest<DeleteCategoryRequestDto> request) {
+
+        categoryService.deleteCategory(
+                request.getUser().getUserId(),
+                request.getData()
+        );
+        return ResponseApi.success("Категория успешно удалена", null);
     }
 }

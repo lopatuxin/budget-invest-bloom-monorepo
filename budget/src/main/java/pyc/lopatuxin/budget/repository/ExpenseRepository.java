@@ -1,6 +1,7 @@
 package pyc.lopatuxin.budget.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import pyc.lopatuxin.budget.entity.Expense;
@@ -58,25 +59,6 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
             @Param("userId") UUID userId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
-    );
-
-    /**
-     * Возвращает суммарные расходы пользователя за указанный год.
-     * Используется для расчёта личной инфляции.
-     *
-     * @param userId идентификатор пользователя
-     * @param year   год, за который суммируются расходы
-     * @return Optional с суммой расходов за год, или пустой если записей нет
-     */
-    @Query("""
-            SELECT SUM(e.amount)
-            FROM Expense e
-            WHERE e.userId = :userId
-              AND YEAR(e.date) = :year
-            """)
-    Optional<BigDecimal> sumAmountByUserIdAndYear(
-            @Param("userId") UUID userId,
-            @Param("year") int year
     );
 
     /**
@@ -158,4 +140,16 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
             LocalDate startDate,
             LocalDate endDate
     );
+
+    long countByCategoryId(UUID categoryId);
+
+    /**
+     * Массово удаляет все расходы указанной категории.
+     *
+     * @param categoryId идентификатор категории
+     * @return количество удалённых расходов
+     */
+    @Modifying
+    @Query("DELETE FROM Expense e WHERE e.category.id = :categoryId")
+    int deleteAllByCategoryId(@Param("categoryId") UUID categoryId);
 }

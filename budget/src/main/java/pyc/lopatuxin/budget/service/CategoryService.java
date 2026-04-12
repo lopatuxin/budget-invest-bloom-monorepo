@@ -6,10 +6,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.budget.dto.request.CreateCategoryDto;
+import pyc.lopatuxin.budget.dto.request.DeleteCategoryRequestDto;
 import pyc.lopatuxin.budget.dto.request.UpdateCategoryRequestDto;
 import pyc.lopatuxin.budget.dto.response.CategoryResponseDto;
 import pyc.lopatuxin.budget.entity.Category;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
+import pyc.lopatuxin.budget.repository.ExpenseRepository;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -23,6 +25,7 @@ import java.util.UUID;
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final ExpenseRepository expenseRepository;
 
     /**
      * Создаёт новую категорию для указанного пользователя.
@@ -82,5 +85,33 @@ public class CategoryService {
                 .budget(category.getBudget())
                 .emoji(category.getEmoji())
                 .build();
+    }
+
+    /**
+     * Удаляет категорию пользователя, если у неё нет связанных расходов.
+     *
+     * @param userId идентификатор пользователя
+     * @param dto    данные для удаления категории
+     */
+    @Transactional
+    public void deleteCategory(UUID userId, DeleteCategoryRequestDto dto) {
+        Category category = categoryRepository.findByIdAndUserId(dto.getCategoryId(), userId)
+                .orElseThrow(() -> new EntityNotFoundException("Категория не найдена"));
+
+        long expenseCount = expenseRepository.countByCategoryId(category.getId());
+        boolean force = Boolean.TRUE.equals(dto.getForce());
+
+        if (expenseCount > 0 && !force) {
+            throw new IllegalStateException(
+                    "Невозможно удалить категорию: есть связанные расходы (" + expenseCount + ")");
+        }
+
+        if (expenseCount > 0) {
+            int deleted = expenseRepository.deleteAllByCategoryId(category.getId());
+            log.info("Каскадно удалено {} расходов категории {} пользователя {}", deleted, category.getId(), userId);
+        }
+
+        categoryRepository.delete(category);
+        log.info("Удалена категория {} пользователя {}", category.getId(), userId);
     }
 }

@@ -2,6 +2,7 @@ import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Calendar, TrendingDown, Settings, Trash2 } from 'lucide-react';
@@ -11,6 +12,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useToast } from '@/hooks/use-toast';
 import { useCategoryAnalytics } from '@/hooks/useCategoryAnalytics';
 import { useUpdateCategory } from '@/hooks/useUpdateCategory';
+import { useDeleteCategory } from '@/hooks/useDeleteCategory';
 import { useDeleteExpense } from '@/hooks/useDeleteExpense';
 import { CategoryEmojiPicker } from '@/components/CategoryEmojiPicker';
 
@@ -23,6 +25,11 @@ const CategoryExpenses = () => {
   const [chartPeriod, setChartPeriod] = useState<'month' | 'year'>('month');
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteCategoryDialogOpen, setIsDeleteCategoryDialogOpen] = useState(false);
+  const [cascadeConfirmState, setCascadeConfirmState] = useState<{ open: boolean; expenseCount: number }>({
+    open: false,
+    expenseCount: 0,
+  });
   const [editCategoryName, setEditCategoryName] = useState(category || '');
   const [editCategoryLimit, setEditCategoryLimit] = useState('0');
   const [editCategoryEmoji, setEditCategoryEmoji] = useState('');
@@ -33,6 +40,7 @@ const CategoryExpenses = () => {
     Number(selectedMonth)
   );
   const updateCategoryMutation = useUpdateCategory();
+  const deleteCategoryMutation = useDeleteCategory();
   const deleteExpenseMutation = useDeleteExpense();
 
   const analyticsData = analyticsResponse?.body;
@@ -107,6 +115,42 @@ const CategoryExpenses = () => {
       }
     );
   };
+
+  const deleteCategoryRequest = (force: boolean) => {
+    if (!analyticsData?.categoryId) return;
+
+    deleteCategoryMutation.mutate(
+      { categoryId: analyticsData.categoryId, force },
+      {
+        onSuccess: () => {
+          setCascadeConfirmState({ open: false, expenseCount: 0 });
+          setIsDeleteCategoryDialogOpen(false);
+          setIsEditDialogOpen(false);
+          navigate('/budget');
+          toast({ title: 'Категория удалена' });
+        },
+        onError: (error: unknown) => {
+          const message = error instanceof Error ? error.message : '';
+          // Backend signals "has expenses" via 409 with count in parens
+          const cascadeMatch = !force ? message.match(/есть связанные расходы \((\d+)\)/) : null;
+          if (cascadeMatch) {
+            const count = Number(cascadeMatch[1]);
+            setIsDeleteCategoryDialogOpen(false);
+            setCascadeConfirmState({ open: true, expenseCount: count });
+            return;
+          }
+          toast({
+            title: 'Ошибка',
+            description: message || 'Не удалось удалить категорию',
+            variant: 'destructive',
+          });
+        },
+      }
+    );
+  };
+
+  const handleDeleteCategory = () => deleteCategoryRequest(false);
+  const handleCascadeDeleteCategory = () => deleteCategoryRequest(true);
 
   const handleDeleteExpense = (id: string) => {
     deleteExpenseMutation.mutate(
@@ -209,6 +253,32 @@ const CategoryExpenses = () => {
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
+                  <AlertDialog open={isDeleteCategoryDialogOpen} onOpenChange={setIsDeleteCategoryDialogOpen}>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="mr-auto" disabled={deleteCategoryMutation.isPending}>
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Удалить
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Удалить категорию?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Действие необратимо. Если у категории есть расходы, удаление будет заблокировано.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleDeleteCategory}
+                          disabled={deleteCategoryMutation.isPending}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          {deleteCategoryMutation.isPending ? 'Удаление...' : 'Удалить'}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                   <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                     Отмена
                   </Button>
@@ -218,6 +288,33 @@ const CategoryExpenses = () => {
                 </div>
               </DialogContent>
             </Dialog>
+
+            <AlertDialog
+              open={cascadeConfirmState.open}
+              onOpenChange={(open) => setCascadeConfirmState((s) => ({ ...s, open }))}
+            >
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Удалить вместе с расходами?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    В категории {cascadeConfirmState.expenseCount === 1
+                      ? '1 расход'
+                      : `${cascadeConfirmState.expenseCount} расходов`}
+                    . Удаление категории приведёт к удалению всех этих записей. Действие необратимо.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Отмена</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleCascadeDeleteCategory}
+                    disabled={deleteCategoryMutation.isPending}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleteCategoryMutation.isPending ? 'Удаление...' : 'Удалить всё'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
           <p className="text-dashboard-text-muted mt-2">
             Детальная аналитика расходов по категории

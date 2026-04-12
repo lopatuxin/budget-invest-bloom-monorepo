@@ -10,12 +10,15 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.http.MediaType;
 import pyc.lopatuxin.budget.AbstractIntegrationTest;
 import pyc.lopatuxin.budget.entity.Category;
+import pyc.lopatuxin.budget.entity.Expense;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.stream.Stream;
 
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.comparesEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -294,6 +297,127 @@ class CategoryControllerTest extends AbstractIntegrationTest {
                       }
                     }
                     """.formatted(reqUserId, UUID.randomUUID(), categoryId, name, budget);
+        }
+    }
+
+    @Nested
+    @DisplayName("Удаление категории (POST /delete)")
+    class DeleteCategory {
+
+        private static final String DELETE_URL = BASE_URL + "/delete";
+
+        @Test
+        @DisplayName("Должен удалить категорию и вернуть статус 200 с сообщением")
+        void shouldDeleteCategoryAndReturn200() throws Exception {
+            Category category = categoryRepository.save(Category.builder()
+                    .userId(userId)
+                    .name("Продукты")
+                    .budget(new BigDecimal("15000.00"))
+                    .build());
+
+            String requestBody = buildDeleteRequest(userId, category.getId());
+
+            mockMvc.perform(post(DELETE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status", is(200)))
+                    .andExpect(jsonPath("$.message", is("Категория успешно удалена")));
+        }
+
+        @Test
+        @DisplayName("Должен вернуть 404 когда категория не найдена")
+        void shouldReturn404WhenCategoryNotFound() throws Exception {
+            String requestBody = buildDeleteRequest(userId, UUID.randomUUID());
+
+            mockMvc.perform(post(DELETE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.status", is(404)))
+                    .andExpect(jsonPath("$.message", is("Категория не найдена")));
+        }
+
+        @Test
+        @DisplayName("Должен вернуть 409 когда у категории есть связанные расходы")
+        void shouldReturn409WhenCategoryHasExpenses() throws Exception {
+            Category category = categoryRepository.save(Category.builder()
+                    .userId(userId)
+                    .name("Транспорт")
+                    .budget(new BigDecimal("5000.00"))
+                    .build());
+
+            expenseRepository.save(Expense.builder()
+                    .userId(userId)
+                    .category(category)
+                    .amount(new BigDecimal("1000.00"))
+                    .date(LocalDate.now())
+                    .build());
+
+            String requestBody = buildDeleteRequest(userId, category.getId());
+
+            mockMvc.perform(post(DELETE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.status", is(409)))
+                    .andExpect(jsonPath("$.message", is("Невозможно удалить категорию: есть связанные расходы (1)")));
+        }
+
+        @Test
+        @DisplayName("Должен каскадно удалить категорию вместе с расходами при force=true")
+        void shouldCascadeDeleteWhenForceTrue() throws Exception {
+            Category category = categoryRepository.save(Category.builder()
+                    .userId(userId)
+                    .name("Транспорт")
+                    .budget(new BigDecimal("5000.00"))
+                    .build());
+
+            expenseRepository.save(Expense.builder()
+                    .userId(userId)
+                    .category(category)
+                    .amount(new BigDecimal("1000.00"))
+                    .date(LocalDate.now())
+                    .build());
+            expenseRepository.save(Expense.builder()
+                    .userId(userId)
+                    .category(category)
+                    .amount(new BigDecimal("500.00"))
+                    .date(LocalDate.now())
+                    .build());
+
+            String requestBody = buildDeleteRequest(userId, category.getId(), true);
+
+            mockMvc.perform(post(DELETE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status", is(200)))
+                    .andExpect(jsonPath("$.message", is("Категория успешно удалена")));
+
+            assertThat(categoryRepository.findById(category.getId())).isEmpty();
+            assertThat(expenseRepository.countByCategoryId(category.getId())).isZero();
+        }
+
+        private String buildDeleteRequest(UUID reqUserId, UUID categoryId) {
+            return buildDeleteRequest(reqUserId, categoryId, null);
+        }
+
+        private String buildDeleteRequest(UUID reqUserId, UUID categoryId, Boolean force) {
+            String forceField = force == null ? "" : ",\n        \"force\": " + force;
+            return """
+                    {
+                      "user": {
+                        "userId": "%s",
+                        "email": "test@example.com",
+                        "role": "USER",
+                        "sessionId": "%s"
+                      },
+                      "data": {
+                        "categoryId": "%s"%s
+                      }
+                    }
+                    """.formatted(reqUserId, UUID.randomUUID(), categoryId, forceField);
         }
     }
 

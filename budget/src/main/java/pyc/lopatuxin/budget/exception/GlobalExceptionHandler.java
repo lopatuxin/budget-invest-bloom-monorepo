@@ -141,6 +141,17 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles invalid business logic state (e.g., deleting an entity with linked records).
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ResponseApi<Object>> handleIllegalState(IllegalStateException ex) {
+        log.warn("Недопустимая операция: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ResponseApi.error(HttpStatus.CONFLICT.value(), ex.getMessage()));
+    }
+
+    /**
      * Обрабатывает все непредвиденные исключения.
      */
     @ExceptionHandler(Exception.class)
