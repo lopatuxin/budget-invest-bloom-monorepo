@@ -131,9 +131,16 @@ const Budget = () => {
     return Math.min((amount / budget) * 100, 100);
   };
 
-  const incomeSources = ['Зарплата', 'Фриланс', 'Инвестиции', 'Подарки', 'Прочее'];
+  const incomeSources = [
+    { value: 'SALARY',      label: 'Зарплата' },
+    { value: 'FREELANCE',   label: 'Фриланс' },
+    { value: 'INVESTMENTS', label: 'Инвестиции' },
+    { value: 'GIFTS',       label: 'Подарки' },
+    { value: 'OTHER',       label: 'Прочее' },
+  ];
 
   const [isExpenseSubmitting, setIsExpenseSubmitting] = useState(false);
+  const [isIncomeSubmitting, setIsIncomeSubmitting] = useState(false);
   const [isCategorySubmitting, setIsCategorySubmitting] = useState(false);
 
   const handleAddExpense = async () => {
@@ -174,23 +181,35 @@ const Budget = () => {
     }
   };
 
-  const handleAddIncome = () => {
+  const handleAddIncome = async () => {
     if (!incomeForm.amount || !incomeForm.source) {
-      toast({
-        title: "Ошибка",
-        description: "Заполните обязательные поля",
-        variant: "destructive"
-      });
+      toast({ title: "Ошибка", description: "Заполните обязательные поля", variant: "destructive" });
       return;
     }
 
-    toast({
-      title: "Доход добавлен",
-      description: `Добавлен доход ${incomeForm.amount}\u20BD из источника "${incomeForm.source}"`,
-    });
+    const parsedAmount = parseFloat(incomeForm.amount);
+    if (isNaN(parsedAmount)) {
+      toast({ title: "Ошибка", description: "Введите корректную сумму", variant: "destructive" });
+      return;
+    }
 
-    setIncomeForm({ amount: '', source: '', description: '' });
-    resetDialog();
+    setIsIncomeSubmitting(true);
+    try {
+      await apiPost('/api/budget/incomes', {
+        amount: parsedAmount,
+        source: incomeForm.source,
+        description: incomeForm.description || null,
+      });
+      toast({ title: "Доход добавлен", description: `Добавлен доход ${incomeForm.amount}\u20BD` });
+      setIncomeForm({ amount: '', source: '', description: '' });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+      resetDialog();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Не удалось добавить доход";
+      toast({ title: "Ошибка", description: message, variant: "destructive" });
+    } finally {
+      setIsIncomeSubmitting(false);
+    }
   };
 
   const handleAddCategory = async () => {
@@ -484,9 +503,9 @@ const Budget = () => {
                   <SelectValue placeholder="Выберите источник" />
                 </SelectTrigger>
                 <SelectContent>
-                  {incomeSources.map((source) => (
-                    <SelectItem key={source} value={source}>
-                      {source}
+                  {incomeSources.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -513,7 +532,9 @@ const Budget = () => {
               <Button
                 className="flex-1 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
                 onClick={handleAddIncome}
+                disabled={isIncomeSubmitting}
               >
+                {isIncomeSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Добавить
               </Button>
             </div>
