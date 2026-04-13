@@ -222,6 +222,41 @@ services:
     stdin_open: true
     tty: true
 
+  # ========================================
+  # BACKUP SERVICE - Daily DB Backup
+  # ========================================
+
+  backup-service:
+    build:
+      context: ./scripts/backup
+      dockerfile: Dockerfile
+    container_name: backup-service-dev
+    environment:
+      # Auth DB
+      AUTH_POSTGRES_HOST: auth-postgres
+      AUTH_POSTGRES_DB: ${AUTH_POSTGRES_DB:-auth_dev}
+      AUTH_POSTGRES_USER: ${AUTH_POSTGRES_USER:-auth_user}
+      AUTH_POSTGRES_PASSWORD: ${AUTH_POSTGRES_PASSWORD:-dev_password}
+      # Budget DB
+      BUDGET_POSTGRES_HOST: budget-postgres
+      BUDGET_POSTGRES_DB: ${BUDGET_POSTGRES_DB:-budget_dev}
+      BUDGET_POSTGRES_USER: ${BUDGET_POSTGRES_USER:-budget_user}
+      BUDGET_POSTGRES_PASSWORD: ${BUDGET_POSTGRES_PASSWORD:-dev_password}
+      # Yandex Disk
+      YADISK_LOGIN: ${YADISK_LOGIN}
+      YADISK_APP_PASSWORD: ${YADISK_APP_PASSWORD}
+      YADISK_BACKUP_DIR: ${YADISK_BACKUP_DIR:-backups/budget-invest-bloom}
+    volumes:
+      - backup_temp:/backups
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+      budget-postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - finance-network
+
 volumes:
   auth_postgres_data:
     driver: local
@@ -232,6 +267,8 @@ volumes:
   budget_gradle_cache:
     driver: local
   gateway_gradle_cache:
+    driver: local
+  backup_temp:
     driver: local
 
 networks:
