@@ -317,88 +317,111 @@ const Budget = () => {
       </div>
 
       {/* Categories Section */}
-      {isLoading ? (
-        <Skeleton className="h-[400px]" />
-      ) : (
-        <div className="glass-card p-5 animate-fade-slide-up" style={{ animationDelay: '300ms' }}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-dashboard-text">Категории расходов</h3>
-          </div>
-          <div className="flex gap-3 mb-4">
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="w-[140px] bg-white/5 border-white/10 text-dashboard-text hover:bg-white/[0.08] transition-colors">
-                <SelectValue placeholder="Месяц" />
-              </SelectTrigger>
-              <SelectContent>
-                {months.map((month) => (
-                  <SelectItem key={month.value} value={month.value}>
-                    {month.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger className="w-[100px] bg-white/5 border-white/10 text-dashboard-text hover:bg-white/[0.08] transition-colors">
-                <SelectValue placeholder="Год" />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map((year) => (
-                  <SelectItem key={year} value={year}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {categories.length === 0 ? (
-            <EmptyState
-              icon={<ShoppingCart className="w-10 h-10" />}
-              title="Нет категорий"
-              description="Создайте первую категорию для учёта расходов"
-              actionLabel="Создать категорию"
-              onAction={() => setOpenDialog('category')}
-            />
-          ) : (
-          <div className="space-y-2 max-h-[400px] overflow-y-auto dashboard-scroll pr-1">
-            {categories.map((cat, i) => (
-              <button
-                key={cat.id || cat.name}
-                onClick={() => navigate(`/budget/category/${encodeURIComponent(cat.name)}`)}
-                className="w-full flex items-center gap-4 px-4 py-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] transition-all duration-200 text-left group"
-              >
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"
-                  style={{ backgroundColor: `${DONUT_COLORS[i % DONUT_COLORS.length]}20` }}
-                >
-                  {cat.emoji}
+      {(() => {
+        const CARD_LIMIT = 8;
+        const firstCards = categories.slice(0, CARD_LIMIT);
+        const secondCards = categories.slice(CARD_LIMIT);
+
+        // Reusable category row renderer
+        const renderCategoryRow = (cat: typeof categories[0], i: number) => (
+          <button
+            key={cat.id || cat.name}
+            onClick={() => navigate(`/budget/category/${encodeURIComponent(cat.name)}`)}
+            className="w-full flex items-center gap-4 px-4 py-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] transition-all duration-200 text-left group"
+          >
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"
+              style={{ backgroundColor: `${DONUT_COLORS[i % DONUT_COLORS.length]}20` }}
+            >
+              {cat.emoji}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-dashboard-text truncate">{cat.name}</p>
+              {cat.budget > 0 && (
+                <div className="w-full bg-white/5 rounded-full h-1.5 mt-1.5">
+                  <div
+                    className="h-1.5 rounded-full animate-progress-grow"
+                    style={{
+                      width: `${Math.min(getProgressPercentage(cat.amount, cat.budget), 100)}%`,
+                      backgroundColor: cat.amount > cat.budget ? DANGER_COLOR : DONUT_COLORS[i % DONUT_COLORS.length],
+                      animationDelay: `${400 + i * 80}ms`,
+                    }}
+                  />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-dashboard-text truncate">{cat.name}</p>
-                  {cat.budget > 0 && (
-                    <div className="w-full bg-white/5 rounded-full h-1.5 mt-1.5">
-                      <div
-                        className="h-1.5 rounded-full animate-progress-grow"
-                        style={{
-                          width: `${Math.min(getProgressPercentage(cat.amount, cat.budget), 100)}%`,
-                          backgroundColor: cat.amount > cat.budget ? DANGER_COLOR : DONUT_COLORS[i % DONUT_COLORS.length],
-                          animationDelay: `${400 + i * 80}ms`,
-                        }}
-                      />
-                    </div>
-                  )}
+              )}
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-sm font-semibold text-dashboard-text font-mono">{formatCurrency(cat.amount)}</p>
+              {cat.budget > 0 && (
+                <p className="text-xs text-dashboard-text-muted font-mono">из {formatCurrency(cat.budget)}</p>
+              )}
+            </div>
+          </button>
+        );
+
+        return isLoading ? (
+          <Skeleton className="h-[400px] lg:w-1/2" />
+        ) : (
+          <div className="flex flex-col lg:flex-row gap-4 lg:items-stretch">
+            {/* First card - always shown, half-width only when second card exists */}
+            <div className={`glass-card p-5 animate-fade-slide-up ${secondCards.length > 0 ? 'lg:flex-1' : 'lg:w-1/2'}`} style={{ animationDelay: '300ms' }}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-dashboard-text">Категории расходов</h3>
+              </div>
+              <div className="flex gap-3 mb-4">
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="w-[140px] bg-white/5 border-white/10 text-dashboard-text hover:bg-white/[0.08] transition-colors">
+                    <SelectValue placeholder="Месяц" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map((month) => (
+                      <SelectItem key={month.value} value={month.value}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger className="w-[100px] bg-white/5 border-white/10 text-dashboard-text hover:bg-white/[0.08] transition-colors">
+                    <SelectValue placeholder="Год" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {years.map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {categories.length === 0 ? (
+                <EmptyState
+                  icon={<ShoppingCart className="w-10 h-10" />}
+                  title="Нет категорий"
+                  description="Создайте первую категорию для учёта расходов"
+                  actionLabel="Создать категорию"
+                  onAction={() => setOpenDialog('category')}
+                />
+              ) : (
+                <div className="space-y-2">
+                  {firstCards.map((cat, i) => renderCategoryRow(cat, i))}
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="text-sm font-semibold text-dashboard-text font-mono">{formatCurrency(cat.amount)}</p>
-                  {cat.budget > 0 && (
-                    <p className="text-xs text-dashboard-text-muted font-mono">из {formatCurrency(cat.budget)}</p>
-                  )}
+              )}
+            </div>
+            {/* Second card - shown only when there are overflow categories */}
+            {secondCards.length > 0 && (
+              <div className="glass-card p-5 lg:flex-1 animate-fade-slide-up" style={{ animationDelay: '360ms' }}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-dashboard-text">Остальные категории</h3>
                 </div>
-              </button>
-            ))}
+                <div className="space-y-2">
+                  {secondCards.map((cat, i) => renderCategoryRow(cat, CARD_LIMIT + i))}
+                </div>
+              </div>
+            )}
           </div>
-          )}
-        </div>
-      )}
+        );
+      })()}
 
       {/* Expense Dialog */}
       <Dialog open={openDialog === 'expense'} onOpenChange={(open) => { if (!open) resetDialog(); }}>
