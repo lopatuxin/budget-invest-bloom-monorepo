@@ -71,4 +71,16 @@ public class CategoryAnalyticsResponseDto {
      */
     @Schema(description = "Общая сумма расходов за выбранный период", example = "45000.00")
     private BigDecimal totalExpenses;
+
+    /**
+     * Total expenses for the selected year.
+     */
+    @Schema(description = "Общая сумма расходов за выбранный год", example = "120000.00")
+    private BigDecimal totalYear;
+
+    /**
+     * Average monthly expenses for the selected year (only months with data are counted).
+     */
+    @Schema(description = "Среднемесячные расходы за выбранный год (только месяцы с данными)", example = "10000.00")
+    private BigDecimal averageYear;
 }

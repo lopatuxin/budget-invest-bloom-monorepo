@@ -134,11 +134,20 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
      * @param endDate    последний день периода (включительно)
      * @return список расходов за период
      */
+    @Query("""
+            SELECT e FROM Expense e
+            JOIN FETCH e.category
+            WHERE e.userId = :userId
+              AND e.category.id = :categoryId
+              AND e.date >= :startDate
+              AND e.date <= :endDate
+            ORDER BY e.date DESC
+            """)
     List<Expense> findByUserIdAndCategoryIdAndDateBetweenOrderByDateDesc(
-            UUID userId,
-            UUID categoryId,
-            LocalDate startDate,
-            LocalDate endDate
+            @Param("userId") UUID userId,
+            @Param("categoryId") UUID categoryId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
     );
 
     long countByCategoryId(UUID categoryId);

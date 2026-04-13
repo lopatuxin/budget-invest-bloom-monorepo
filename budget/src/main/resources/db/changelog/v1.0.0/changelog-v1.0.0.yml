@@ -8,3 +8,5 @@ databaseChangeLog:
       file: db/changelog/v1.0.0/003-create-incomes-table.yml
   - include:
       file: db/changelog/v1.0.0/004-create-capital-records-table.yml
+  - include:
+      file: db/changelog/v1.0.0/005-import-legacy-budget.yml

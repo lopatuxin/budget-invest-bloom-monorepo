@@ -12,10 +12,12 @@ import pyc.lopatuxin.budget.dto.response.YearlyMetricDto;
 import pyc.lopatuxin.budget.entity.Category;
 import pyc.lopatuxin.budget.entity.Expense;
 import pyc.lopatuxin.budget.entity.enums.Month;
+import pyc.lopatuxin.budget.mapper.ExpenseMapper;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -36,6 +38,7 @@ public class CategoryAnalyticsService {
 
     private final CategoryRepository categoryRepository;
     private final ExpenseRepository expenseRepository;
+    private final ExpenseMapper expenseMapper;
 
     /**
      * Формирует детальную аналитику по категории для указанного пользователя.
@@ -54,8 +57,10 @@ public class CategoryAnalyticsService {
         List<MonthlyMetricDto> monthlyData = buildMonthlyData(userId, category.getId(), request.getYear());
         List<YearlyMetricDto> yearlyData = buildYearlyData(userId, category.getId());
         List<Expense> expenses = findExpensesForPeriod(userId, category.getId(), request.getYear(), request.getMonth());
-        List<ExpenseResponseDto> expenseDtos = mapExpenses(expenses);
+        List<ExpenseResponseDto> expenseDtos = expenseMapper.toDtoList(expenses);
         BigDecimal totalExpenses = calculateTotal(expenses);
+        BigDecimal totalYear = calculateTotalYear(monthlyData);
+        BigDecimal averageYear = calculateAverageYear(monthlyData, totalYear);
 
         log.debug("Аналитика категории '{}' сформирована для userId={}", request.getCategoryName(), userId);
 
@@ -68,6 +73,8 @@ public class CategoryAnalyticsService {
                 .yearlyData(yearlyData)
                 .expenses(expenseDtos)
                 .totalExpenses(totalExpenses)
+                .totalYear(totalYear)
+                .averageYear(averageYear)
                 .build();
     }
 
@@ -118,22 +125,26 @@ public class CategoryAnalyticsService {
                 userId, categoryId, startDate, endDate);
     }
 
-    private List<ExpenseResponseDto> mapExpenses(List<Expense> expenses) {
-        return expenses.stream()
-                .map(expense -> ExpenseResponseDto.builder()
-                        .id(expense.getId())
-                        .categoryId(expense.getCategory().getId())
-                        .categoryName(expense.getCategory().getName())
-                        .amount(expense.getAmount())
-                        .description(expense.getDescription())
-                        .date(expense.getDate())
-                        .build())
-                .toList();
-    }
-
     private BigDecimal calculateTotal(List<Expense> expenses) {
         return expenses.stream()
                 .map(Expense::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal calculateTotalYear(List<MonthlyMetricDto> monthlyData) {
+        return monthlyData.stream()
+                .map(MonthlyMetricDto::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calculateAverageYear(List<MonthlyMetricDto> monthlyData, BigDecimal totalYear) {
+        long monthsWithData = monthlyData.stream()
+                .filter(m -> m.getAmount().compareTo(BigDecimal.ZERO) > 0)
+                .count();
+        if (monthsWithData == 0) {
+            return BigDecimal.ZERO;
+        }
+        return totalYear.divide(BigDecimal.valueOf(monthsWithData), 2, RoundingMode.HALF_UP);
     }
 }

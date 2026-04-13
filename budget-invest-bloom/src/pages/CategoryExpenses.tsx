@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Calendar, TrendingDown, Settings, Trash2 } from 'lucide-react';
+import { ArrowLeft, Calendar, TrendingDown, Settings, Trash2, Wallet, BarChart3 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -321,6 +321,42 @@ const CategoryExpenses = () => {
           </p>
         </div>
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+          {/* total year card */}
+          <div
+            className="glass-card p-5 flex items-start justify-between"
+            style={{ borderLeft: '3px solid #10B981' }}
+          >
+            <div className="space-y-2">
+              <p className="text-[11px] uppercase tracking-widest text-dashboard-text-muted">Общая сумма за год</p>
+              <p className="text-2xl font-bold font-mono text-dashboard-text">{(analyticsData?.totalYear ?? 0).toLocaleString()}</p>
+            </div>
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center"
+              style={{ backgroundColor: '#10B98120', boxShadow: '0 0 20px #10B98140' }}
+            >
+              <Wallet className="w-5 h-5" style={{ color: '#10B981' }} />
+            </div>
+          </div>
+
+          {/* average year card */}
+          <div
+            className="glass-card p-5 flex items-start justify-between"
+            style={{ borderLeft: '3px solid #0EA5E9' }}
+          >
+            <div className="space-y-2">
+              <p className="text-[11px] uppercase tracking-widest text-dashboard-text-muted">Среднее за месяц</p>
+              <p className="text-2xl font-bold font-mono text-dashboard-text">{(analyticsData?.averageYear ?? 0).toLocaleString()}</p>
+            </div>
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center"
+              style={{ backgroundColor: '#0EA5E920', boxShadow: '0 0 20px #0EA5E940' }}
+            >
+              <BarChart3 className="w-5 h-5" style={{ color: '#0EA5E9' }} />
+            </div>
+          </div>
+        </div>
+
         <div className="glass-card mb-8">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -330,18 +366,18 @@ const CategoryExpenses = () => {
               </CardTitle>
               <div className="flex gap-2">
                 <Button
-                  variant={chartPeriod === 'month' ? 'default' : 'outline'}
+                  variant={chartPeriod === 'month' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setChartPeriod('month')}
-                  className={chartPeriod === 'month' ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'border-white/10 text-dashboard-text-muted hover:bg-white/5'}
+                  className="rounded-xl"
                 >
                   По месяцам
                 </Button>
                 <Button
-                  variant={chartPeriod === 'year' ? 'default' : 'outline'}
+                  variant={chartPeriod === 'year' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setChartPeriod('year')}
-                  className={chartPeriod === 'year' ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'border-white/10 text-dashboard-text-muted hover:bg-white/5'}
+                  className="rounded-xl"
                 >
                   По годам
                 </Button>

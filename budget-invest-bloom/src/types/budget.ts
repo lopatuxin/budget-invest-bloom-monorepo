@@ -59,6 +59,8 @@ export interface CategoryAnalyticsResponse {
   yearlyData: YearlyMetric[];
   expenses: ExpenseItem[];
   totalExpenses: number;
+  totalYear: number;
+  averageYear: number;
 }
 
 export interface YearlyMetric {
