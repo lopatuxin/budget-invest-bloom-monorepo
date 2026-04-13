@@ -13,6 +13,7 @@ import pyc.lopatuxin.budget.entity.Category;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
 
+import java.math.BigDecimal;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -41,7 +42,7 @@ public class CategoryService {
         Category category = Category.builder()
                 .userId(userId)
                 .name(dto.getName())
-                .budget(dto.getBudget())
+                .budget(dto.getBudget() != null ? dto.getBudget() : BigDecimal.ZERO)
                 .emoji(dto.getEmoji())
                 .build();
 
@@ -70,7 +71,9 @@ public class CategoryService {
                 .orElseThrow(() -> new EntityNotFoundException("Категория не найдена"));
 
         category.setName(request.getName());
-        category.setBudget(request.getBudget());
+        if (request.getBudget() != null) {
+            category.setBudget(request.getBudget());
+        }
         if (request.getEmoji() != null) {
             category.setEmoji(request.getEmoji().isBlank() ? null : request.getEmoji());
         }

@@ -345,7 +345,7 @@ const CategoryExpenses = () => {
             style={{ borderLeft: '3px solid #0EA5E9' }}
           >
             <div className="space-y-2">
-              <p className="text-[11px] uppercase tracking-widest text-dashboard-text-muted">Среднее за месяц</p>
+              <p className="text-[11px] uppercase tracking-widest text-dashboard-text-muted">Среднее за год</p>
               <p className="text-2xl font-bold font-mono text-dashboard-text">{(analyticsData?.averageYear ?? 0).toLocaleString()}</p>
             </div>
             <div

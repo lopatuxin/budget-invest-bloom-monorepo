@@ -213,7 +213,7 @@ const Budget = () => {
   };
 
   const handleAddCategory = async () => {
-    if (!categoryForm.name || !categoryForm.budget) {
+    if (!categoryForm.name) {
       toast({
         title: "Ошибка",
         description: "Заполните обязательные поля",
@@ -222,11 +222,7 @@ const Budget = () => {
       return;
     }
 
-    const budgetValue = Number(categoryForm.budget);
-    if (isNaN(budgetValue)) {
-      toast({ title: "Ошибка", description: "Некорректное значение бюджета", variant: "destructive" });
-      return;
-    }
+    const budgetValue = categoryForm.budget ? Number(categoryForm.budget) : null;
 
     setIsCategorySubmitting(true);
     try {
@@ -238,7 +234,7 @@ const Budget = () => {
 
       toast({
         title: "Категория добавлена",
-        description: `Добавлена категория "${categoryForm.name}" с бюджетом ${categoryForm.budget}\u20BD`,
+        description: `Добавлена категория "${categoryForm.name}"${budgetValue ? ` с бюджетом ${categoryForm.budget}\u20BD` : ''}`,
       });
 
       setCategoryForm({ name: '', budget: '', emoji: '' });
@@ -378,20 +374,24 @@ const Budget = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-dashboard-text truncate">{cat.name}</p>
-                  <div className="w-full bg-white/5 rounded-full h-1.5 mt-1.5">
-                    <div
-                      className="h-1.5 rounded-full animate-progress-grow"
-                      style={{
-                        width: `${Math.min(getProgressPercentage(cat.amount, cat.budget), 100)}%`,
-                        backgroundColor: cat.amount > cat.budget ? DANGER_COLOR : DONUT_COLORS[i % DONUT_COLORS.length],
-                        animationDelay: `${400 + i * 80}ms`,
-                      }}
-                    />
-                  </div>
+                  {cat.budget > 0 && (
+                    <div className="w-full bg-white/5 rounded-full h-1.5 mt-1.5">
+                      <div
+                        className="h-1.5 rounded-full animate-progress-grow"
+                        style={{
+                          width: `${Math.min(getProgressPercentage(cat.amount, cat.budget), 100)}%`,
+                          backgroundColor: cat.amount > cat.budget ? DANGER_COLOR : DONUT_COLORS[i % DONUT_COLORS.length],
+                          animationDelay: `${400 + i * 80}ms`,
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-sm font-semibold text-dashboard-text font-mono">{formatCurrency(cat.amount)}</p>
-                  <p className="text-xs text-dashboard-text-muted font-mono">из {formatCurrency(cat.budget)}</p>
+                  {cat.budget > 0 && (
+                    <p className="text-xs text-dashboard-text-muted font-mono">из {formatCurrency(cat.budget)}</p>
+                  )}
                 </div>
               </button>
             ))}
@@ -561,7 +561,7 @@ const Budget = () => {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="category-budget" className="text-dashboard-text-muted">Бюджет *</Label>
+              <Label htmlFor="category-budget" className="text-dashboard-text-muted">Бюджет</Label>
               <div className="relative">
                 <Input
                   id="category-budget"

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -38,7 +37,6 @@ public class CreateCategoryDto {
     /**
      * Лимит бюджета категории.
      */
-    @NotNull(message = "Лимит бюджета обязателен")
     @PositiveOrZero(message = "Лимит бюджета не может быть отрицательным")
     @Digits(integer = 13, fraction = 2, message = "Лимит бюджета не должен превышать 13 целых и 2 дробных знака")
     @Schema(description = "Лимит бюджета категории", example = "15000.00")

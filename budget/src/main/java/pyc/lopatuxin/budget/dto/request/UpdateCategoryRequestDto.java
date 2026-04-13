@@ -53,7 +53,6 @@ public class UpdateCategoryRequestDto {
     /**
      * Новый лимит бюджета категории.
      */
-    @NotNull(message = "Лимит бюджета обязателен")
     @PositiveOrZero(message = "Лимит бюджета не может быть отрицательным")
     @Digits(integer = 13, fraction = 2, message = "Лимит бюджета не должен превышать 13 целых и 2 дробных знака")
     @Schema(description = "Новый лимит бюджета категории", example = "20000.00")
