@@ -49,7 +49,7 @@ public abstract class AbstractMetricService {
         log.debug("Начало формирования метрики {} для userId={}, year={}", getMetricName(), userId, year);
 
         Map<Integer, BigDecimal> dataByMonth = buildMonthlyMap(findMonthlyData(userId, year));
-        List<MonthlyMetricDto> monthlyData = buildMonthlyData(dataByMonth);
+        List<MonthlyMetricDto> monthlyData = buildMonthlyData(dataByMonth, year);
         List<BigDecimal> nonZeroAmounts = extractNonZeroAmounts(monthlyData);
 
         BigDecimal yearlyAverage = BigDecimal.ZERO;
@@ -92,9 +92,13 @@ public abstract class AbstractMetricService {
                 ));
     }
 
-    private List<MonthlyMetricDto> buildMonthlyData(Map<Integer, BigDecimal> dataByMonth) {
-        List<MonthlyMetricDto> result = new ArrayList<>(MONTHS.length);
+    private List<MonthlyMetricDto> buildMonthlyData(Map<Integer, BigDecimal> dataByMonth, int year) {
+        int currentYear = java.time.LocalDate.now().getYear();
+        int maxMonth = (year == currentYear) ? java.time.LocalDate.now().getMonthValue() : MONTHS.length;
+
+        List<MonthlyMetricDto> result = new ArrayList<>(maxMonth);
         for (Month month : MONTHS) {
+            if (month.getNumber() > maxMonth) break;
             result.add(MonthlyMetricDto.builder()
                     .month(month.getNumber())
                     .monthName(month.getShortName())

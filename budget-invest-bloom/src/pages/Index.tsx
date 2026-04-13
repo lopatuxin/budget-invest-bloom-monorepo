@@ -110,11 +110,19 @@ const Index = () => {
   const { data: summaryResponse, isLoading: summaryLoading } = useBudgetSummary(currentMonth, currentYear, isAuthenticated);
   const summary = summaryResponse?.body;
 
+  const previousYear = String(now.getFullYear() - 1);
+
   const { data: incomeResponse, isLoading: incomeLoading } = useIncomeMetric(currentYear, isAuthenticated);
   const incomeMetric = incomeResponse?.body;
 
+  const { data: incomePrevResponse, isLoading: incomePrevLoading } = useIncomeMetric(previousYear, isAuthenticated);
+  const incomePrevMetric = incomePrevResponse?.body;
+
   const { data: expenseResponse, isLoading: expenseLoading } = useExpenseMetric(currentYear, isAuthenticated);
   const expenseMetric = expenseResponse?.body;
+
+  const { data: expensePrevResponse, isLoading: expensePrevLoading } = useExpenseMetric(previousYear, isAuthenticated);
+  const expensePrevMetric = expensePrevResponse?.body;
 
   // Time range state for bar chart and area chart (must be before conditional return)
   const [barTimeRange, setBarTimeRange] = useState<TimeRange>('6m');
@@ -176,22 +184,39 @@ const Index = () => {
     );
   }
 
-  // Build chart data for bar chart (all months, sliced by range later)
+  // Build rolling 12-month bar chart data: tail of previous year + head of current year
+  const currentMonthNum = now.getMonth() + 1;
   const allBarChartData = (() => {
-    if (!incomeMetric?.monthlyData && !expenseMetric?.monthlyData) return [];
-    const incomeMap = new Map((incomeMetric?.monthlyData || []).map(d => [d.month, d]));
-    const expenseMap = new Map((expenseMetric?.monthlyData || []).map(d => [d.month, d]));
-    const allMonths = new Set([
-      ...(incomeMetric?.monthlyData || []).map(d => d.month),
-      ...(expenseMetric?.monthlyData || []).map(d => d.month),
-    ]);
-    return Array.from(allMonths)
-      .sort((a, b) => a - b)
-      .map(month => ({
-        name: incomeMap.get(month)?.monthName || expenseMap.get(month)?.monthName || String(month),
-        income: incomeMap.get(month)?.amount || 0,
-        expenses: expenseMap.get(month)?.amount || 0,
-      }));
+    const incomeMapCurr = new Map((incomeMetric?.monthlyData || []).map(d => [d.month, d]));
+    const expenseMapCurr = new Map((expenseMetric?.monthlyData || []).map(d => [d.month, d]));
+    const incomeMapPrev = new Map((incomePrevMetric?.monthlyData || []).map(d => [d.month, d]));
+    const expenseMapPrev = new Map((expensePrevMetric?.monthlyData || []).map(d => [d.month, d]));
+
+    // Tail of previous year: months from (currentMonthNum + 1) through 12
+    const prevYearTail = [];
+    for (let m = currentMonthNum + 1; m <= 12; m++) {
+      const iEntry = incomeMapPrev.get(m);
+      const eEntry = expenseMapPrev.get(m);
+      prevYearTail.push({
+        name: iEntry?.monthName || eEntry?.monthName || String(m),
+        income: iEntry?.amount || 0,
+        expenses: eEntry?.amount || 0,
+      });
+    }
+
+    // Head of current year: months from 1 through currentMonthNum
+    const currYearHead = [];
+    for (let m = 1; m <= currentMonthNum; m++) {
+      const iEntry = incomeMapCurr.get(m);
+      const eEntry = expenseMapCurr.get(m);
+      currYearHead.push({
+        name: iEntry?.monthName || eEntry?.monthName || String(m),
+        income: iEntry?.amount || 0,
+        expenses: eEntry?.amount || 0,
+      });
+    }
+
+    return [...prevYearTail, ...currYearHead];
   })();
   const barChartData = sliceByRange(allBarChartData, barTimeRange);
 
@@ -203,13 +228,28 @@ const Index = () => {
   }));
   const totalCategoryAmount = donutData.reduce((sum, d) => sum + d.value, 0);
 
-  // Area chart data for income trend
-  const incomeAreaData = sliceByRange(
-    (incomeMetric?.monthlyData || []).map(d => ({ name: d.monthName, amount: d.amount })),
-    areaTimeRange,
-  );
+  // Area chart data for income trend: rolling 12-month window
+  const allIncomeAreaData = (() => {
+    const incomeMapPrev = new Map((incomePrevMetric?.monthlyData || []).map(d => [d.month, d]));
+    const incomeMapCurr = new Map((incomeMetric?.monthlyData || []).map(d => [d.month, d]));
 
-  const isChartsLoading = incomeLoading || expenseLoading;
+    const prevTail = [];
+    for (let m = currentMonthNum + 1; m <= 12; m++) {
+      const entry = incomeMapPrev.get(m);
+      prevTail.push({ name: entry?.monthName || String(m), amount: entry?.amount || 0 });
+    }
+
+    const currHead = [];
+    for (let m = 1; m <= currentMonthNum; m++) {
+      const entry = incomeMapCurr.get(m);
+      currHead.push({ name: entry?.monthName || String(m), amount: entry?.amount || 0 });
+    }
+
+    return [...prevTail, ...currHead];
+  })();
+  const incomeAreaData = sliceByRange(allIncomeAreaData, areaTimeRange);
+
+  const isChartsLoading = incomeLoading || expenseLoading || incomePrevLoading || expensePrevLoading;
 
   // Derived KPI values
   const totalBudget = (summary?.categories || []).reduce((sum, cat) => sum + (cat.budget || 0), 0);
@@ -225,8 +265,8 @@ const Index = () => {
   const animSavingsRate = useCountUp(!summaryLoading && summary ? savingsRate : 0);
   const animPortfolio = useCountUp(2850000);
 
-  // Sparkline data for capital card (reuse income monthly data)
-  const sparklineData = (incomeMetric?.monthlyData || []).slice(-6).map(d => d.amount);
+  // Sparkline data for capital card: last 6 months from rolling window
+  const sparklineData = allIncomeAreaData.slice(-6).map(d => d.amount);
 
   // KPI cards config
   interface KpiCard {
