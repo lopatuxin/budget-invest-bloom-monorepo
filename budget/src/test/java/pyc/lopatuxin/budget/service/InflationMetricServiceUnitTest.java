@@ -7,6 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import pyc.lopatuxin.budget.dto.response.CategoryInflationDto;
 import pyc.lopatuxin.budget.dto.response.MetricResponseDto;
 import pyc.lopatuxin.budget.dto.response.MonthlyMetricDto;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
@@ -247,6 +248,154 @@ class InflationMetricServiceUnitTest {
     @DisplayName("getMetricName должен возвращать 'инфляции'")
     void shouldReturnCorrectMetricName() {
         assertThat(inflationMetricService.getMetricName()).isEqualTo("инфляции");
+    }
+
+    // -----------------------------------------------------------------------
+    // buildCategoryBreakdown — тесты через getInflationMetric
+    // -----------------------------------------------------------------------
+
+    /**
+     * Вспомогательный метод: строит строку Object[] в формате findCategoryStatsByUserIdAndYear.
+     * Поля: [UUID categoryId, String name, String emoji, Long monthCount, BigDecimal totalAmount]
+     */
+    private Object[] categoryRow(UUID categoryId, String name, String emoji,
+                                 long monthCount, BigDecimal totalAmount) {
+        return new Object[]{categoryId, name, emoji, monthCount, totalAmount};
+    }
+
+    @Test
+    @DisplayName("categoryBreakdown пустой когда нет данных прошлого года")
+    void categoryBreakdown_shouldBeEmptyWhenNoPreviousYearData() {
+        int year = 2026;
+        doReturn(Collections.emptyList())
+                .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+        doReturn(Collections.emptyList())
+                .when(expenseRepository).findCategoryStatsByUserIdAndYear(userId, year);
+        doReturn(Collections.emptyList())
+                .when(expenseRepository).findCategoryStatsByUserIdAndYear(userId, year - 1);
+
+        MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
+
+        assertThat(result.getCategoryBreakdown()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("categoryBreakdown с одной категорией: корректный changePercent, weightPercent=100%, contribution=changePercent")
+    void categoryBreakdown_shouldCalculateCorrectlyForSingleCategory() {
+        int year = 2026;
+        UUID catId = UUID.randomUUID();
+
+        // Monthly data stubs (used by base getMetric)
+        doReturn(List.<Object[]>of(new Object[]{1, new BigDecimal("12000.00")}))
+                .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+        doReturn(List.<Object[]>of(new Object[]{1, new BigDecimal("13200.00")}))
+                .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+
+        // Category stats: current year — 1 month, 13200 total; previous — 1 month, 12000 total
+        doReturn(List.<Object[]>of(categoryRow(catId, "Продукты", "🛒", 1L, new BigDecimal("13200.00"))))
+                .when(expenseRepository).findCategoryStatsByUserIdAndYear(userId, year);
+        doReturn(List.<Object[]>of(categoryRow(catId, "Продукты", "🛒", 1L, new BigDecimal("12000.00"))))
+                .when(expenseRepository).findCategoryStatsByUserIdAndYear(userId, year - 1);
+
+        MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
+
+        assertThat(result.getCategoryBreakdown()).hasSize(1);
+        CategoryInflationDto dto = result.getCategoryBreakdown().get(0);
+
+        // avgCurrent = 13200 / 1 = 13200, avgPrevious = 12000 / 1 = 12000
+        // changePercent = (13200 - 12000) / 12000 * 100 = 10.0%
+        assertThat(dto.getChangePercent()).isEqualByComparingTo(new BigDecimal("10.0"));
+
+        // Единственная категория → weightPercent = 100%
+        assertThat(dto.getWeightPercent()).isEqualByComparingTo(new BigDecimal("100.0"));
+
+        // contribution = weightPercent/100 * changePercent = 1.0 * 10.0 = 10.0
+        assertThat(dto.getContribution()).isEqualByComparingTo(new BigDecimal("10.0"));
+
+        assertThat(dto.getCategoryId()).isEqualTo(catId);
+        assertThat(dto.getCategoryName()).isEqualTo("Продукты");
+    }
+
+    @Test
+    @DisplayName("categoryBreakdown с двумя категориями: сортировка по |contribution| убыванию")
+    void categoryBreakdown_shouldBeSortedByAbsoluteContributionDescending() {
+        int year = 2026;
+        UUID catGrow = UUID.randomUUID();  // рост расходов
+        UUID catDrop = UUID.randomUUID();  // снижение расходов
+
+        // Monthly stubs
+        doReturn(List.<Object[]>of(new Object[]{1, new BigDecimal("20000.00")}))
+                .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+        doReturn(List.<Object[]>of(new Object[]{1, new BigDecimal("24000.00")}))
+                .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+
+        // current: catGrow=18000 (1 мес), catDrop=6000 (1 мес); total=24000
+        doReturn(List.of(
+                categoryRow(catGrow, "Кафе", "☕", 1L, new BigDecimal("18000.00")),
+                categoryRow(catDrop, "Транспорт", "🚌", 1L, new BigDecimal("6000.00"))
+        )).when(expenseRepository).findCategoryStatsByUserIdAndYear(userId, year);
+
+        // previous: catGrow=10000 (1 мес), catDrop=10000 (1 мес)
+        doReturn(List.of(
+                categoryRow(catGrow, "Кафе", "☕", 1L, new BigDecimal("10000.00")),
+                categoryRow(catDrop, "Транспорт", "🚌", 1L, new BigDecimal("10000.00"))
+        )).when(expenseRepository).findCategoryStatsByUserIdAndYear(userId, year - 1);
+
+        MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
+
+        assertThat(result.getCategoryBreakdown()).hasSize(2);
+
+        // catGrow: avgCurrent=18000, avgPrevious=10000, changePercent=+80%
+        // weight = 18000/24000 = 75%, contribution = 0.75 * 80 = +60.0
+        //
+        // catDrop: avgCurrent=6000, avgPrevious=10000, changePercent=-40%
+        // weight = 6000/24000 = 25%, contribution = 0.25 * (-40) = -10.0
+        //
+        // |60.0| > |-10.0| => catGrow первый
+
+        CategoryInflationDto first = result.getCategoryBreakdown().get(0);
+        CategoryInflationDto second = result.getCategoryBreakdown().get(1);
+
+        assertThat(first.getCategoryId()).isEqualTo(catGrow);
+        assertThat(first.getContribution()).isEqualByComparingTo(new BigDecimal("60.0"));
+
+        assertThat(second.getCategoryId()).isEqualTo(catDrop);
+        assertThat(second.getContribution()).isEqualByComparingTo(new BigDecimal("-10.0"));
+
+        // Проверяем что |first.contribution| >= |second.contribution|
+        assertThat(first.getContribution().abs())
+                .isGreaterThanOrEqualTo(second.getContribution().abs());
+    }
+
+    @Test
+    @DisplayName("categoryBreakdown: категория только в текущем году исключается из breakdown")
+    void categoryBreakdown_shouldExcludeCategoryPresentOnlyInCurrentYear() {
+        int year = 2026;
+        UUID catExisting = UUID.randomUUID();  // есть в обоих годах
+        UUID catNew = UUID.randomUUID();       // только в текущем году
+
+        // Monthly stubs
+        doReturn(List.<Object[]>of(new Object[]{1, new BigDecimal("10000.00")}))
+                .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+        doReturn(List.<Object[]>of(new Object[]{1, new BigDecimal("15000.00")}))
+                .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+
+        // current: обе категории присутствуют
+        doReturn(List.of(
+                categoryRow(catExisting, "Продукты", "🛒", 1L, new BigDecimal("10000.00")),
+                categoryRow(catNew, "Новая категория", "🆕", 1L, new BigDecimal("5000.00"))
+        )).when(expenseRepository).findCategoryStatsByUserIdAndYear(userId, year);
+
+        // previous: только catExisting
+        doReturn(List.<Object[]>of(
+                categoryRow(catExisting, "Продукты", "🛒", 1L, new BigDecimal("10000.00"))
+        )).when(expenseRepository).findCategoryStatsByUserIdAndYear(userId, year - 1);
+
+        MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
+
+        // catNew не должна попасть в breakdown
+        assertThat(result.getCategoryBreakdown()).hasSize(1);
+        assertThat(result.getCategoryBreakdown().get(0).getCategoryId()).isEqualTo(catExisting);
     }
 
     @Test

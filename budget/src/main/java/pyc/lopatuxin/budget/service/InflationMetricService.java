@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pyc.lopatuxin.budget.dto.response.CategoryInflationDto;
 import pyc.lopatuxin.budget.dto.response.MetricResponseDto;
 import pyc.lopatuxin.budget.dto.response.MonthlyMetricDto;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
@@ -11,6 +12,7 @@ import pyc.lopatuxin.budget.repository.ExpenseRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -36,7 +38,82 @@ public class InflationMetricService extends AbstractMetricService {
      * @return объект с помесячной разбивкой и агрегированными показателями
      */
     public MetricResponseDto getInflationMetric(UUID userId, int year) {
-        return getMetric(userId, year);
+        MetricResponseDto base = getMetric(userId, year);
+        List<CategoryInflationDto> breakdown = buildCategoryBreakdown(userId, year);
+        return base.toBuilder().categoryBreakdown(breakdown).build();
+    }
+
+    private List<CategoryInflationDto> buildCategoryBreakdown(UUID userId, int year) {
+        List<Object[]> currentStats = expenseRepository.findCategoryStatsByUserIdAndYear(userId, year);
+        List<Object[]> previousStats = expenseRepository.findCategoryStatsByUserIdAndYear(userId, year - 1);
+
+        Map<UUID, Object[]> previousMap = new HashMap<>();
+        for (Object[] row : previousStats) {
+            previousMap.put((UUID) row[0], row);
+        }
+
+        record CategoryCalc(UUID categoryId, String name, String emoji,
+                            BigDecimal avgCurrent, BigDecimal avgPrevious, BigDecimal changePercent) {}
+
+        List<CategoryCalc> calculated = new ArrayList<>();
+        for (Object[] row : currentStats) {
+            UUID categoryId = (UUID) row[0];
+            String name = (String) row[1];
+            String emoji = (String) row[2];
+            long monthCount = (Long) row[3];
+            BigDecimal totalAmount = (BigDecimal) row[4];
+
+            if (monthCount == 0) continue;
+            BigDecimal avgCurrent = totalAmount.divide(BigDecimal.valueOf(monthCount), 10, RoundingMode.HALF_UP);
+
+            Object[] prevRow = previousMap.get(categoryId);
+            if (prevRow == null) {
+                continue;
+            }
+            long prevMonthCount = (Long) prevRow[3];
+            if (prevMonthCount == 0) continue;
+            BigDecimal prevTotalAmount = (BigDecimal) prevRow[4];
+            BigDecimal avgPrevious = prevTotalAmount.divide(BigDecimal.valueOf(prevMonthCount), 10, RoundingMode.HALF_UP);
+
+            if (avgPrevious.compareTo(BigDecimal.ZERO) == 0) {
+                continue;
+            }
+
+            BigDecimal changePercent = calculatePercentChange(avgCurrent, avgPrevious);
+            calculated.add(new CategoryCalc(categoryId, name, emoji, avgCurrent, avgPrevious, changePercent));
+        }
+
+        BigDecimal totalAvgCurrent = calculated.stream()
+                .map(CategoryCalc::avgCurrent)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (totalAvgCurrent.compareTo(BigDecimal.ZERO) == 0) {
+            return List.of();
+        }
+
+        return calculated.stream()
+                .map(c -> {
+                    BigDecimal rawWeight = c.avgCurrent()
+                            .divide(totalAvgCurrent, 10, RoundingMode.HALF_UP);
+                    BigDecimal weightPercent = rawWeight
+                            .multiply(BigDecimal.valueOf(100))
+                            .setScale(1, RoundingMode.HALF_UP);
+                    BigDecimal contribution = rawWeight
+                            .multiply(c.changePercent())
+                            .setScale(1, RoundingMode.HALF_UP);
+                    return CategoryInflationDto.builder()
+                            .categoryId(c.categoryId())
+                            .categoryName(c.name())
+                            .emoji(c.emoji())
+                            .avgCurrent(c.avgCurrent().setScale(2, RoundingMode.HALF_UP))
+                            .avgPrevious(c.avgPrevious().setScale(2, RoundingMode.HALF_UP))
+                            .changePercent(c.changePercent())
+                            .weightPercent(weightPercent)
+                            .contribution(contribution)
+                            .build();
+                })
+                .sorted((a, b) -> b.getContribution().abs().compareTo(a.getContribution().abs()))
+                .toList();
     }
 
     @Override

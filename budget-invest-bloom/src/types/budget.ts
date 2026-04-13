@@ -40,6 +40,17 @@ export interface MonthlyMetric {
   amount: number;
 }
 
+export interface CategoryInflation {
+  categoryId: string;
+  categoryName: string;
+  emoji: string;
+  avgCurrent: number;
+  avgPrevious: number;
+  changePercent: number;
+  contribution: number;
+  weightPercent: number;
+}
+
 export interface MetricResponse {
   year: number;
   currentValue: number;
@@ -48,6 +59,7 @@ export interface MetricResponse {
   yearlyAverage: number;
   yearlyMax: number;
   monthlyData: MonthlyMetric[];
+  categoryBreakdown?: CategoryInflation[];
 }
 
 export interface CategoryAnalyticsResponse {

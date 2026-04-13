@@ -17,7 +17,7 @@ import java.util.List;
  */
 @Getter
 @Setter
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -44,4 +44,8 @@ public class MetricResponseDto {
 
     @Schema(description = "Помесячная разбивка (12 записей, для месяцев без данных amount = 0)")
     private List<MonthlyMetricDto> monthlyData;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @Schema(description = "Разбивка инфляции по категориям (только для метрики инфляции)")
+    private List<CategoryInflationDto> categoryBreakdown;
 }

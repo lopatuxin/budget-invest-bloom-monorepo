@@ -120,7 +120,7 @@ const MetricDetails = () => {
           dataKey: 'inflation',
           color: '#EC4899',
           glow: 'rgba(236, 72, 153, 0.3)',
-          description: 'Рост ваших личных расходов в процентах'
+          description: 'Рост ваших средних расходов в месяц по сравнению с прошлым годом. Каждая категория влияет на итог пропорционально своей доле в расходах.'
         };
       default:
         return {
@@ -295,6 +295,36 @@ const MetricDetails = () => {
             </div>
           </CardContent>
         </div>
+
+        {metric === 'inflation' && inflationMetric?.body?.categoryBreakdown && inflationMetric.body.categoryBreakdown.length > 0 && (
+          <div className="glass-card mb-8">
+            <CardHeader>
+              <CardTitle className="text-dashboard-text">Корзина расходов</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {inflationMetric.body.categoryBreakdown.map((cat) => (
+                  <div key={cat.categoryId} className="p-4 rounded-lg bg-white/5 border border-white/10 hover:border-white/20 transition-colors">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-medium text-dashboard-text">
+                        {cat.emoji} {cat.categoryName}
+                      </span>
+                      <span className={`text-sm font-bold ${cat.changePercent > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                        {cat.changePercent > 0 ? '+' : ''}{cat.changePercent}%
+                      </span>
+                    </div>
+                    <div className="text-xs text-dashboard-text-muted mb-1">
+                      {`${cat.avgCurrent.toLocaleString('ru-RU')} ₽/мес → ${cat.avgPrevious.toLocaleString('ru-RU')} ₽/мес`}
+                    </div>
+                    <div className="text-xs" style={{ color: 'rgba(148, 163, 184, 0.6)' }}>
+                      вклад: {cat.contribution > 0 ? '+' : ''}{cat.contribution}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </div>
+        )}
 
         <div className="glass-card">
           <CardHeader>

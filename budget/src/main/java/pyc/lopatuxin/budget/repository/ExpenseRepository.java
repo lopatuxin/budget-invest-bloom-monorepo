@@ -153,6 +153,26 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
     long countByCategoryId(UUID categoryId);
 
     /**
+     * Returns aggregated expense stats per category for a given user and year.
+     * Each result element: [categoryId (UUID), name (String), emoji (String), monthCount (Long), totalAmount (BigDecimal)].
+     *
+     * @param userId identifier of the user
+     * @param year   calendar year
+     * @return list of arrays with category stats
+     */
+    @Query("""
+            SELECT e.category.id, e.category.name, e.category.emoji, COUNT(DISTINCT MONTH(e.date)), SUM(e.amount)
+            FROM Expense e
+            WHERE e.userId = :userId
+              AND YEAR(e.date) = :year
+            GROUP BY e.category.id, e.category.name, e.category.emoji
+            """)
+    List<Object[]> findCategoryStatsByUserIdAndYear(
+            @Param("userId") UUID userId,
+            @Param("year") int year
+    );
+
+    /**
      * Массово удаляет все расходы указанной категории.
      *
      * @param categoryId идентификатор категории
