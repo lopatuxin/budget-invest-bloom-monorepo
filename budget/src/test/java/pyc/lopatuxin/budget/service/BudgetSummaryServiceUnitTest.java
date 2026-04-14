@@ -7,27 +7,24 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageRequest;
 import pyc.lopatuxin.budget.dto.response.BudgetSummaryResponseDto;
 import pyc.lopatuxin.budget.dto.response.CategorySummaryDto;
-import pyc.lopatuxin.budget.entity.CapitalRecord;
 import pyc.lopatuxin.budget.entity.Category;
-import pyc.lopatuxin.budget.repository.CapitalRecordRepository;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
-import pyc.lopatuxin.budget.repository.IncomeRepository;
+import pyc.lopatuxin.budget.service.PeriodAggregateService.PeriodAggregates;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,13 +36,13 @@ class BudgetSummaryServiceUnitTest {
     private ExpenseRepository expenseRepository;
 
     @Mock
-    private IncomeRepository incomeRepository;
-
-    @Mock
-    private CapitalRecordRepository capitalRecordRepository;
-
-    @Mock
     private CategoryRepository categoryRepository;
+
+    @Mock
+    private PeriodAggregateService periodAggregateService;
+
+    @Mock
+    private CategorySummaryBuilder categorySummaryBuilder;
 
     @InjectMocks
     private BudgetSummaryService budgetSummaryService;
@@ -55,6 +52,9 @@ class BudgetSummaryServiceUnitTest {
     @BeforeEach
     void setUp() {
         userId = UUID.randomUUID();
+        // Default lenient stubs for inflation calculation — return empty lists so inflation = 0
+        lenient().when(expenseRepository.findMonthlyExpenseByUserIdAndYear(eq(userId), anyInt()))
+                .thenReturn(Collections.emptyList());
     }
 
     @Test
@@ -74,57 +74,35 @@ class BudgetSummaryServiceUnitTest {
                 .budget(new BigDecimal("30000.00"))
                 .build();
 
-        CapitalRecord capitalRecord = CapitalRecord.builder()
-                .userId(userId)
-                .amount(new BigDecimal("1200000.00"))
-                .month(month)
-                .year(year)
+        PeriodAggregates current = new PeriodAggregates(start, end,
+                new BigDecimal("150000.00"), new BigDecimal("89500.00"), new BigDecimal("60500.00"));
+        PeriodAggregates prev = new PeriodAggregates(
+                LocalDate.of(year, 2, 1), LocalDate.of(year, 2, 29),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+
+        CategorySummaryDto catDto = CategorySummaryDto.builder()
+                .id(categoryId).name("Продукты").emoji("🛒")
+                .amount(new BigDecimal("25000.00"))
+                .budget(new BigDecimal("30000.00"))
+                .percentUsed(new BigDecimal("83.33"))
                 .build();
 
-        when(incomeRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.of(new BigDecimal("150000.00")));
-        when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.of(new BigDecimal("89500.00")));
-        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, month, year))
-                .thenReturn(Optional.of(capitalRecord));
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year))
-                .thenReturn(List.of(
-                        new Object[]{1, new BigDecimal("89500.00")},
-                        new Object[]{2, new BigDecimal("89500.00")},
-                        new Object[]{3, new BigDecimal("89500.00")}
-                ));
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year - 1))
-                .thenReturn(List.of(
-                        new Object[]{1, new BigDecimal("80000.00")},
-                        new Object[]{2, new BigDecimal("80000.00")},
-                        new Object[]{3, new BigDecimal("80000.00")},
-                        new Object[]{4, new BigDecimal("80000.00")},
-                        new Object[]{5, new BigDecimal("80000.00")},
-                        new Object[]{6, new BigDecimal("80000.00")},
-                        new Object[]{7, new BigDecimal("80000.00")},
-                        new Object[]{8, new BigDecimal("80000.00")},
-                        new Object[]{9, new BigDecimal("80000.00")},
-                        new Object[]{10, new BigDecimal("80000.00")},
-                        new Object[]{11, new BigDecimal("80000.00")},
-                        new Object[]{12, new BigDecimal("80000.00")}
-                ));
+        when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
+        when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
         when(categoryRepository.findByUserId(userId)).thenReturn(List.of(category));
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(List.<Object[]>of(new Object[]{categoryId, new BigDecimal("25000.00")}));
-        stubEmptyPreviousPeriod(2, 2024);
+        when(categorySummaryBuilder.buildCategorySummary(eq(category), any())).thenReturn(catDto);
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
 
         assertThat(result).isNotNull();
         assertThat(result.getIncome()).isEqualByComparingTo(new BigDecimal("150000.00"));
         assertThat(result.getExpenses()).isEqualByComparingTo(new BigDecimal("89500.00"));
-        assertThat(result.getCapital()).isEqualByComparingTo(new BigDecimal("1200000.00"));
         assertThat(result.getCategories()).hasSize(1);
         assertThat(result.getCategories().getFirst().getPercentUsed()).isEqualByComparingTo(new BigDecimal("83.33"));
 
-        verify(incomeRepository).sumAmountByUserIdAndDateBetween(userId, start, end);
-        verify(expenseRepository).sumAmountByUserIdAndDateBetween(userId, start, end);
-        verify(capitalRecordRepository).findByUserIdAndMonthAndYear(userId, month, year);
+        verify(periodAggregateService).buildPeriodAggregates(userId, month, year);
         verify(categoryRepository).findByUserId(userId);
         verify(expenseRepository).sumAmountByCategoryForUserAndDateBetween(userId, start, end);
     }
@@ -137,27 +115,23 @@ class BudgetSummaryServiceUnitTest {
         LocalDate start = LocalDate.of(year, month, 1);
         LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
 
-        when(incomeRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.empty());
-        when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, month, year))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
-                .thenReturn(Collections.emptyList());
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year))
-                .thenReturn(Collections.emptyList());
+        PeriodAggregates current = new PeriodAggregates(start, end,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+        PeriodAggregates prev = new PeriodAggregates(
+                LocalDate.of(year, 4, 1), LocalDate.of(year, 4, 30),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+
+        when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
+        when(periodAggregateService.buildPeriodAggregates(userId, 4, year)).thenReturn(prev);
         when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
-        stubEmptyPreviousPeriod(4, 2024);
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
 
         assertThat(result.getIncome()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.getExpenses()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.getBalance()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(result.getCapital()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.getPersonalInflation()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.getTrends().getIncome()).isEqualTo("+0.0%");
         assertThat(result.getTrends().getExpenses()).isEqualTo("+0.0%");
@@ -172,20 +146,17 @@ class BudgetSummaryServiceUnitTest {
         LocalDate start = LocalDate.of(year, month, 1);
         LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
 
-        when(incomeRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.of(new BigDecimal("150000")));
-        when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.of(new BigDecimal("89500")));
-        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, month, year))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
-                .thenReturn(Collections.emptyList());
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year))
-                .thenReturn(Collections.emptyList());
+        PeriodAggregates current = new PeriodAggregates(start, end,
+                new BigDecimal("150000"), new BigDecimal("89500"), new BigDecimal("60500"));
+        PeriodAggregates prev = new PeriodAggregates(
+                LocalDate.of(year, 5, 1), LocalDate.of(year, 5, 31),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+
+        when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
+        when(periodAggregateService.buildPeriodAggregates(userId, 5, year)).thenReturn(prev);
         when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
-        stubEmptyPreviousPeriod(5, 2024);
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
 
@@ -203,14 +174,15 @@ class BudgetSummaryServiceUnitTest {
         LocalDate start = LocalDate.of(year, month, 1);
         LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
 
-        when(incomeRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.empty());
-        when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, month, year))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
-                .thenReturn(Collections.emptyList());
+        PeriodAggregates current = new PeriodAggregates(start, end,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+        PeriodAggregates prev = new PeriodAggregates(
+                LocalDate.of(year, 2, 1), LocalDate.of(year, 2, 29),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+
+        when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
+        when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
+        // Override default lenient stub for the specific years needed
         when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year))
                 .thenReturn(List.of(
                         new Object[]{1, new BigDecimal("33000")},
@@ -235,7 +207,6 @@ class BudgetSummaryServiceUnitTest {
         when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
-        stubEmptyPreviousPeriod(2, 2024);
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
 
@@ -251,28 +222,17 @@ class BudgetSummaryServiceUnitTest {
         LocalDate start = LocalDate.of(year, month, 1);
         LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
 
-        LocalDate prevStart = LocalDate.of(year, 3, 1);
-        LocalDate prevEnd = prevStart.withDayOfMonth(prevStart.lengthOfMonth());
+        PeriodAggregates current = new PeriodAggregates(start, end,
+                new BigDecimal("108200"), BigDecimal.ZERO, new BigDecimal("108200"));
+        PeriodAggregates prev = new PeriodAggregates(
+                LocalDate.of(year, 3, 1), LocalDate.of(year, 3, 31),
+                new BigDecimal("100000"), BigDecimal.ZERO, new BigDecimal("100000"));
 
-        when(incomeRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.of(new BigDecimal("108200")));
-        when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, month, year))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
-                .thenReturn(Collections.emptyList());
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year))
-                .thenReturn(Collections.emptyList());
+        when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
+        when(periodAggregateService.buildPeriodAggregates(userId, 3, year)).thenReturn(prev);
         when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
-        when(incomeRepository.sumAmountByUserIdAndDateBetween(userId, prevStart, prevEnd))
-                .thenReturn(Optional.of(new BigDecimal("100000")));
-        when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, prevStart, prevEnd))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, 3, 2024))
-                .thenReturn(Optional.empty());
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
 
@@ -288,28 +248,17 @@ class BudgetSummaryServiceUnitTest {
         LocalDate start = LocalDate.of(year, month, 1);
         LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
 
-        LocalDate prevStart = LocalDate.of(year, 3, 1);
-        LocalDate prevEnd = prevStart.withDayOfMonth(prevStart.lengthOfMonth());
+        PeriodAggregates current = new PeriodAggregates(start, end,
+                BigDecimal.ZERO, new BigDecimal("87210"), new BigDecimal("-87210"));
+        PeriodAggregates prev = new PeriodAggregates(
+                LocalDate.of(year, 3, 1), LocalDate.of(year, 3, 31),
+                BigDecimal.ZERO, new BigDecimal("90000"), new BigDecimal("-90000"));
 
-        when(incomeRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.empty());
-        when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.of(new BigDecimal("87210")));
-        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, month, year))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
-                .thenReturn(Collections.emptyList());
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year))
-                .thenReturn(Collections.emptyList());
+        when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
+        when(periodAggregateService.buildPeriodAggregates(userId, 3, year)).thenReturn(prev);
         when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
-        when(incomeRepository.sumAmountByUserIdAndDateBetween(userId, prevStart, prevEnd))
-                .thenReturn(Optional.empty());
-        when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, prevStart, prevEnd))
-                .thenReturn(Optional.of(new BigDecimal("90000")));
-        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, 3, 2024))
-                .thenReturn(Optional.empty());
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
 
@@ -324,20 +273,17 @@ class BudgetSummaryServiceUnitTest {
         LocalDate start = LocalDate.of(year, month, 1);
         LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
 
-        when(incomeRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.of(new BigDecimal("50000")));
-        when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.of(new BigDecimal("30000")));
-        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, month, year))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
-                .thenReturn(Collections.emptyList());
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year))
-                .thenReturn(Collections.emptyList());
+        PeriodAggregates current = new PeriodAggregates(start, end,
+                new BigDecimal("50000"), new BigDecimal("30000"), new BigDecimal("20000"));
+        PeriodAggregates prev = new PeriodAggregates(
+                LocalDate.of(year, 6, 1), LocalDate.of(year, 6, 30),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+
+        when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
+        when(periodAggregateService.buildPeriodAggregates(userId, 6, year)).thenReturn(prev);
         when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
-        stubEmptyPreviousPeriod(6, 2024);
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
 
@@ -361,23 +307,30 @@ class BudgetSummaryServiceUnitTest {
                 .budget(new BigDecimal("30000"))
                 .build();
 
-        when(incomeRepository.sumAmountByUserIdAndDateBetween(any(), any(), any())).thenReturn(Optional.empty());
-        when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, month, year))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
-                .thenReturn(Collections.emptyList());
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(any(), anyInt())).thenReturn(Collections.emptyList());
+        CategorySummaryDto catDto = CategorySummaryDto.builder()
+                .id(categoryId).name("Продукты")
+                .amount(new BigDecimal("25000"))
+                .budget(new BigDecimal("30000"))
+                .percentUsed(new BigDecimal("83.33"))
+                .build();
+
+        PeriodAggregates current = new PeriodAggregates(start, end,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+        PeriodAggregates prev = new PeriodAggregates(
+                LocalDate.of(year, 2, 1), LocalDate.of(year, 2, 29),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+
+        when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
+        when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
         when(categoryRepository.findByUserId(userId)).thenReturn(List.of(category));
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(List.<Object[]>of(new Object[]{categoryId, new BigDecimal("25000")}));
-        stubEmptyPreviousPeriod(2, 2024);
+        when(categorySummaryBuilder.buildCategorySummary(eq(category), any())).thenReturn(catDto);
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
 
-        CategorySummaryDto catDto = result.getCategories().getFirst();
-        assertThat(catDto.getPercentUsed()).isEqualByComparingTo(new BigDecimal("83.33"));
+        CategorySummaryDto resultCat = result.getCategories().getFirst();
+        assertThat(resultCat.getPercentUsed()).isEqualByComparingTo(new BigDecimal("83.33"));
     }
 
     @Test
@@ -396,18 +349,25 @@ class BudgetSummaryServiceUnitTest {
                 .budget(new BigDecimal("10000"))
                 .build();
 
-        when(incomeRepository.sumAmountByUserIdAndDateBetween(any(), any(), any())).thenReturn(Optional.empty());
-        when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, month, year))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
-                .thenReturn(Collections.emptyList());
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(any(), anyInt())).thenReturn(Collections.emptyList());
+        CategorySummaryDto catDto = CategorySummaryDto.builder()
+                .id(categoryId).name("Развлечения")
+                .amount(new BigDecimal("15000"))
+                .budget(new BigDecimal("10000"))
+                .percentUsed(new BigDecimal("100.00"))
+                .build();
+
+        PeriodAggregates current = new PeriodAggregates(start, end,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+        PeriodAggregates prev = new PeriodAggregates(
+                LocalDate.of(year, 2, 1), LocalDate.of(year, 2, 29),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+
+        when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
+        when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
         when(categoryRepository.findByUserId(userId)).thenReturn(List.of(category));
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(List.<Object[]>of(new Object[]{categoryId, new BigDecimal("15000")}));
-        stubEmptyPreviousPeriod(2, 2024);
+        when(categorySummaryBuilder.buildCategorySummary(eq(category), any())).thenReturn(catDto);
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
 
@@ -431,18 +391,25 @@ class BudgetSummaryServiceUnitTest {
                 .budget(BigDecimal.ZERO)
                 .build();
 
-        when(incomeRepository.sumAmountByUserIdAndDateBetween(any(), any(), any())).thenReturn(Optional.empty());
-        when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, month, year))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
-                .thenReturn(Collections.emptyList());
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(any(), anyInt())).thenReturn(Collections.emptyList());
+        CategorySummaryDto catDto = CategorySummaryDto.builder()
+                .id(categoryId).name("Прочее")
+                .amount(new BigDecimal("5000"))
+                .budget(BigDecimal.ZERO)
+                .percentUsed(BigDecimal.ZERO)
+                .build();
+
+        PeriodAggregates current = new PeriodAggregates(start, end,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+        PeriodAggregates prev = new PeriodAggregates(
+                LocalDate.of(year, 2, 1), LocalDate.of(year, 2, 29),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+
+        when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
+        when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
         when(categoryRepository.findByUserId(userId)).thenReturn(List.of(category));
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(List.<Object[]>of(new Object[]{categoryId, new BigDecimal("5000")}));
-        stubEmptyPreviousPeriod(2, 2024);
+        when(categorySummaryBuilder.buildCategorySummary(eq(category), any())).thenReturn(catDto);
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
 
@@ -453,37 +420,23 @@ class BudgetSummaryServiceUnitTest {
     @Test
     @DisplayName("Должен корректно рассчитать тренд при переходе через год (январь → декабрь прошлого года)")
     void shouldCalculateTrendCorrectlyWhenCrossingYearBoundary() {
-        // Запрос за январь 2024 → предыдущий период декабрь 2023
         // trend income = (100000 - 80000) / 80000 * 100 = +25.0%
         int month = 1;
         int year = 2024;
         LocalDate start = LocalDate.of(year, month, 1);
         LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
 
-        LocalDate prevStart = LocalDate.of(2023, 12, 1);
-        LocalDate prevEnd = prevStart.withDayOfMonth(prevStart.lengthOfMonth());
+        PeriodAggregates current = new PeriodAggregates(start, end,
+                new BigDecimal("100000"), BigDecimal.ZERO, new BigDecimal("100000"));
+        PeriodAggregates prev = new PeriodAggregates(
+                LocalDate.of(2023, 12, 1), LocalDate.of(2023, 12, 31),
+                new BigDecimal("80000"), BigDecimal.ZERO, new BigDecimal("80000"));
 
-        when(incomeRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.of(new BigDecimal("100000")));
-        when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, 1, 2024))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
-                .thenReturn(Collections.emptyList());
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, 2024))
-                .thenReturn(Collections.emptyList());
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, 2023))
-                .thenReturn(Collections.emptyList());
+        when(periodAggregateService.buildPeriodAggregates(userId, 1, 2024)).thenReturn(current);
+        when(periodAggregateService.buildPeriodAggregates(userId, 12, 2023)).thenReturn(prev);
         when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
-        when(incomeRepository.sumAmountByUserIdAndDateBetween(userId, prevStart, prevEnd))
-                .thenReturn(Optional.of(new BigDecimal("80000")));
-        when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, prevStart, prevEnd))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, 12, 2023))
-                .thenReturn(Optional.empty());
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
 
@@ -491,47 +444,152 @@ class BudgetSummaryServiceUnitTest {
     }
 
     @Test
-    @DisplayName("Должен использовать последнюю запись капитала, если за текущий месяц запись отсутствует")
-    void shouldUseLatestCapitalRecordWhenCurrentMonthRecordIsAbsent() {
+    @DisplayName("Должен вернуть все категории без ограничения по количеству")
+    void shouldReturnAllCategoriesWithoutLimit() {
         int month = 3;
         int year = 2024;
         LocalDate start = LocalDate.of(year, month, 1);
         LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
 
-        CapitalRecord latestRecord = CapitalRecord.builder()
-                .userId(userId)
-                .amount(new BigDecimal("500000.00"))
-                .month(2)
-                .year(2024)
-                .build();
+        UUID id1 = UUID.randomUUID();
+        UUID id2 = UUID.randomUUID();
+        UUID id3 = UUID.randomUUID();
+        UUID id4 = UUID.randomUUID();
+        UUID id5 = UUID.randomUUID();
+        UUID id6 = UUID.randomUUID();
 
-        when(incomeRepository.sumAmountByUserIdAndDateBetween(any(), any(), any())).thenReturn(Optional.empty());
-        when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, start, end))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, month, year))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findLatestByUserId(eq(userId), any(PageRequest.class)))
-                .thenReturn(List.of(latestRecord));
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(any(), anyInt())).thenReturn(Collections.emptyList());
-        when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
+        List<Category> categories = List.of(
+                Category.builder().id(id1).userId(userId).name("Продукты").budget(BigDecimal.ZERO).build(),
+                Category.builder().id(id2).userId(userId).name("Транспорт").budget(BigDecimal.ZERO).build(),
+                Category.builder().id(id3).userId(userId).name("Кафе").budget(BigDecimal.ZERO).build(),
+                Category.builder().id(id4).userId(userId).name("Здоровье").budget(BigDecimal.ZERO).build(),
+                Category.builder().id(id5).userId(userId).name("Одежда").budget(BigDecimal.ZERO).build(),
+                Category.builder().id(id6).userId(userId).name("Развлечения").budget(BigDecimal.ZERO).build()
+        );
+
+        PeriodAggregates current = new PeriodAggregates(start, end,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+        PeriodAggregates prev = new PeriodAggregates(
+                LocalDate.of(year, 2, 1), LocalDate.of(year, 2, 29),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+
+        when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
+        when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
+        when(categoryRepository.findByUserId(userId)).thenReturn(categories);
         when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
-                .thenReturn(Collections.emptyList());
-        stubEmptyPreviousPeriod(2, 2024);
+                .thenReturn(List.<Object[]>of(
+                        new Object[]{id1, new BigDecimal("1000")},
+                        new Object[]{id2, new BigDecimal("2000")},
+                        new Object[]{id3, new BigDecimal("3000")},
+                        new Object[]{id4, new BigDecimal("4000")},
+                        new Object[]{id5, new BigDecimal("5000")},
+                        new Object[]{id6, new BigDecimal("6000")}
+                ));
+        categories.forEach(cat ->
+                when(categorySummaryBuilder.buildCategorySummary(eq(cat), any()))
+                        .thenReturn(CategorySummaryDto.builder().id(cat.getId()).name(cat.getName())
+                                .amount(BigDecimal.ZERO).budget(BigDecimal.ZERO).percentUsed(BigDecimal.ZERO).build()));
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
 
-        assertThat(result.getCapital()).isEqualByComparingTo(new BigDecimal("500000.00"));
-        verify(capitalRecordRepository).findLatestByUserId(eq(userId), any(PageRequest.class));
+        assertThat(result.getCategories()).hasSize(6);
     }
 
-    private void stubEmptyPreviousPeriod(int prevMonth, int prevYear) {
-        LocalDate prevStart = LocalDate.of(prevYear, prevMonth, 1);
-        LocalDate prevEnd = prevStart.withDayOfMonth(prevStart.lengthOfMonth());
-        when(incomeRepository.sumAmountByUserIdAndDateBetween(userId, prevStart, prevEnd))
-                .thenReturn(Optional.empty());
-        when(expenseRepository.sumAmountByUserIdAndDateBetween(userId, prevStart, prevEnd))
-                .thenReturn(Optional.empty());
-        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, prevMonth, prevYear))
-                .thenReturn(Optional.empty());
+    @Test
+    @DisplayName("Должен вернуть категории отсортированные по убыванию суммы расходов")
+    void shouldReturnCategoriesSortedByAmountDescending() {
+        int month = 3;
+        int year = 2024;
+        LocalDate start = LocalDate.of(year, month, 1);
+        LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
+
+        UUID id1 = UUID.randomUUID();
+        UUID id2 = UUID.randomUUID();
+        UUID id3 = UUID.randomUUID();
+
+        List<Category> categories = List.of(
+                Category.builder().id(id1).userId(userId).name("Малые расходы").budget(BigDecimal.ZERO).build(),
+                Category.builder().id(id2).userId(userId).name("Средние расходы").budget(BigDecimal.ZERO).build(),
+                Category.builder().id(id3).userId(userId).name("Большие расходы").budget(BigDecimal.ZERO).build()
+        );
+
+        PeriodAggregates current = new PeriodAggregates(start, end,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+        PeriodAggregates prev = new PeriodAggregates(
+                LocalDate.of(year, 2, 1), LocalDate.of(year, 2, 29),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+
+        when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
+        when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
+        when(categoryRepository.findByUserId(userId)).thenReturn(categories);
+        when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
+                .thenReturn(List.<Object[]>of(
+                        new Object[]{id1, new BigDecimal("500")},
+                        new Object[]{id2, new BigDecimal("3000")},
+                        new Object[]{id3, new BigDecimal("12000")}
+                ));
+        when(categorySummaryBuilder.buildCategorySummary(eq(categories.get(0)), any()))
+                .thenReturn(CategorySummaryDto.builder().id(id1).name("Малые расходы")
+                        .amount(new BigDecimal("500")).budget(BigDecimal.ZERO).percentUsed(BigDecimal.ZERO).build());
+        when(categorySummaryBuilder.buildCategorySummary(eq(categories.get(1)), any()))
+                .thenReturn(CategorySummaryDto.builder().id(id2).name("Средние расходы")
+                        .amount(new BigDecimal("3000")).budget(BigDecimal.ZERO).percentUsed(BigDecimal.ZERO).build());
+        when(categorySummaryBuilder.buildCategorySummary(eq(categories.get(2)), any()))
+                .thenReturn(CategorySummaryDto.builder().id(id3).name("Большие расходы")
+                        .amount(new BigDecimal("12000")).budget(BigDecimal.ZERO).percentUsed(BigDecimal.ZERO).build());
+
+        BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
+
+        List<CategorySummaryDto> resultCategories = result.getCategories();
+        assertThat(resultCategories).hasSize(3);
+        assertThat(resultCategories.get(0).getAmount()).isEqualByComparingTo(new BigDecimal("12000"));
+        assertThat(resultCategories.get(1).getAmount()).isEqualByComparingTo(new BigDecimal("3000"));
+        assertThat(resultCategories.get(2).getAmount()).isEqualByComparingTo(new BigDecimal("500"));
+    }
+
+    @Test
+    @DisplayName("Должен вернуть все категории, если их 4 или меньше")
+    void shouldReturnAllCategoriesWhenFourOrFewer() {
+        int month = 3;
+        int year = 2024;
+        LocalDate start = LocalDate.of(year, month, 1);
+        LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
+
+        UUID id1 = UUID.randomUUID();
+        UUID id2 = UUID.randomUUID();
+        UUID id3 = UUID.randomUUID();
+        UUID id4 = UUID.randomUUID();
+
+        List<Category> categories = List.of(
+                Category.builder().id(id1).userId(userId).name("Продукты").budget(BigDecimal.ZERO).build(),
+                Category.builder().id(id2).userId(userId).name("Транспорт").budget(BigDecimal.ZERO).build(),
+                Category.builder().id(id3).userId(userId).name("Кафе").budget(BigDecimal.ZERO).build(),
+                Category.builder().id(id4).userId(userId).name("Здоровье").budget(BigDecimal.ZERO).build()
+        );
+
+        PeriodAggregates current = new PeriodAggregates(start, end,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+        PeriodAggregates prev = new PeriodAggregates(
+                LocalDate.of(year, 2, 1), LocalDate.of(year, 2, 29),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+
+        when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
+        when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
+        when(categoryRepository.findByUserId(userId)).thenReturn(categories);
+        when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
+                .thenReturn(List.<Object[]>of(
+                        new Object[]{id1, new BigDecimal("8000")},
+                        new Object[]{id2, new BigDecimal("2000")},
+                        new Object[]{id3, new BigDecimal("5000")},
+                        new Object[]{id4, new BigDecimal("1000")}
+                ));
+        categories.forEach(cat ->
+                when(categorySummaryBuilder.buildCategorySummary(eq(cat), any()))
+                        .thenReturn(CategorySummaryDto.builder().id(cat.getId()).name(cat.getName())
+                                .amount(BigDecimal.ZERO).budget(BigDecimal.ZERO).percentUsed(BigDecimal.ZERO).build()));
+
+        BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
+
+        assertThat(result.getCategories()).hasSize(4);
     }
 }

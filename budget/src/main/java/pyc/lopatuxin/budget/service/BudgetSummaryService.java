@@ -2,31 +2,29 @@ package pyc.lopatuxin.budget.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.budget.dto.common.PeriodDto;
 import pyc.lopatuxin.budget.dto.common.TrendsDto;
 import pyc.lopatuxin.budget.dto.response.BudgetSummaryResponseDto;
 import pyc.lopatuxin.budget.dto.response.CategorySummaryDto;
-import pyc.lopatuxin.budget.entity.CapitalRecord;
 import pyc.lopatuxin.budget.entity.Category;
-import pyc.lopatuxin.budget.repository.CapitalRecordRepository;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
-import pyc.lopatuxin.budget.repository.IncomeRepository;
+import pyc.lopatuxin.budget.service.PeriodAggregateService.PeriodAggregates;
 import pyc.lopatuxin.budget.util.TrendFormatter;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Сервис для формирования агрегированной сводки бюджета пользователя.
+ * Service for building an aggregated budget summary for the budget page.
  */
 @Slf4j
 @Service
@@ -34,49 +32,37 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class BudgetSummaryService {
 
+    private final PeriodAggregateService periodAggregateService;
+    private final CategorySummaryBuilder categorySummaryBuilder;
     private final ExpenseRepository expenseRepository;
-    private final IncomeRepository incomeRepository;
-    private final CapitalRecordRepository capitalRecordRepository;
     private final CategoryRepository categoryRepository;
 
     /**
-     * Формирует агрегированную сводку бюджета за указанный месяц и год.
+     * Builds an aggregated budget summary for the given month and year.
      *
-     * @param userId идентификатор пользователя
-     * @param month  номер месяца (1-12)
-     * @param year   год
-     * @return объект со сводкой бюджета
+     * @param userId identifier of the user
+     * @param month  month number (1-12)
+     * @param year   year
+     * @return budget summary DTO
      */
     public BudgetSummaryResponseDto getSummary(UUID userId, int month, int year) {
         log.debug("Начало формирования сводки бюджета для userId={}, period={}/{}", userId, month, year);
 
-        PeriodAggregates current = buildPeriodAggregates(userId, month, year);
-
-        BigDecimal capital = capitalRecordRepository
-                .findByUserIdAndMonthAndYear(userId, month, year)
-                .map(CapitalRecord::getAmount)
-                .orElseGet(() -> capitalRecordRepository
-                        .findLatestByUserId(userId, PageRequest.of(0, 1))
-                        .stream()
-                        .findFirst()
-                        .map(CapitalRecord::getAmount)
-                        .orElse(BigDecimal.ZERO));
+        PeriodAggregates current = periodAggregateService.buildPeriodAggregates(userId, month, year);
 
         BigDecimal personalInflation = calculatePersonalInflation(userId, month, year);
 
-        TrendsDto trends = calculateTrends(userId, month, year, current.income, current.expenses,
-                current.balance, capital, personalInflation);
+        TrendsDto trends = calculateTrends(userId, month, year, current, personalInflation);
 
-        List<CategorySummaryDto> categories = buildCategorySummaries(userId, current.startDate, current.endDate);
+        List<CategorySummaryDto> categories = buildAllCategorySummaries(userId, current.startDate(), current.endDate());
 
         log.debug("Сводка бюджета сформирована для userId={}, period={}/{}", userId, month, year);
 
         return BudgetSummaryResponseDto.builder()
                 .period(PeriodDto.builder().month(month).year(year).build())
-                .income(current.income)
-                .expenses(current.expenses)
-                .balance(current.balance)
-                .capital(capital)
+                .income(current.income())
+                .expenses(current.expenses())
+                .balance(current.balance())
                 .personalInflation(personalInflation)
                 .trends(trends)
                 .categories(categories)
@@ -84,9 +70,9 @@ public class BudgetSummaryService {
     }
 
     /**
-     * Рассчитывает личную инфляцию как процентное изменение средних месячных расходов
-     * текущего года по сравнению с предыдущим.
-     * Среднее считается по фактическому количеству месяцев с данными, а не по календарным.
+     * Calculates personal inflation as the percentage change in average monthly expenses
+     * of the current year compared to the previous year.
+     * The average is calculated by the actual number of months with data, not calendar months.
      */
     private BigDecimal calculatePersonalInflation(UUID userId, int month, int year) {
         List<Object[]> currentYearMonthly = expenseRepository
@@ -99,11 +85,7 @@ public class BudgetSummaryService {
             return BigDecimal.ZERO;
         }
 
-        BigDecimal currentYearTotal = currentYearUpToMonth.stream()
-                .map(row -> (BigDecimal) row[1])
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal currentYearAvg = currentYearTotal.divide(
-                BigDecimal.valueOf(currentYearUpToMonth.size()), 10, RoundingMode.HALF_UP);
+        BigDecimal currentYearAvg = calculateAverageFromMonthlyRows(currentYearUpToMonth);
 
         List<Object[]> previousYearMonthly = expenseRepository
                 .findMonthlyExpenseByUserIdAndYear(userId, year - 1);
@@ -112,11 +94,7 @@ public class BudgetSummaryService {
             return BigDecimal.ZERO;
         }
 
-        BigDecimal previousYearTotal = previousYearMonthly.stream()
-                .map(row -> (BigDecimal) row[1])
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal previousYearAvg = previousYearTotal.divide(
-                BigDecimal.valueOf(previousYearMonthly.size()), 10, RoundingMode.HALF_UP);
+        BigDecimal previousYearAvg = calculateAverageFromMonthlyRows(previousYearMonthly);
 
         return currentYearAvg.subtract(previousYearAvg)
                 .divide(previousYearAvg, 10, RoundingMode.HALF_UP)
@@ -124,38 +102,37 @@ public class BudgetSummaryService {
                 .setScale(1, RoundingMode.HALF_UP);
     }
 
+    private BigDecimal calculateAverageFromMonthlyRows(List<Object[]> rows) {
+        BigDecimal total = rows.stream()
+                .map(row -> (BigDecimal) row[1])
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return total.divide(BigDecimal.valueOf(rows.size()), 10, RoundingMode.HALF_UP);
+    }
+
     /**
-     * Рассчитывает тренды показателей относительно предыдущего месяца.
+     * Calculates trends of indicators relative to the previous month.
      */
     private TrendsDto calculateTrends(UUID userId, int month, int year,
-                                      BigDecimal currentIncome, BigDecimal currentExpenses,
-                                      BigDecimal balance, BigDecimal capital,
-                                      BigDecimal personalInflation) {
+                                      PeriodAggregates current, BigDecimal personalInflation) {
         int prevMonth = (month == 1) ? 12 : month - 1;
         int prevYear = (month == 1) ? year - 1 : year;
 
-        PeriodAggregates prev = buildPeriodAggregates(userId, prevMonth, prevYear);
-
-        BigDecimal prevCapital = capitalRecordRepository
-                .findByUserIdAndMonthAndYear(userId, prevMonth, prevYear)
-                .map(CapitalRecord::getAmount)
-                .orElse(BigDecimal.ZERO);
+        PeriodAggregates prev = periodAggregateService.buildPeriodAggregates(userId, prevMonth, prevYear);
 
         BigDecimal prevInflation = calculatePersonalInflation(userId, prevMonth, prevYear);
 
         return TrendsDto.builder()
-                .income(TrendFormatter.formatTrend(currentIncome, prev.income()))
-                .expenses(TrendFormatter.formatTrend(currentExpenses, prev.expenses()))
-                .balance(TrendFormatter.formatTrend(balance, prev.balance()))
-                .capital(TrendFormatter.formatTrend(capital, prevCapital))
+                .income(TrendFormatter.formatTrend(current.income(), prev.income()))
+                .expenses(TrendFormatter.formatTrend(current.expenses(), prev.expenses()))
+                .balance(TrendFormatter.formatTrend(current.balance(), prev.balance()))
                 .inflation(TrendFormatter.formatTrend(personalInflation, prevInflation))
                 .build();
     }
 
     /**
-     * Формирует список DTO категорий с расходами за период.
+     * Returns all categories sorted by expense amount descending.
      */
-    private List<CategorySummaryDto> buildCategorySummaries(UUID userId, LocalDate startDate, LocalDate endDate) {
+    private List<CategorySummaryDto> buildAllCategorySummaries(UUID userId, LocalDate startDate, LocalDate endDate) {
         List<Category> categories = categoryRepository.findByUserId(userId);
 
         Map<UUID, BigDecimal> expensesByCategory = expenseRepository
@@ -167,88 +144,8 @@ public class BudgetSummaryService {
                 ));
 
         return categories.stream()
-                .map(category -> buildCategorySummary(category, expensesByCategory))
+                .map(category -> categorySummaryBuilder.buildCategorySummary(category, expensesByCategory))
+                .sorted(Comparator.comparing(CategorySummaryDto::getAmount).reversed())
                 .toList();
-    }
-
-    /**
-     * Строит DTO сводки для одной категории.
-     */
-    private CategorySummaryDto buildCategorySummary(Category category, Map<UUID, BigDecimal> expensesByCategory) {
-        BigDecimal amount = expensesByCategory.getOrDefault(category.getId(), BigDecimal.ZERO);
-        BigDecimal budget = category.getBudget();
-        BigDecimal percentUsed = calculatePercentUsed(amount, budget);
-
-        return CategorySummaryDto.builder()
-                .id(category.getId())
-                .name(category.getName())
-                .emoji(category.getEmoji())
-                .amount(amount)
-                .budget(budget)
-                .percentUsed(percentUsed)
-                .build();
-    }
-
-    /**
-     * Вычисляет процент использования бюджетного лимита.
-     * Результат ограничен значением 100 (перерасход отображается как 100%).
-     * Если бюджет равен нулю — возвращает 0.
-     */
-    private BigDecimal calculatePercentUsed(BigDecimal amount, BigDecimal budget) {
-        if (budget.compareTo(BigDecimal.ZERO) == 0) {
-            return BigDecimal.ZERO;
-        }
-
-        BigDecimal percent = calculatePercent(amount, budget);
-
-        return percent.min(new BigDecimal("100.00"));
-    }
-
-    private BigDecimal calculatePercent(BigDecimal amount, BigDecimal budget) {
-        return amount.divide(budget, 10, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(100))
-                .setScale(2, RoundingMode.HALF_UP);
-    }
-
-    /**
-     * Агрегирует доходы, расходы и баланс за один календарный месяц.
-     * Используется для исключения дублирования при расчёте текущего и предыдущего периодов.
-     *
-     * @param userId идентификатор пользователя
-     * @param month  номер месяца (1-12)
-     * @param year   год
-     * @return объект {@link PeriodAggregates} с границами периода и агрегированными суммами
-     */
-    private PeriodAggregates buildPeriodAggregates(UUID userId, int month, int year) {
-        LocalDate startDate = LocalDate.of(year, month, 1);
-        LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
-
-        BigDecimal income = incomeRepository
-                .sumAmountByUserIdAndDateBetween(userId, startDate, endDate)
-                .orElse(BigDecimal.ZERO);
-
-        BigDecimal expenses = expenseRepository
-                .sumAmountByUserIdAndDateBetween(userId, startDate, endDate)
-                .orElse(BigDecimal.ZERO);
-
-        return new PeriodAggregates(startDate, endDate, income, expenses, income.subtract(expenses));
-    }
-
-    /**
-     * Вспомогательный record для хранения агрегированных данных одного календарного месяца.
-     *
-     * @param startDate первый день периода
-     * @param endDate   последний день периода
-     * @param income    суммарный доход за период
-     * @param expenses  суммарные расходы за период
-     * @param balance   баланс (доходы минус расходы)
-     */
-    private record PeriodAggregates(
-            LocalDate startDate,
-            LocalDate endDate,
-            BigDecimal income,
-            BigDecimal expenses,
-            BigDecimal balance
-    ) {
     }
 }

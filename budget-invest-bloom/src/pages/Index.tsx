@@ -26,7 +26,7 @@ import {
   Area,
 } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
-import { useBudgetSummary } from '@/hooks/useBudgetSummary';
+import { useOverviewSummary } from '@/hooks/useOverviewSummary';
 import { useExpenseMetric } from '@/hooks/useExpenseMetric';
 import { useIncomeMetric } from '@/hooks/useIncomeMetric';
 
@@ -107,7 +107,7 @@ const Index = () => {
   const currentMonth = String(now.getMonth() + 1);
   const currentYear = String(now.getFullYear());
 
-  const { data: summaryResponse, isLoading: summaryLoading } = useBudgetSummary(currentMonth, currentYear, isAuthenticated);
+  const { data: summaryResponse, isLoading: summaryLoading } = useOverviewSummary(currentMonth, currentYear, isAuthenticated);
   const summary = summaryResponse?.body;
 
   const previousYear = String(now.getFullYear() - 1);
@@ -259,7 +259,7 @@ const Index = () => {
     : 0;
 
   // Animated KPI values (count-up from 0)
-  const animCapital = useCountUp(!summaryLoading && summary ? (summary.capital ?? summary.balance) : 0);
+  const animCapital = useCountUp(!summaryLoading && summary ? summary.capital : 0);
   const animExpenses = useCountUp(!summaryLoading && summary ? summary.expenses : 0);
   const animBudget = useCountUp(!summaryLoading && summary ? totalBudget : 0);
   const animSavingsRate = useCountUp(!summaryLoading && summary ? savingsRate : 0);

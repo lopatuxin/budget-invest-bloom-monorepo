@@ -38,9 +38,6 @@ public class BudgetSummaryResponseDto {
     @Schema(description = "Баланс (доходы минус расходы) за месяц", example = "60500.00")
     private BigDecimal balance;
 
-    @Schema(description = "Размер капитала пользователя (из записи CapitalRecord или последней известной)", example = "1200000.00")
-    private BigDecimal capital;
-
     @Schema(description = "Личная инфляция в процентах: отношение средних расходов текущего года к предыдущему", example = "5.3")
     private BigDecimal personalInflation;
 

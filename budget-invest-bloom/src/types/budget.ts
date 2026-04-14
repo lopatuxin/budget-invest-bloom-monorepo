@@ -3,9 +3,24 @@ export interface BudgetSummaryResponse {
   income: number;
   expenses: number;
   balance: number;
-  capital: number;
   personalInflation: number;
   trends: TrendsData;
+  categories: CategorySummary[];
+}
+
+export interface OverviewTrendsData {
+  expenses: string;
+  balance: string;
+  capital: string;
+}
+
+export interface OverviewSummaryResponse {
+  period: { month: number; year: number };
+  income: number;
+  expenses: number;
+  balance: number;
+  capital: number;
+  trends: OverviewTrendsData;
   categories: CategorySummary[];
 }
 
@@ -22,7 +37,6 @@ export interface TrendsData {
   income: string;
   expenses: string;
   balance: string;
-  capital: string;
   inflation: string;
 }
 

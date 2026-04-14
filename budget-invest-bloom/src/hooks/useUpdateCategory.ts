@@ -18,6 +18,7 @@ export function useUpdateCategory() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categoryAnalytics'] });
       queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['overview-summary'] });
     },
   });
 }

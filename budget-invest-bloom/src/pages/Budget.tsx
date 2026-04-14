@@ -168,6 +168,7 @@ const Budget = () => {
 
       setExpenseForm({ amount: '', category: '', description: '' });
       queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['overview-summary'] });
       resetDialog();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Не удалось добавить расход";
@@ -203,6 +204,7 @@ const Budget = () => {
       toast({ title: "Доход добавлен", description: `Добавлен доход ${incomeForm.amount}\u20BD` });
       setIncomeForm({ amount: '', source: '', description: '' });
       queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['overview-summary'] });
       resetDialog();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Не удалось добавить доход";
@@ -239,6 +241,7 @@ const Budget = () => {
 
       setCategoryForm({ name: '', budget: '', emoji: '' });
       queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['overview-summary'] });
       resetDialog();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Не удалось добавить категорию";
