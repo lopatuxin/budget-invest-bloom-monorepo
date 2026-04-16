@@ -44,12 +44,9 @@ const Sidebar = () => {
       style={{ background: 'linear-gradient(to bottom, #0F3547, #0A2A3D)' }}
     >
       {/* Logo */}
-      <div className="px-5 pt-6 pb-4">
-        <Link to="/" className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-            <Wallet className="w-5 h-5 text-emerald-400" />
-          </div>
-          <span className="text-lg font-bold text-emerald-400 tracking-tight">Мои финансы</span>
+      <div className="px-5 pt-0 pb-0 -mt-2 flex justify-center">
+        <Link to="/">
+          <img src="/logo.png" alt="Мои финансы" className="w-full max-w-[160px] h-auto" />
         </Link>
       </div>
 

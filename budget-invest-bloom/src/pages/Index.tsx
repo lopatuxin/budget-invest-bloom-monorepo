@@ -252,16 +252,12 @@ const Index = () => {
   const isChartsLoading = incomeLoading || expenseLoading || incomePrevLoading || expensePrevLoading;
 
   // Derived KPI values
-  const totalBudget = (summary?.categories || []).reduce((sum, cat) => sum + (cat.budget || 0), 0);
-  const budgetUsedPercent = totalBudget > 0 ? Math.min(Math.round((summary?.expenses ?? 0) / totalBudget * 100), 100) : 0;
   const savingsRate = summary && summary.income > 0
     ? Math.max(-99, Math.min(99, Math.round((summary.income - summary.expenses) / summary.income * 100)))
     : 0;
 
   // Animated KPI values (count-up from 0)
   const animCapital = useCountUp(!summaryLoading && summary ? summary.capital : 0);
-  const animExpenses = useCountUp(!summaryLoading && summary ? summary.expenses : 0);
-  const animBudget = useCountUp(!summaryLoading && summary ? totalBudget : 0);
   const animSavingsRate = useCountUp(!summaryLoading && summary ? savingsRate : 0);
   const animPortfolio = useCountUp(2850000);
 
@@ -277,7 +273,6 @@ const Index = () => {
     color: string;
     glow: string;
     sparkline?: number[];
-    progressPercent?: number;
   }
 
   const kpiCards: KpiCard[] = [
@@ -289,15 +284,6 @@ const Index = () => {
       color: '#10B981',
       glow: 'rgba(16, 185, 129, 0.3)',
       sparkline: sparklineData,
-    },
-    {
-      label: 'РАСХОД / БЮДЖЕТ',
-      value: summary ? `${formatCurrency(animExpenses)} / ${formatCurrency(animBudget)}` : '--',
-      trend: summary?.trends?.expenses,
-      icon: ShoppingCart,
-      color: '#F59E0B',
-      glow: 'rgba(245, 158, 11, 0.3)',
-      progressPercent: budgetUsedPercent,
     },
     {
       label: 'НОРМА СБЕРЕЖЕНИЙ',
@@ -327,13 +313,12 @@ const Index = () => {
   return (
     <div className="space-y-6 pb-6">
       {/* KPI Cards */}
-      <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:grid lg:grid-cols-2 xl:grid-cols-4 lg:gap-5 lg:overflow-visible lg:pb-0 hide-scrollbar">
+      <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:pb-0 hide-scrollbar">
         {summaryLoading
-          ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[130px] min-w-[260px] snap-start lg:min-w-0" />)
+          ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-[130px] min-w-[260px] snap-start lg:min-w-0" />)
           : kpiCards.map((card, index) => {
               const Icon = card.icon;
               const trend = parseTrend(card.trend);
-              const hasProgress = card.progressPercent != null;
               const hasSparkline = card.sparkline && card.sparkline.length > 1;
               const isNegativeTrend = trend && !trend.isPositive;
 
@@ -390,25 +375,6 @@ const Index = () => {
                       </div>
                     </div>
                   </div>
-                  {/* Progress bar for budget card */}
-                  {hasProgress && (
-                    <div className="mt-3">
-                      <div className="flex justify-between text-[10px] text-dashboard-text-muted mb-1">
-                        <span>Использовано</span>
-                        <span className="font-mono">{card.progressPercent}%</span>
-                      </div>
-                      <div className="w-full bg-white/5 rounded-full h-1.5">
-                        <div
-                          className="h-1.5 rounded-full animate-progress-grow"
-                          style={{
-                            width: `${card.progressPercent}%`,
-                            backgroundColor: (card.progressPercent ?? 0) > 80 ? DANGER_COLOR : card.color,
-                            animationDelay: '300ms',
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })}
