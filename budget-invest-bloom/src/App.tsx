@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import HealthGate from "@/components/HealthGate";
@@ -41,11 +41,13 @@ const ErrorFallback = ({ resetError }: { resetError: () => void }) => (
 
 const AppLayout = () => {
   const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  const isAuthPage = ['/login', '/register', '/forgot-password'].includes(location.pathname);
 
   if (!isAuthenticated) {
     return (
       <div className="dashboard-bg">
-        <Navigation />
+        {!isAuthPage && <Navigation />}
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/budget" element={<Budget />} />

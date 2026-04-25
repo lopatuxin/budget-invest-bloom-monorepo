@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.auth.config.JwtConfig;
@@ -23,9 +22,9 @@ import pyc.lopatuxin.auth.exception.RefreshTokenReusedException;
 import pyc.lopatuxin.auth.repository.RefreshTokenRepository;
 import pyc.lopatuxin.auth.repository.UserRepository;
 import pyc.lopatuxin.auth.util.RefreshTokenCookieHelper;
+import pyc.lopatuxin.auth.util.RefreshTokenHasher;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -37,7 +36,7 @@ public class RefreshTokenService {
     private final UserRepository userRepository;
     private final JwtService jwtService;
     private final RefreshTokenCookieHelper cookieHelper;
-    private final PasswordEncoder tokenEncoder;
+    private final RefreshTokenHasher tokenHasher;
     private final JwtConfig jwtConfig;
 
     @Transactional
@@ -117,11 +116,9 @@ public class RefreshTokenService {
 
     @Nullable
     public RefreshToken findValidToken(String token, User user) {
-        List<RefreshToken> activeTokens = refreshTokenRepository.findActiveTokensByUser(user, LocalDateTime.now());
-
-        return activeTokens.stream()
-                .filter(refreshToken -> tokenEncoder.matches(token, refreshToken.getTokenHash()))
-                .findFirst()
+        String tokenHash = tokenHasher.hash(token);
+        return refreshTokenRepository
+                .findActiveByUserAndTokenHash(user, tokenHash, LocalDateTime.now())
                 .orElse(null);
     }
 
@@ -152,7 +149,7 @@ public class RefreshTokenService {
     }
 
     public void createRefreshToken(User user, String token, String userAgent, String ipAddress) {
-        String tokenHash = tokenEncoder.encode(token);
+        String tokenHash = tokenHasher.hash(token);
 
         LocalDateTime expiresAt = LocalDateTime.now()
                 .plusSeconds(jwtConfig.getRefreshTokenExpiration() / 1000);

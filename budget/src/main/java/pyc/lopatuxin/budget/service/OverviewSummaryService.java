@@ -18,6 +18,7 @@ import pyc.lopatuxin.budget.service.PeriodAggregateService.PeriodAggregates;
 import pyc.lopatuxin.budget.util.TrendFormatter;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
@@ -55,6 +56,8 @@ public class OverviewSummaryService {
 
         PeriodAggregates current = periodAggregateService.buildPeriodAggregates(userId, month, year);
 
+        int savingsRate = calculateSavingsRate(current.income(), current.expenses());
+
         BigDecimal capital = resolveCapital(userId, month, year);
 
         TrendsDto trends = calculateOverviewTrends(userId, month, year, current, capital);
@@ -71,6 +74,7 @@ public class OverviewSummaryService {
                 .capital(capital)
                 .trends(trends)
                 .categories(categories)
+                .savingsRate(savingsRate)
                 .build();
     }
 
@@ -103,6 +107,22 @@ public class OverviewSummaryService {
                 .balance(TrendFormatter.formatTrend(current.balance(), prev.balance()))
                 .capital(TrendFormatter.formatTrend(capital, prevCapital))
                 .build();
+    }
+
+    /**
+     * Calculates savings rate as (income - expenses) / income * 100, clamped to [-99, 99].
+     * Returns 0 if income is null or non-positive.
+     */
+    private int calculateSavingsRate(BigDecimal income, BigDecimal expenses) {
+        if (income == null || income.signum() <= 0) {
+            return 0;
+        }
+        int raw = income.subtract(expenses)
+                .divide(income, 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100))
+                .setScale(0, RoundingMode.HALF_UP)
+                .intValueExact();
+        return Math.clamp(raw, -99, 99);
     }
 
     private List<CategorySummaryDto> buildTopCategorySummaries(UUID userId, LocalDate startDate, LocalDate endDate) {

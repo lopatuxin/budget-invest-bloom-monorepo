@@ -7,8 +7,7 @@ import { Label } from '@/components/ui/label';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { LogIn, Mail, Lock, Eye, EyeOff } from 'lucide-react';
-import * as React from "react";
+import { LogIn, Eye, EyeOff, Mail, Lock } from 'lucide-react';
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -140,28 +139,28 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4">
-      <div className="glass-card w-full max-w-md p-0">
-        <CardHeader className="text-center">
-          <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center mx-auto mb-4">
+    <div className="dashboard-bg min-h-screen flex items-center justify-center p-4">
+      <div className="glass-card w-full max-w-md p-0 animate-fade-slide-up" style={{ borderLeft: '3px solid #10B981' }}>
+        <CardHeader className="text-center pt-8">
+          <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center mx-auto mb-4 border border-emerald-500/20" style={{ boxShadow: '0 0 20px rgba(16,185,129,0.25)' }}>
             <LogIn className="w-6 h-6 text-emerald-400" />
           </div>
-          <CardTitle className="text-2xl font-bold text-dashboard-text">Добро пожаловать</CardTitle>
+          <CardTitle className="text-2xl font-bold text-emerald-400">Добро пожаловать</CardTitle>
           <CardDescription className="text-dashboard-text-muted">
             Войдите в свой аккаунт для продолжения
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pb-8">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-dashboard-text">Email</Label>
+              <Label htmlFor="email" className="text-dashboard-text-muted">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-dashboard-text-muted" />
                 <Input
                   id="email"
                   type="email"
                   placeholder="your@email.com"
-                  className="pl-10 bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
+                  className="pl-10 text-dashboard-text placeholder:text-dashboard-text-muted focus:border-emerald-500/50 transition-colors"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   required
@@ -170,14 +169,14 @@ const Login = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-dashboard-text">Пароль</Label>
+              <Label htmlFor="password" className="text-dashboard-text-muted">Пароль</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-dashboard-text-muted" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Введите пароль"
-                  className="pl-10 pr-10 bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
+                  className="pl-10 pr-10 text-dashboard-text placeholder:text-dashboard-text-muted focus:border-emerald-500/50 transition-colors"
                   value={formData.password}
                   onChange={(e) => handleInputChange('password', e.target.value)}
                   required
@@ -186,13 +185,13 @@ const Login = () => {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-dashboard-text-muted hover:text-dashboard-text"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-dashboard-text-muted" />
+                    <EyeOff className="h-4 w-4" />
                   ) : (
-                    <Eye className="h-4 w-4 text-dashboard-text-muted" />
+                    <Eye className="h-4 w-4" />
                   )}
                 </Button>
               </div>
@@ -203,16 +202,16 @@ const Login = () => {
                 id="rememberMe"
                 checked={formData.rememberMe}
                 onCheckedChange={(checked) => handleInputChange('rememberMe', checked as boolean)}
-                className="border-white/20 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                className="border-dashboard-text-muted/40 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
               />
-              <Label htmlFor="rememberMe" className="text-sm font-normal text-dashboard-text-muted">
+              <Label htmlFor="rememberMe" className="text-sm font-normal text-dashboard-text-muted cursor-pointer">
                 Запомнить меня
               </Label>
             </div>
 
             <Button
               type="submit"
-              className="w-full btn-cta"
+              className="w-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 rounded-xl transition-colors h-10"
               disabled={isLoading}
             >
               {isLoading ? "Вход..." : "Войти"}
@@ -222,16 +221,16 @@ const Login = () => {
           <div className="mt-4 text-center">
             <Link
               to="/forgot-password"
-              className="text-sm text-emerald-400 hover:underline"
+              className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors hover:underline"
             >
               Забыли пароль?
             </Link>
           </div>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center border-t border-white/10 pt-6">
             <p className="text-sm text-dashboard-text-muted">
               Нет аккаунта?{' '}
-              <Link to="/register" className="text-emerald-400 font-medium hover:underline">
+              <Link to="/register" className="text-emerald-400 font-medium hover:text-emerald-300 transition-colors hover:underline">
                 Зарегистрироваться
               </Link>
             </p>

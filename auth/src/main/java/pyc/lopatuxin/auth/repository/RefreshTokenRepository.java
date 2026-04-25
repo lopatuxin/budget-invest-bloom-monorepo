@@ -14,14 +14,6 @@ import java.util.UUID;
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID> {
 
     /**
-     * Поиск токена по хэшу
-     *
-     * @param tokenHash хэш токена
-     * @return токен если найден
-     */
-    Optional<RefreshToken> findByTokenHash(String tokenHash);
-
-    /**
      * Поиск всех активных токенов пользователя
      *
      * @param user пользователь
@@ -34,6 +26,24 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
                 AND rt.expiresAt > :now
             """)
     List<RefreshToken> findActiveTokensByUser(User user, LocalDateTime now);
+
+    /**
+     * Finds a single active refresh token by user and exact token hash.
+     * Uses index on (user_id, token_hash) — O(1) instead of full scan.
+     *
+     * @param user      token owner
+     * @param tokenHash HMAC-SHA256 hex hash of the raw token
+     * @param now       current timestamp for expiry check
+     * @return matching active token if present
+     */
+    @Query("""
+            FROM RefreshToken rt
+                WHERE rt.user = :user
+                AND rt.tokenHash = :tokenHash
+                AND rt.isUsed = false
+                AND rt.expiresAt > :now
+            """)
+    Optional<RefreshToken> findActiveByUserAndTokenHash(User user, String tokenHash, LocalDateTime now);
 
     /**
      * Удаление всех токенов пользователя

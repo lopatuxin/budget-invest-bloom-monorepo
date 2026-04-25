@@ -164,36 +164,52 @@ export async function apiRequest<T = unknown>(
   }
 }
 
+// Single-flight guard: all concurrent 401 handlers share one pending refresh promise
+let refreshPromise: Promise<boolean> | null = null;
+
 /**
- * Обновляет access токен используя refresh токен из Cookie
+ * Обновляет access токен используя refresh токен из Cookie.
+ * Использует single-flight: параллельные вызовы получают один и тот же Promise,
+ * чтобы не отправлять несколько запросов /auth/api/refresh одновременно.
  * @returns true если токен успешно обновлён, false если нет
  */
 async function refreshAccessToken(): Promise<boolean> {
-  try {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/api/refresh`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include', // Важно: отправляем cookie с refreshToken
-    });
+  if (refreshPromise !== null) {
+    return refreshPromise;
+  }
 
-    if (!response.ok) {
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/api/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Важно: отправляем cookie с refreshToken
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const data = await response.json();
+      const { accessToken } = data.body;
+
+      // Сохраняем новый accessToken
+      // refreshToken автоматически обновляется через Set-Cookie
+      localStorage.setItem('accessToken', accessToken);
+
+      return true;
+    } catch (error) {
+      console.error('Token refresh failed:', error);
       return false;
     }
+  })().finally(() => {
+    // Reset so the next 401 can initiate a fresh refresh
+    refreshPromise = null;
+  });
 
-    const data = await response.json();
-    const { accessToken } = data.body;
-
-    // Сохраняем новый accessToken
-    // refreshToken автоматически обновляется через Set-Cookie
-    localStorage.setItem('accessToken', accessToken);
-
-    return true;
-  } catch (error) {
-    console.error('Token refresh failed:', error);
-    return false;
-  }
+  return refreshPromise;
 }
 
 // Вспомогательные функции для разных HTTP методов

@@ -265,3 +265,13 @@
     animation: none;
   }
 }
+
+/* Browser autofill fix: keep input's translucent background instead of browser's yellow/white */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  transition: background-color 99999s ease-in-out 0s;
+  -webkit-text-fill-color: #d6e3fa !important;
+  caret-color: #d6e3fa;
+}

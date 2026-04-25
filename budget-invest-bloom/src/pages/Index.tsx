@@ -10,6 +10,7 @@ import {
   PieChart as LucidePieChart,
 } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
+import SavingsRateGauge from '@/components/dashboard/SavingsRateGauge';
 import {
   BarChart,
   Bar,
@@ -251,14 +252,9 @@ const Index = () => {
 
   const isChartsLoading = incomeLoading || expenseLoading || incomePrevLoading || expensePrevLoading;
 
-  // Derived KPI values
-  const savingsRate = summary && summary.income > 0
-    ? Math.max(-99, Math.min(99, Math.round((summary.income - summary.expenses) / summary.income * 100)))
-    : 0;
-
   // Animated KPI values (count-up from 0)
   const animCapital = useCountUp(!summaryLoading && summary ? summary.capital : 0);
-  const animSavingsRate = useCountUp(!summaryLoading && summary ? savingsRate : 0);
+  const animSavingsRate = useCountUp(!summaryLoading && summary ? summary.savingsRate : 0);
   const animPortfolio = useCountUp(2850000);
 
   // Sparkline data for capital card: last 6 months from rolling window
@@ -375,6 +371,9 @@ const Index = () => {
                       </div>
                     </div>
                   </div>
+                  {card.label === 'НОРМА СБЕРЕЖЕНИЙ' && summary && (
+                    <SavingsRateGauge value={summary.savingsRate} />
+                  )}
                 </div>
               );
             })}

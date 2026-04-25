@@ -20,6 +20,7 @@ export interface OverviewSummaryResponse {
   expenses: number;
   balance: number;
   capital: number;
+  savingsRate: number;
   trends: OverviewTrendsData;
   categories: CategorySummary[];
 }

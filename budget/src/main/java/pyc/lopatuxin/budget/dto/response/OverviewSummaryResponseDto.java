@@ -46,4 +46,7 @@ public class OverviewSummaryResponseDto {
 
     @Schema(description = "Top categories by expense amount with usage percentage")
     private List<CategorySummaryDto> categories;
+
+    @Schema(description = "Savings rate in percent (income-expenses)/income*100, clamped to [-99, 99]", example = "35")
+    private Integer savingsRate;
 }

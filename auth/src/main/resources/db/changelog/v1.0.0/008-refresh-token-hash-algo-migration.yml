@@ -1,0 +1,33 @@
+databaseChangeLog:
+  - changeSet:
+      id: 008-invalidate-pbkdf2-refresh-tokens
+      author: system
+      comment: >
+        Invalidate all existing refresh tokens — PBKDF2 hashes are incompatible
+        with the new HMAC-SHA256 algorithm. Users will need to re-login once.
+      changes:
+        - sql:
+            sql: DELETE FROM refresh_tokens;
+      rollback:
+        - sql:
+            sql: "-- no rollback for data deletion"
+
+  - changeSet:
+      id: 008-idx-refresh-tokens-user-token-hash
+      author: system
+      comment: >
+        Composite index on (user_id, token_hash) enables O(1) lookup
+        by exact hash instead of a full active-tokens scan.
+      changes:
+        - createIndex:
+            indexName: idx_refresh_tokens_user_token_hash
+            tableName: refresh_tokens
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: token_hash
+      rollback:
+        - dropIndex:
+            indexName: idx_refresh_tokens_user_token_hash
+            tableName: refresh_tokens

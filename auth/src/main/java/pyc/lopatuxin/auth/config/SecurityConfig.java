@@ -8,7 +8,6 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.crypto.password.Pbkdf2PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
@@ -50,16 +49,6 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
-    }
-
-    /**
-     * Encoder для хэширования токенов с использованием PBKDF2
-     * BCrypt не подходит для токенов, так как имеет ограничение в 72 байта
-     * PBKDF2 - безопасный алгоритм с солью, рекомендуемый для хеширования токенов
-     */
-    @Bean
-    public PasswordEncoder tokenEncoder() {
-        return Pbkdf2PasswordEncoder.defaultsForSpringSecurity_v5_8();
     }
 
     /**

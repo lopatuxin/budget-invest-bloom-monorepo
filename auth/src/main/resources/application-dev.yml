@@ -44,6 +44,10 @@ jwt:
     same-site: Lax  # Менее строгая политика для разработки
     path: /auth  # Базовый путь приложения
 
+auth:
+  refresh-token:
+    pepper: ${AUTH_REFRESH_TOKEN_PEPPER:ZGV2LXBlcHBlci1mb3ItcmVmcmVzaC10b2tlbnMtMzJieXRlcw==}
+
 logging:
   level:
     pyc.lopatuxin.auth: DEBUG

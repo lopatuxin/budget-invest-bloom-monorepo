@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Wallet, TrendingUp, Menu, X, UserPlus } from 'lucide-react';
+import { Home, Wallet, TrendingUp, Menu, X, UserPlus, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -50,9 +50,10 @@ const Navigation = () => {
             ))}
             <div className="flex items-center space-x-2">
               <Link to="/login">
-                <Button variant="ghost" size="sm" className="text-dashboard-text-muted hover:text-dashboard-text hover:bg-white/5">
+                <button className="inline-flex items-center text-sm font-medium px-3 py-1.5 bg-white/5 text-dashboard-text-muted border border-white/10 hover:bg-white/10 hover:text-dashboard-text rounded-xl transition-colors">
+                  <LogIn className="w-4 h-4 mr-2" />
                   Войти
-                </Button>
+                </button>
               </Link>
               <Link to="/register">
                 <button className="inline-flex items-center text-sm font-medium px-3 py-1.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 rounded-xl transition-colors">
@@ -99,9 +100,10 @@ const Navigation = () => {
               <div className="px-3 py-2 border-t border-white/10 mt-2 pt-2">
                 <div className="space-y-2">
                   <Link to="/login" onClick={() => setIsOpen(false)}>
-                    <Button variant="ghost" size="sm" className="w-full justify-start text-dashboard-text-muted hover:text-dashboard-text hover:bg-white/5">
+                    <button className="w-full flex items-center text-sm font-medium px-3 py-1.5 bg-white/5 text-dashboard-text-muted border border-white/10 hover:bg-white/10 hover:text-dashboard-text rounded-xl transition-colors">
+                      <LogIn className="w-4 h-4 mr-2" />
                       Войти
-                    </Button>
+                    </button>
                   </Link>
                   <Link to="/register" onClick={() => setIsOpen(false)}>
                     <button className="w-full flex items-center text-sm font-medium px-3 py-1.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 rounded-xl transition-colors">
