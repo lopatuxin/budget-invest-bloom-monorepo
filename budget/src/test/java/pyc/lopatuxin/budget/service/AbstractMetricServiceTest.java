@@ -7,7 +7,6 @@ import pyc.lopatuxin.budget.dto.response.MetricResponseDto;
 import pyc.lopatuxin.budget.dto.response.MonthlyMetricDto;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;

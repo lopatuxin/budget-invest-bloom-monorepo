@@ -1,16 +1,26 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Plus, Check, ChevronsUpDown } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import {useState, FormEvent} from 'react';
+import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger} from '@/components/ui/dialog';
+import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
+import {Label} from '@/components/ui/label';
+import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
+import {Plus} from 'lucide-react';
+import {useToast} from '@/hooks/use-toast';
+import {ScrollArea} from '@/components/ui/scroll-area';
+
+interface Asset {
+  symbol: string;
+  name: string;
+  shares: number;
+  price: number;
+  value: number;
+  change: number;
+  changePercent: number;
+  sector: string;
+}
+
 interface AddAssetDialogProps {
-  onAddAsset: (asset: any) => void;
+  onAddAsset: (asset: Asset) => void;
 }
 
 const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
@@ -25,19 +35,19 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
 
   // Моковые данные активов с Мосбиржи
   const availableAssets = [
-    { symbol: 'SBER', name: 'ПАО Сбербанк', sector: 'Финансы', price: 285.50 },
-    { symbol: 'GAZP', name: 'Газпром', sector: 'Прочее', price: 165.20 },
-    { symbol: 'LKOH', name: 'ЛУКОЙЛ', sector: 'Прочее', price: 6850.00 },
-    { symbol: 'YNDX', name: 'Яндекс', sector: 'Технологии', price: 2890.00 },
-    { symbol: 'ROSN', name: 'Роснефть', sector: 'Прочее', price: 515.40 },
-    { symbol: 'NVTK', name: 'НОВАТЭК', sector: 'Прочее', price: 1125.80 },
-    { symbol: 'TCSG', name: 'TCS Group', sector: 'Финансы', price: 4250.00 },
-    { symbol: 'MTSS', name: 'МТС', sector: 'Технологии', price: 295.60 },
-    { symbol: 'MGNT', name: 'Магнит', sector: 'Потребительские товары', price: 4890.00 },
+    { symbol: 'SBER', name: 'ПАО Сбербанк', sector: 'Финансы', price: 285.5 },
+    { symbol: 'GAZP', name: 'Газпром', sector: 'Прочее', price: 165.2 },
+    { symbol: 'LKOH', name: 'ЛУКОЙЛ', sector: 'Прочее', price: 6850 },
+    { symbol: 'YNDX', name: 'Яндекс', sector: 'Технологии', price: 2890 },
+    { symbol: 'ROSN', name: 'Роснефть', sector: 'Прочее', price: 515.4 },
+    { symbol: 'NVTK', name: 'НОВАТЭК', sector: 'Прочее', price: 1125.8 },
+    { symbol: 'TCSG', name: 'TCS Group', sector: 'Финансы', price: 4250 },
+    { symbol: 'MTSS', name: 'МТС', sector: 'Технологии', price: 295.6 },
+    { symbol: 'MGNT', name: 'Магнит', sector: 'Потребительские товары', price: 4890 },
     { symbol: 'AFLT', name: 'Аэрофлот', sector: 'Прочее', price: 48.75 }
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     
     const selectedAsset = availableAssets.find(asset => asset.symbol === formData.asset);
@@ -51,9 +61,9 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
       return;
     }
 
-    const shares = parseFloat(formData.shares);
-    
-    if (isNaN(shares) || shares <= 0) {
+    const shares = Number.parseFloat(formData.shares);
+
+    if (Number.isNaN(shares) || shares <= 0) {
       toast({
         title: "Ошибка", 
         description: "Количество акций должно быть положительным числом",
@@ -85,7 +95,7 @@ const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
 
   const selectedAsset = availableAssets.find(asset => asset.symbol === formData.asset);
   const totalValue = selectedAsset && formData.shares ? 
-    parseFloat(formData.shares) * selectedAsset.price : 0;
+    Number.parseFloat(formData.shares) * selectedAsset.price : 0;
 
   const filteredAssets = availableAssets.filter(asset =>
     asset.symbol.toLowerCase().includes(query.toLowerCase()) ||
