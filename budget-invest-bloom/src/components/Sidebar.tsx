@@ -43,13 +43,6 @@ const Sidebar = () => {
       className="fixed left-4 top-4 bottom-4 w-[240px] z-50 hidden lg:flex flex-col rounded-2xl border border-white/10"
       style={{ background: 'linear-gradient(to bottom, #0F3547, #0A2A3D)' }}
     >
-      {/* Logo */}
-      <div className="px-5 pt-0 pb-0 -mt-2 flex justify-center">
-        <Link to="/">
-          <img src="/logo.png" alt="Мои финансы" className="w-full max-w-[160px] h-auto" />
-        </Link>
-      </div>
-
       {/* Navigation */}
       <nav className="flex-1 px-3 mt-4 space-y-1">
         {navItems.map(({ href, label, icon: Icon, linkTo }) => {
