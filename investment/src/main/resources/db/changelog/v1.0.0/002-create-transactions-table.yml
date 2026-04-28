@@ -1,0 +1,71 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/002-create-transactions-table.yml
+  - changeSet:
+      id: 002-create-transactions-table
+      author: investment
+      changes:
+        - createTable:
+            tableName: transactions
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_transactions
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: security_ticker
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: quantity
+                  type: decimal(19,8)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: price
+                  type: decimal(15,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: executed_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: type
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - addForeignKeyConstraint:
+            constraintName: fk_transactions_security
+            baseTableName: transactions
+            baseColumnNames: security_ticker
+            referencedTableName: securities
+            referencedColumnNames: ticker
+            onDelete: RESTRICT
+        - createIndex:
+            indexName: idx_transactions_user_id
+            tableName: transactions
+            columns:
+              - column:
+                  name: user_id
+        - sql:
+            sql: |
+              ALTER TABLE transactions ADD CONSTRAINT chk_transactions_type CHECK (type IN ('BUY', 'SELL'));
+              ALTER TABLE transactions ADD CONSTRAINT chk_transactions_quantity CHECK (quantity > 0);
+              ALTER TABLE transactions ADD CONSTRAINT chk_transactions_price CHECK (price > 0);
+      rollback:
+        - dropTable:
+            tableName: transactions

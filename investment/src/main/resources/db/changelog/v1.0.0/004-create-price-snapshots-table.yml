@@ -1,0 +1,39 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/004-create-price-snapshots-table.yml
+  - changeSet:
+      id: 004-create-price-snapshots-table
+      author: investment
+      changes:
+        - createTable:
+            tableName: price_snapshots
+            columns:
+              - column:
+                  name: ticker
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_price_snapshots
+              - column:
+                  name: last_price
+                  type: decimal(15,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: previous_close
+                  type: decimal(15,2)
+              - column:
+                  name: fetched_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            constraintName: fk_price_snapshots_security
+            baseTableName: price_snapshots
+            baseColumnNames: ticker
+            referencedTableName: securities
+            referencedColumnNames: ticker
+            onDelete: CASCADE
+      rollback:
+        - dropTable:
+            tableName: price_snapshots

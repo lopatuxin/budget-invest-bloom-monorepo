@@ -9,6 +9,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import pyc.lopatuxin.investment.repository.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -25,4 +26,11 @@ public abstract class AbstractIntegrationTest {
     void setUpMockMvc() {
         mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
     }
+
+    protected @Autowired SecurityRepository securityRepository;
+    protected @Autowired TransactionRepository transactionRepository;
+    protected @Autowired PositionRepository positionRepository;
+    protected @Autowired PriceSnapshotRepository priceSnapshotRepository;
+    protected @Autowired PriceHistoryRepository priceHistoryRepository;
+    protected @Autowired DividendRepository dividendRepository;
 }

@@ -1,0 +1,57 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/006-create-dividends-table.yml
+  - changeSet:
+      id: 006-create-dividends-table
+      author: investment
+      changes:
+        - createTable:
+            tableName: dividends
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_dividends
+              - column:
+                  name: security_ticker
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: record_date
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: payment_date
+                  type: date
+              - column:
+                  name: amount_per_share
+                  type: decimal(15,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: currency
+                  type: varchar(3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            constraintName: fk_dividends_security
+            baseTableName: dividends
+            baseColumnNames: security_ticker
+            referencedTableName: securities
+            referencedColumnNames: ticker
+            onDelete: RESTRICT
+        - sql:
+            sql: |
+              ALTER TABLE dividends ADD CONSTRAINT chk_dividends_status CHECK (status IN ('ANNOUNCED', 'PAID', 'CANCELLED'));
+      rollback:
+        - dropTable:
+            tableName: dividends

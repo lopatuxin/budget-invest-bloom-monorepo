@@ -1,0 +1,56 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/005-create-price-history-table.yml
+  - changeSet:
+      id: 005-create-price-history-table
+      author: investment
+      changes:
+        - createTable:
+            tableName: price_history
+            columns:
+              - column:
+                  name: ticker
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: trade_date
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: open
+                  type: decimal(15,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: close
+                  type: decimal(15,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: high
+                  type: decimal(15,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: low
+                  type: decimal(15,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: volume
+                  type: bigint
+        - addPrimaryKey:
+            constraintName: pk_price_history
+            tableName: price_history
+            columnNames: ticker, trade_date
+        - addForeignKeyConstraint:
+            constraintName: fk_price_history_security
+            baseTableName: price_history
+            baseColumnNames: ticker
+            referencedTableName: securities
+            referencedColumnNames: ticker
+            onDelete: CASCADE
+      rollback:
+        - dropTable:
+            tableName: price_history

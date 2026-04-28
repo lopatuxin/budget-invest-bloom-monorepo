@@ -1,0 +1,51 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/001-create-securities-table.yml
+  - changeSet:
+      id: 001-create-securities-table
+      author: investment
+      changes:
+        - createTable:
+            tableName: securities
+            columns:
+              - column:
+                  name: ticker
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_securities
+              - column:
+                  name: board_id
+                  type: varchar(20)
+              - column:
+                  name: name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: type
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: sector
+                  type: varchar(100)
+              - column:
+                  name: currency
+                  type: varchar(3)
+              - column:
+                  name: history_status
+                  type: varchar(20)
+                  defaultValue: PENDING
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_price_updated_at
+                  type: timestamp with time zone
+        - sql:
+            sql: |
+              ALTER TABLE securities ADD CONSTRAINT chk_securities_type CHECK (type IN ('STOCK', 'BOND'));
+              ALTER TABLE securities ADD CONSTRAINT chk_securities_history_status CHECK (history_status IN ('PENDING', 'READY'));
+      rollback:
+        - dropTable:
+            tableName: securities

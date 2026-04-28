@@ -1,0 +1,59 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/003-create-positions-table.yml
+  - changeSet:
+      id: 003-create-positions-table
+      author: investment
+      changes:
+        - createTable:
+            tableName: positions
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_positions
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: security_ticker
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: quantity
+                  type: decimal(19,8)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: average_price
+                  type: decimal(15,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: total_cost
+                  type: decimal(15,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp with time zone
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - addForeignKeyConstraint:
+            constraintName: fk_positions_security
+            baseTableName: positions
+            baseColumnNames: security_ticker
+            referencedTableName: securities
+            referencedColumnNames: ticker
+            onDelete: RESTRICT
+        - addUniqueConstraint:
+            constraintName: uq_positions_user_ticker
+            tableName: positions
+            columnNames: user_id, security_ticker
+      rollback:
+        - dropTable:
+            tableName: positions
