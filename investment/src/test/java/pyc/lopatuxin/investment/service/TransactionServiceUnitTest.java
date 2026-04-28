@@ -21,6 +21,7 @@ import pyc.lopatuxin.investment.mapper.TransactionMapper;
 import pyc.lopatuxin.investment.repository.PositionRepository;
 import pyc.lopatuxin.investment.repository.SecurityRepository;
 import pyc.lopatuxin.investment.repository.TransactionRepository;
+import pyc.lopatuxin.investment.service.market.MarketDataService;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -51,6 +52,9 @@ class TransactionServiceUnitTest {
     @Mock
     private TransactionMapper transactionMapper;
 
+    @Mock
+    private MarketDataService marketDataService;
+
     @InjectMocks
     private TransactionService transactionService;
 
@@ -80,11 +84,9 @@ class TransactionServiceUnitTest {
                 .executedAt(Instant.now())
                 .build();
 
-        // first call (in create): not found → save on-the-fly; second call (in recalculatePosition): found
-        when(securityRepository.findById("SBER"))
-                .thenReturn(Optional.empty())
-                .thenReturn(Optional.of(security));
-        when(securityRepository.save(any(Security.class))).thenReturn(security);
+        // marketDataService.ensureSecurity is called in create(); recalculatePosition uses securityRepository directly
+        when(marketDataService.ensureSecurity("SBER", SecurityType.STOCK)).thenReturn(security);
+        when(securityRepository.findById("SBER")).thenReturn(Optional.of(security));
 
         Transaction savedTx = Transaction.builder()
                 .id(UUID.randomUUID())
@@ -146,6 +148,7 @@ class TransactionServiceUnitTest {
                 .quantity(new BigDecimal("5")).price(new BigDecimal("280.00"))
                 .executedAt(t2).build();
 
+        when(marketDataService.ensureSecurity("SBER", SecurityType.STOCK)).thenReturn(security);
         when(securityRepository.findById("SBER")).thenReturn(Optional.of(security));
         when(transactionRepository.save(any())).thenReturn(buy2);
         when(transactionRepository.findByUserIdAndSecurity_Ticker(userId, "SBER"))
@@ -187,6 +190,7 @@ class TransactionServiceUnitTest {
                 .quantity(new BigDecimal("4")).price(new BigDecimal("300.00"))
                 .executedAt(t2).build();
 
+        when(marketDataService.ensureSecurity("SBER", SecurityType.STOCK)).thenReturn(security);
         when(securityRepository.findById("SBER")).thenReturn(Optional.of(security));
         when(transactionRepository.save(any())).thenReturn(sell);
         when(transactionRepository.findByUserIdAndSecurity_Ticker(userId, "SBER"))
@@ -236,7 +240,7 @@ class TransactionServiceUnitTest {
                 .quantity(new BigDecimal("10")).price(new BigDecimal("300.00"))
                 .executedAt(t2).build();
 
-        when(securityRepository.findById("SBER")).thenReturn(Optional.of(security));
+        when(marketDataService.ensureSecurity("SBER", SecurityType.STOCK)).thenReturn(security);
         when(transactionRepository.save(any())).thenReturn(sell);
         when(transactionRepository.findByUserIdAndSecurity_Ticker(userId, "SBER"))
                 .thenReturn(List.of(buy, sell));
@@ -267,7 +271,7 @@ class TransactionServiceUnitTest {
                 .quantity(new BigDecimal("5")).price(new BigDecimal("300.00"))
                 .executedAt(t1).build();
 
-        when(securityRepository.findById("SBER")).thenReturn(Optional.of(security));
+        when(marketDataService.ensureSecurity("SBER", SecurityType.STOCK)).thenReturn(security);
         when(transactionRepository.save(any())).thenReturn(sell);
         when(transactionRepository.findByUserIdAndSecurity_Ticker(userId, "SBER"))
                 .thenReturn(List.of(sell));

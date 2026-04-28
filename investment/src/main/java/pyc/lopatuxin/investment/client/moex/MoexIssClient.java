@@ -1,0 +1,230 @@
+package pyc.lopatuxin.investment.client.moex;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import pyc.lopatuxin.investment.client.moex.dto.MoexSecurityDto;
+import pyc.lopatuxin.investment.client.moex.dto.MoexSnapshotDto;
+import pyc.lopatuxin.investment.entity.enums.SecurityType;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class MoexIssClient {
+
+    private final WebClient moexWebClient;
+    private final ObjectMapper objectMapper;
+
+    @Retry(name = "moex", fallbackMethod = "fetchSecurityFallback")
+    @CircuitBreaker(name = "moex", fallbackMethod = "fetchSecurityFallback")
+    public Optional<MoexSecurityDto> fetchSecurity(String ticker) {
+        String json = moexWebClient.get()
+                .uri("/securities/{ticker}.json?iss.meta=off", ticker)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
+        return parseSecurity(json, ticker);
+    }
+
+    @SuppressWarnings("unused")
+    public Optional<MoexSecurityDto> fetchSecurityFallback(String ticker, Throwable t) {
+        log.warn("MOEX fetchSecurity fallback for {}: {}", ticker, t.getMessage());
+        throw new MoexUnavailableException("MOEX unavailable: " + t.getMessage());
+    }
+
+    @Retry(name = "moex", fallbackMethod = "fetchSnapshotsFallback")
+    @CircuitBreaker(name = "moex", fallbackMethod = "fetchSnapshotsFallback")
+    public Map<String, MoexSnapshotDto> fetchSnapshots(Collection<String> tickers) {
+        if (tickers.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        String csv = String.join(",", tickers);
+        Map<String, MoexSnapshotDto> result = new HashMap<>();
+        result.putAll(fetchMarketData(csv, "stock", "shares", "TQBR"));
+        result.putAll(fetchMarketData(csv, "stock", "bonds", "TQCB"));
+        return result;
+    }
+
+    @SuppressWarnings("unused")
+    public Map<String, MoexSnapshotDto> fetchSnapshotsFallback(Collection<String> tickers, Throwable t) {
+        log.warn("MOEX fetchSnapshots fallback: {}", t.getMessage());
+        throw new MoexUnavailableException("MOEX unavailable: " + t.getMessage());
+    }
+
+    @Retry(name = "moex", fallbackMethod = "searchSecuritiesFallback")
+    @CircuitBreaker(name = "moex", fallbackMethod = "searchSecuritiesFallback")
+    public List<MoexSecurityDto> searchSecurities(String query) {
+        String json = moexWebClient.get()
+                .uri("/securities.json?q={q}&limit=20&iss.meta=off", query)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
+        return parseSearchResults(json);
+    }
+
+    @SuppressWarnings("unused")
+    public List<MoexSecurityDto> searchSecuritiesFallback(String query, Throwable t) {
+        log.warn("MOEX searchSecurities fallback for {}: {}", query, t.getMessage());
+        throw new MoexUnavailableException("MOEX unavailable: " + t.getMessage());
+    }
+
+    private Map<String, MoexSnapshotDto> fetchMarketData(String csv, String engine, String market, String board) {
+        try {
+            String json = moexWebClient.get()
+                    .uri("/engines/{engine}/markets/{market}/boards/{board}/securities.json?securities={csv}&iss.meta=off&iss.only=marketdata",
+                            engine, market, board, csv)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            return parseMarketData(json);
+        } catch (WebClientResponseException e) {
+            log.debug("Market data fetch failed for board {}: {}", board, e.getStatusCode());
+            return Collections.emptyMap();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Optional<MoexSecurityDto> parseSecurity(String json, String ticker) {
+        try {
+            Map<String, Object> root = objectMapper.readValue(json, new TypeReference<>() {});
+
+            Map<String, Object> descBlock = (Map<String, Object>) root.get("description");
+            if (descBlock == null) return Optional.empty();
+
+            List<String> descCols = (List<String>) descBlock.get("columns");
+            List<List<Object>> descData = (List<List<Object>>) descBlock.get("data");
+            if (descData == null || descData.isEmpty()) return Optional.empty();
+
+            int nameIdx = MoexJsonMapper.indexOf(descCols, "name");
+            int valueIdx = MoexJsonMapper.indexOf(descCols, "value");
+
+            Map<String, String> descMap = buildDescMap(descData, nameIdx, valueIdx);
+
+            Map<String, Object> secBlock = (Map<String, Object>) root.get("securities");
+            String boardId = extractBoardId(secBlock);
+            String name = descMap.getOrDefault("NAME", ticker);
+            String typename = descMap.getOrDefault("TYPENAME", "");
+            SecurityType securityType = typename.toLowerCase().contains("акци") ? SecurityType.STOCK : SecurityType.BOND;
+            String sector = descMap.get("SECTOR");
+            String currency = descMap.get("CURRENCYID");
+
+            return Optional.of(new MoexSecurityDto(ticker, boardId, name, securityType, sector, currency));
+        } catch (Exception e) {
+            log.error("Failed to parse MOEX security response for {}: {}", ticker, e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, String> buildDescMap(List<List<Object>> descData, int nameIdx, int valueIdx) {
+        Map<String, String> map = new HashMap<>();
+        for (List<Object> row : descData) {
+            String key = MoexJsonMapper.str(row, nameIdx);
+            String val = MoexJsonMapper.str(row, valueIdx);
+            if (key != null) {
+                map.put(key, val);
+            }
+        }
+        return map;
+    }
+
+    @SuppressWarnings("unchecked")
+    private String extractBoardId(Map<String, Object> secBlock) {
+        if (secBlock == null) return null;
+        List<String> cols = (List<String>) secBlock.get("columns");
+        List<List<Object>> data = (List<List<Object>>) secBlock.get("data");
+        if (cols == null || data == null || data.isEmpty()) return null;
+        int boardIdx = MoexJsonMapper.indexOf(cols, "BOARDID");
+        return MoexJsonMapper.str(data.get(0), boardIdx);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, MoexSnapshotDto> parseMarketData(String json) {
+        if (json == null) return Collections.emptyMap();
+        try {
+            Map<String, Object> root = objectMapper.readValue(json, new TypeReference<>() {});
+            Map<String, Object> mdBlock = (Map<String, Object>) root.get("marketdata");
+            if (mdBlock == null) return Collections.emptyMap();
+
+            List<String> cols = (List<String>) mdBlock.get("columns");
+            List<List<Object>> data = (List<List<Object>>) mdBlock.get("data");
+            if (cols == null || data == null) return Collections.emptyMap();
+
+            int secidIdx = MoexJsonMapper.indexOf(cols, "SECID");
+            int lastIdx = MoexJsonMapper.indexOf(cols, "LAST");
+            int prevIdx = MoexJsonMapper.indexOf(cols, "PREVPRICE");
+
+            Map<String, MoexSnapshotDto> result = new HashMap<>();
+            for (List<Object> row : data) {
+                String secid = MoexJsonMapper.str(row, secidIdx);
+                BigDecimal last = MoexJsonMapper.decimal(row, lastIdx);
+                if (secid == null || last == null || last.compareTo(BigDecimal.ZERO) == 0) continue;
+                BigDecimal prev = MoexJsonMapper.decimal(row, prevIdx);
+                result.put(secid, new MoexSnapshotDto(secid, last, prev));
+            }
+            return result;
+        } catch (Exception e) {
+            log.error("Failed to parse MOEX market data: {}", e.getMessage());
+            return Collections.emptyMap();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<MoexSecurityDto> parseSearchResults(String json) {
+        if (json == null) return Collections.emptyList();
+        try {
+            Map<String, Object> root = objectMapper.readValue(json, new TypeReference<>() {});
+            Map<String, Object> secBlock = (Map<String, Object>) root.get("securities");
+            if (secBlock == null) return Collections.emptyList();
+
+            List<String> cols = (List<String>) secBlock.get("columns");
+            List<List<Object>> data = (List<List<Object>>) secBlock.get("data");
+            if (cols == null || data == null) return Collections.emptyList();
+
+            int secidIdx = MoexJsonMapper.indexOf(cols, "SECID");
+            int boardIdx = MoexJsonMapper.indexOf(cols, "BOARDID");
+            int nameIdx = MoexJsonMapper.indexOf(cols, "SHORTNAME");
+            int typeIdx = MoexJsonMapper.indexOf(cols, "TYPENAME");
+            int currIdx = MoexJsonMapper.indexOf(cols, "CURRENCYID");
+
+            List<MoexSecurityDto> result = new ArrayList<>();
+            for (List<Object> row : data) {
+                String typename = MoexJsonMapper.str(row, typeIdx);
+                if (typename == null) continue;
+                String typenameLower = typename.toLowerCase();
+                SecurityType secType;
+                if (typenameLower.contains("акци")) {
+                    secType = SecurityType.STOCK;
+                } else if (typenameLower.contains("облигаци")) {
+                    secType = SecurityType.BOND;
+                } else {
+                    continue;
+                }
+                String secid = MoexJsonMapper.str(row, secidIdx);
+                String boardId = MoexJsonMapper.str(row, boardIdx);
+                String name = MoexJsonMapper.str(row, nameIdx);
+                String currency = MoexJsonMapper.str(row, currIdx);
+                result.add(new MoexSecurityDto(secid, boardId, name, secType, null, currency));
+            }
+            return result;
+        } catch (Exception e) {
+            log.error("Failed to parse MOEX search results: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+}

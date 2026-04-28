@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -16,6 +17,8 @@ import {
 import { Plus, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCreateTransaction } from '@/hooks/useCreateTransaction';
+import { useSecuritySearch } from '@/hooks/useSecuritySearch';
+import type { MoexSecuritySearchItem } from '@/types/investment';
 
 const schema = z.object({
   ticker: z.string().trim().min(1, 'Обязательное поле').max(16).transform(v => v.toUpperCase()),
@@ -37,6 +40,32 @@ const AddAssetDialog = ({ open, onOpenChange }: AddAssetDialogProps) => {
   const { toast } = useToast();
   const { mutateAsync, isPending } = useCreateTransaction();
 
+  // Ticker autocomplete state
+  const [tickerInput, setTickerInput] = useState('');
+  const [selectedSecurityName, setSelectedSecurityName] = useState<string | null>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const tickerInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: searchData, isFetching: searchLoading } = useSecuritySearch(tickerInput);
+  const searchResults: MoexSecuritySearchItem[] = searchData?.body ?? [];
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node) &&
+        tickerInputRef.current &&
+        !tickerInputRef.current.contains(e.target as Node)
+      ) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -50,8 +79,21 @@ const AddAssetDialog = ({ open, onOpenChange }: AddAssetDialogProps) => {
   });
 
   const handleOpenChange = (next: boolean) => {
-    if (!next) form.reset();
+    if (!next) {
+      form.reset();
+      setTickerInput('');
+      setSelectedSecurityName(null);
+      setShowDropdown(false);
+    }
     onOpenChange?.(next);
+  };
+
+  const handleSelectSuggestion = (item: MoexSecuritySearchItem) => {
+    form.setValue('ticker', item.ticker, { shouldValidate: true });
+    form.setValue('securityType', item.securityType, { shouldValidate: true });
+    setTickerInput(item.ticker);
+    setSelectedSecurityName(item.name);
+    setShowDropdown(false);
   };
 
   const handleSubmit = async (values: FormValues) => {
@@ -62,6 +104,8 @@ const AddAssetDialog = ({ open, onOpenChange }: AddAssetDialogProps) => {
       });
       toast({ title: 'Сделка добавлена' });
       form.reset();
+      setTickerInput('');
+      setSelectedSecurityName(null);
       onOpenChange?.(false);
     } catch (error) {
       toast({
@@ -92,7 +136,7 @@ const AddAssetDialog = ({ open, onOpenChange }: AddAssetDialogProps) => {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
 
-            {/* Ticker */}
+            {/* Ticker with autocomplete */}
             <FormField
               control={form.control}
               name="ticker"
@@ -100,11 +144,68 @@ const AddAssetDialog = ({ open, onOpenChange }: AddAssetDialogProps) => {
                 <FormItem>
                   <FormLabel className="text-dashboard-text-muted">Тикер</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="SBER"
-                      className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
-                      {...field}
-                    />
+                    <div className="relative">
+                      <Input
+                        ref={tickerInputRef}
+                        placeholder="SBER"
+                        className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
+                        value={tickerInput}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setTickerInput(val);
+                          field.onChange(val);
+                          setSelectedSecurityName(null);
+                          setShowDropdown(val.trim().length >= 2);
+                        }}
+                        onFocus={() => {
+                          if (tickerInput.trim().length >= 2) setShowDropdown(true);
+                        }}
+                        autoComplete="off"
+                      />
+                      {/* Selected security name hint */}
+                      {selectedSecurityName && (
+                        <p className="text-xs text-dashboard-text-muted mt-1">{selectedSecurityName}</p>
+                      )}
+                      {/* Autocomplete dropdown */}
+                      {showDropdown && (
+                        <div
+                          ref={dropdownRef}
+                          className="absolute top-full left-0 right-0 bg-slate-800 border border-white/10 rounded-lg mt-1 z-50 max-h-48 overflow-y-auto"
+                        >
+                          {searchLoading && (
+                            <div className="flex items-center gap-2 px-3 py-2 text-sm text-dashboard-text-muted">
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              <span>Поиск...</span>
+                            </div>
+                          )}
+                          {!searchLoading && searchResults.length === 0 && tickerInput.trim().length >= 2 && (
+                            <div className="px-3 py-2 text-sm text-dashboard-text-muted">
+                              Ничего не найдено
+                            </div>
+                          )}
+                          {!searchLoading && searchResults.map((item) => (
+                            <button
+                              key={`${item.ticker}-${item.boardId}`}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors flex items-center justify-between gap-2"
+                              onMouseDown={(e) => {
+                                // Use mousedown to fire before blur
+                                e.preventDefault();
+                                handleSelectSuggestion(item);
+                              }}
+                            >
+                              <div>
+                                <span className="font-semibold text-dashboard-text font-mono">{item.ticker}</span>
+                                <span className="text-dashboard-text-muted ml-2">{item.name}</span>
+                              </div>
+                              <span className="text-xs text-dashboard-text-muted shrink-0">
+                                {item.securityType === 'STOCK' ? 'Акция' : 'Облигация'}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -141,7 +242,7 @@ const AddAssetDialog = ({ open, onOpenChange }: AddAssetDialogProps) => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-dashboard-text-muted">Тип инструмента</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger className="bg-white/5 border-white/10 text-dashboard-text">
                         <SelectValue />

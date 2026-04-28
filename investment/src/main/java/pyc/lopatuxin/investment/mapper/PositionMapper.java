@@ -14,8 +14,6 @@ public interface PositionMapper {
     @Mapping(source = "security.name", target = "securityName")
     @Mapping(source = "security.type", target = "securityType")
     @Mapping(source = "security.sector", target = "sector")
-    @Mapping(target = "currentPrice", ignore = true)
-    @Mapping(target = "pnl", ignore = true)
     PositionResponseDto toDto(Position position);
 
     List<PositionResponseDto> toDtoList(List<Position> positions);

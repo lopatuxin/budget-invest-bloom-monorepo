@@ -1,3 +1,32 @@
 spring:
   application:
     name: investment
+  cache:
+    type: caffeine
+    cache-names: moexSnapshots,moexSecurities
+    caffeine:
+      spec: maximumSize=500,expireAfterWrite=5m
+
+moex:
+  iss:
+    base-url: https://iss.moex.com/iss
+    timeout-ms: 5000
+    snapshot-ttl-minutes: 5
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      moex:
+        failureRateThreshold: 50
+        slidingWindowSize: 10
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+  retry:
+    instances:
+      moex:
+        maxAttempts: 3
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        enableRandomizedWait: true
+        randomizedWaitFactor: 0.3

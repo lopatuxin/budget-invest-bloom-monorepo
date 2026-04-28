@@ -5,6 +5,7 @@ import EmptyState from '@/components/EmptyState';
 import { usePositions } from '@/hooks/usePositions';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useDeleteTransaction } from '@/hooks/useDeleteTransaction';
+import { useInvestmentOverview } from '@/hooks/useInvestmentOverview';
 import { useToast } from '@/hooks/use-toast';
 
 const DONUT_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#14B8A6'];
@@ -44,18 +45,30 @@ const Skeleton = ({ className = '' }: { className?: string }) => (
 
 const Investments = () => {
   const { toast } = useToast();
-  const { data: positionsData, isLoading } = usePositions();
+  const { data: positionsData, isLoading: positionsLoading } = usePositions();
   const { data: transactionsData } = useTransactions();
+  const { data: overviewData, isLoading: overviewLoading } = useInvestmentOverview();
   const { mutate: deleteTransaction } = useDeleteTransaction();
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  const isLoading = positionsLoading || overviewLoading;
+
   const positions = positionsData?.body ?? [];
   const transactions = transactionsData?.body ?? [];
+  const overview = overviewData?.body;
 
-  const totalValue = positions.reduce((sum, p) => sum + p.totalCost, 0);
-  const animTotalValue = useCountUp(totalValue);
+  const animTotalValue = useCountUp(overview?.totalValue ?? 0);
+  const animTotalPnl = useCountUp(overview?.totalPnl ?? 0);
+  const animDailyPnl = useCountUp(overview?.dailyPnl ?? 0);
+
+  const totalCost = overview?.totalCost ?? 0;
+  const totalPnlPercent = totalCost > 0 && overview
+    ? ((overview.totalPnl / totalCost) * 100).toFixed(1)
+    : null;
 
   // Build sector aggregation from positions
+  const totalValue = overview?.totalValue ?? positions.reduce((sum, p) => sum + p.totalCost, 0);
+
   const sectorMap = positions.reduce<Record<string, number>>((acc, p) => {
     const name = p.sector ?? 'Без сектора';
     acc[name] = (acc[name] ?? 0) + p.totalCost;
@@ -93,29 +106,33 @@ const Investments = () => {
     });
   };
 
+  const pnlColor = (overview?.totalPnl ?? 0) >= 0 ? '#10B981' : '#EF4444';
+
   const kpiCards = [
     {
       label: 'СТОИМОСТЬ ПОРТФЕЛЯ',
-      value: formatCurrency(animTotalValue),
+      value: isLoading ? null : formatCurrency(animTotalValue),
       icon: PieChart,
       color: '#3B82F6',
       glow: 'rgba(59, 130, 246, 0.3)',
     },
     {
       label: 'ОБЩАЯ ДОХОДНОСТЬ',
-      value: '—',
+      value: isLoading ? null : overview
+        ? `${animTotalPnl >= 0 ? '+' : ''}${formatCurrency(animTotalPnl)}${totalPnlPercent !== null ? ` (${totalPnlPercent}%)` : ''}`
+        : '—',
       icon: TrendingUp,
-      color: '#10B981',
-      glow: 'rgba(16, 185, 129, 0.3)',
-      // TODO: phase 4 — connect to PNL
+      color: pnlColor,
+      glow: (overview?.totalPnl ?? 0) >= 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)',
     },
     {
-      label: 'ЗА МЕСЯЦ',
-      value: '—',
+      label: 'ЗА ДЕНЬ',
+      value: isLoading ? null : overview
+        ? `${animDailyPnl >= 0 ? '+' : ''}${formatCurrency(animDailyPnl)}`
+        : '—',
       icon: TrendingUp,
       color: '#8B5CF6',
       glow: 'rgba(139, 92, 246, 0.3)',
-      // TODO: phase 4 — monthly PNL
     },
     {
       label: 'ДИВИДЕНДЫ',
@@ -164,7 +181,9 @@ const Investments = () => {
               >
                 <div className="space-y-2">
                   <p className="text-[11px] font-semibold tracking-widest text-dashboard-text-muted">{card.label}</p>
-                  <p className="text-2xl font-bold text-dashboard-text font-mono">{card.value}</p>
+                  <p className="text-2xl font-bold text-dashboard-text font-mono">
+                    {card.value ?? <Skeleton className="h-8 w-32 inline-block" />}
+                  </p>
                 </div>
                 <div
                   className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
@@ -208,7 +227,9 @@ const Investments = () => {
             >
               <div className="space-y-2">
                 <p className="text-[11px] font-semibold tracking-widest text-dashboard-text-muted">{card.label}</p>
-                <p className="text-2xl font-bold text-dashboard-text font-mono">{card.value}</p>
+                <p className="text-2xl font-bold text-dashboard-text font-mono">
+                  {card.value ?? <Skeleton className="h-8 w-32 inline-block" />}
+                </p>
               </div>
               <div
                 className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
@@ -258,6 +279,7 @@ const Investments = () => {
                     <div className="space-y-3">
                       {sectorPositions.map((position) => {
                         const colorIdx = (holdingColorIndex.get(position.ticker) ?? 0) % DONUT_COLORS.length;
+                        const pnlPositive = (position.pnl ?? 0) >= 0;
                         return (
                           <div
                             key={position.id}
@@ -277,6 +299,14 @@ const Investments = () => {
                                 <div className="text-sm text-dashboard-text-muted">{position.securityName}</div>
                                 <div className="text-xs text-dashboard-text-muted font-mono">
                                   {position.quantity} × {formatCurrency(position.averagePrice)}
+                                  {position.currentPrice !== null && (
+                                    <span className="ml-2 text-dashboard-text-muted">
+                                      Тек. цена: {formatCurrency(position.currentPrice)}
+                                    </span>
+                                  )}
+                                  {position.currentPrice === null && (
+                                    <span className="ml-2">Тек. цена: —</span>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -284,6 +314,11 @@ const Investments = () => {
                               <div className="font-semibold text-dashboard-text font-mono">
                                 {formatCurrency(position.totalCost)}
                               </div>
+                              {position.pnl !== null && (
+                                <div className={`text-xs font-mono ${pnlPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                                  {pnlPositive ? '+' : ''}{formatCurrency(position.pnl)}
+                                </div>
+                              )}
                             </div>
                           </div>
                         );

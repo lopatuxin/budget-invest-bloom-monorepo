@@ -23,9 +23,26 @@ export interface PositionResponse {
   quantity: number;
   averagePrice: number;
   totalCost: number;
-  currentPrice: number | null; // filled in phase 4
-  pnl: number | null; // filled in phase 4
+  currentPrice: number | null;
+  pnl: number | null;
   updatedAt: string;
+}
+
+export interface PortfolioOverview {
+  totalValue: number;
+  totalCost: number;
+  totalPnl: number;
+  dailyPnl: number;
+  assetsCount: number;
+}
+
+export interface MoexSecuritySearchItem {
+  ticker: string;
+  boardId: string;
+  name: string;
+  securityType: 'STOCK' | 'BOND';
+  sector: string | null;
+  currency: string | null;
 }
 
 export interface CreateTransactionRequest {

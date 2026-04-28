@@ -13,9 +13,12 @@ import org.springframework.web.bind.annotation.RestController;
 import pyc.lopatuxin.investment.dto.common.ApiRequest;
 import pyc.lopatuxin.investment.dto.request.GetPositionByTickerDto;
 import pyc.lopatuxin.investment.dto.request.ListTransactionsDto;
+import pyc.lopatuxin.investment.dto.response.PortfolioOverviewDto;
 import pyc.lopatuxin.investment.dto.response.PositionResponseDto;
 import pyc.lopatuxin.investment.dto.response.ResponseApi;
 import pyc.lopatuxin.investment.service.PortfolioService;
+
+import org.springframework.http.ResponseEntity;
 
 import java.util.List;
 
@@ -47,5 +50,12 @@ public class PortfolioController {
                 request.getData().getTicker()
         );
         return ResponseApi.success("Позиция найдена", position);
+    }
+
+    @PostMapping("/overview")
+    public ResponseEntity<ResponseApi<PortfolioOverviewDto>> getOverview(
+            @RequestBody @Valid ApiRequest<Void> request) {
+        PortfolioOverviewDto overview = portfolioService.getOverview(request.getUser().getUserId());
+        return ResponseEntity.ok(ResponseApi.success("Обзор портфеля", overview));
     }
 }

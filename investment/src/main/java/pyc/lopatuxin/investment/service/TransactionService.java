@@ -10,12 +10,12 @@ import pyc.lopatuxin.investment.dto.response.TransactionResponseDto;
 import pyc.lopatuxin.investment.entity.Position;
 import pyc.lopatuxin.investment.entity.Security;
 import pyc.lopatuxin.investment.entity.Transaction;
-import pyc.lopatuxin.investment.entity.enums.HistoryStatus;
 import pyc.lopatuxin.investment.entity.enums.TransactionType;
 import pyc.lopatuxin.investment.mapper.TransactionMapper;
 import pyc.lopatuxin.investment.repository.PositionRepository;
 import pyc.lopatuxin.investment.repository.SecurityRepository;
 import pyc.lopatuxin.investment.repository.TransactionRepository;
+import pyc.lopatuxin.investment.service.market.MarketDataService;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -34,19 +34,11 @@ public class TransactionService {
     private final PositionRepository positionRepository;
     private final SecurityRepository securityRepository;
     private final TransactionMapper transactionMapper;
+    private final MarketDataService marketDataService;
 
     @Transactional
     public TransactionResponseDto create(UUID userId, CreateTransactionDto dto) {
-        Security security = securityRepository.findById(dto.getTicker())
-                .orElseGet(() -> {
-                    Security s = Security.builder()
-                            .ticker(dto.getTicker())
-                            .name(dto.getTicker())
-                            .type(dto.getSecurityType())
-                            .historyStatus(HistoryStatus.PENDING)
-                            .build();
-                    return securityRepository.save(s);
-                });
+        Security security = marketDataService.ensureSecurity(dto.getTicker(), dto.getSecurityType());
 
         Transaction transaction = Transaction.builder()
                 .userId(userId)
