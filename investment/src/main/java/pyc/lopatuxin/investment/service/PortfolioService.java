@@ -6,14 +6,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.investment.dto.response.PortfolioOverviewDto;
 import pyc.lopatuxin.investment.dto.response.PositionResponseDto;
+import pyc.lopatuxin.investment.entity.Dividend;
 import pyc.lopatuxin.investment.entity.Position;
 import pyc.lopatuxin.investment.mapper.PositionMapper;
+import pyc.lopatuxin.investment.repository.DividendRepository;
 import pyc.lopatuxin.investment.repository.PositionRepository;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
 import pyc.lopatuxin.investment.service.market.dto.SnapshotResult;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,6 +30,7 @@ public class PortfolioService {
     private final PositionRepository positionRepository;
     private final PositionMapper positionMapper;
     private final MarketDataService marketDataService;
+    private final DividendRepository dividendRepository;
 
     @Transactional(readOnly = true)
     public List<PositionResponseDto> listPositions(UUID userId) {
@@ -59,13 +63,17 @@ public class PortfolioService {
                     .totalPnl(BigDecimal.ZERO)
                     .dailyPnl(BigDecimal.ZERO)
                     .assetsCount(0)
+                    .dividends12m(BigDecimal.ZERO)
                     .build();
         }
         Set<String> tickers = positions.stream()
                 .map(p -> p.getSecurity().getTicker())
                 .collect(Collectors.toSet());
         Map<String, SnapshotResult> snapshots = marketDataService.getSnapshots(tickers);
-        return buildOverview(positions, snapshots);
+        Map<String, BigDecimal> quantityByTicker = positions.stream()
+                .collect(Collectors.toMap(p -> p.getSecurity().getTicker(), Position::getQuantity));
+        BigDecimal dividends12m = calcDividends12m(tickers, quantityByTicker);
+        return buildOverview(positions, snapshots, dividends12m);
     }
 
     private PositionResponseDto enrichPosition(PositionResponseDto dto, Position position,
@@ -88,7 +96,22 @@ public class PortfolioService {
         return dto;
     }
 
-    private PortfolioOverviewDto buildOverview(List<Position> positions, Map<String, SnapshotResult> snapshots) {
+    private BigDecimal calcDividends12m(Set<String> tickers, Map<String, BigDecimal> quantityByTicker) {
+        LocalDate now = LocalDate.now();
+        List<Dividend> dividends = dividendRepository
+                .findBySecurity_TickerInAndPaymentDateBetween(tickers, now.minusYears(1), now);
+        BigDecimal total = BigDecimal.ZERO;
+        for (Dividend d : dividends) {
+            if (d.getAmountPerShare() == null) continue;
+            String ticker = d.getSecurity().getTicker();
+            BigDecimal qty = quantityByTicker.getOrDefault(ticker, BigDecimal.ZERO);
+            total = total.add(d.getAmountPerShare().multiply(qty));
+        }
+        return total.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private PortfolioOverviewDto buildOverview(List<Position> positions, Map<String, SnapshotResult> snapshots,
+                                               BigDecimal dividends12m) {
         BigDecimal totalValue = BigDecimal.ZERO;
         BigDecimal totalCost = BigDecimal.ZERO;
         BigDecimal dailyPnl = BigDecimal.ZERO;
@@ -113,6 +136,7 @@ public class PortfolioService {
                 .totalPnl(totalPnl)
                 .dailyPnl(dailyPnl.setScale(2, RoundingMode.HALF_UP))
                 .assetsCount(positions.size())
+                .dividends12m(dividends12m)
                 .build();
     }
 }

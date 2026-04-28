@@ -5,9 +5,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import pyc.lopatuxin.investment.dto.response.PortfolioValuePointDto;
 import pyc.lopatuxin.investment.dto.response.PricePointDto;
+import pyc.lopatuxin.investment.dto.response.SeriesResponseDto;
 import pyc.lopatuxin.investment.entity.PriceHistory;
+import pyc.lopatuxin.investment.entity.Position;
 import pyc.lopatuxin.investment.entity.Transaction;
+import pyc.lopatuxin.investment.entity.enums.HistoryStatus;
 import pyc.lopatuxin.investment.entity.enums.TransactionType;
+import pyc.lopatuxin.investment.repository.PositionRepository;
 import pyc.lopatuxin.investment.repository.PriceHistoryRepository;
 import pyc.lopatuxin.investment.repository.TransactionRepository;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
@@ -32,33 +36,68 @@ public class AnalyticsService {
 
     private final TransactionRepository transactionRepository;
     private final PriceHistoryRepository priceHistoryRepository;
+    private final PositionRepository positionRepository;
     private final MarketDataService marketDataService;
 
-    public List<PortfolioValuePointDto> portfolioValueHistory(UUID userId, LocalDate from, LocalDate to) {
+    public SeriesResponseDto<PortfolioValuePointDto> portfolioValueHistory(UUID userId, LocalDate from, LocalDate to) {
         List<Transaction> txns = transactionRepository.findByUserId(userId).stream()
                 .sorted(Comparator.comparing(Transaction::getExecutedAt))
                 .toList();
-        if (txns.isEmpty()) return List.of();
+        if (txns.isEmpty()) {
+            return new SeriesResponseDto<>(List.of(), false, List.of());
+        }
 
-        Set<String> tickers = collectTickers(txns);
-        tickers.forEach(marketDataService::ensureHistory);
+        List<String> pendingTickers = collectPendingAndTrigger(userId);
+
+        Set<String> readyTickers = collectTickers(txns).stream()
+                .filter(t -> !pendingTickers.contains(t))
+                .collect(Collectors.toSet());
+
+        if (readyTickers.isEmpty()) {
+            return new SeriesResponseDto<>(List.of(), !pendingTickers.isEmpty(), pendingTickers);
+        }
 
         List<PriceHistory> history = priceHistoryRepository
-                .findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(tickers, from, to);
-        if (history.isEmpty()) return List.of();
+                .findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(readyTickers, from, to);
+        if (history.isEmpty()) {
+            return new SeriesResponseDto<>(List.of(), !pendingTickers.isEmpty(), pendingTickers);
+        }
 
         Map<LocalDate, Map<String, BigDecimal>> closePriceByDate = groupCloseByDate(history);
         List<LocalDate> sortedDates = closePriceByDate.keySet().stream().sorted().toList();
 
         Map<String, BigDecimal> lastKnownClose = new HashMap<>();
-        return buildValuePoints(txns, sortedDates, closePriceByDate, lastKnownClose);
+        List<PortfolioValuePointDto> series = buildValuePoints(txns, sortedDates, closePriceByDate, lastKnownClose);
+        return new SeriesResponseDto<>(series, !pendingTickers.isEmpty(), pendingTickers);
     }
 
-    public List<PricePointDto> securityPriceHistory(String ticker, LocalDate from, LocalDate to) {
-        marketDataService.ensureHistory(ticker);
+    public SeriesResponseDto<PricePointDto> securityPriceHistory(String ticker, LocalDate from, LocalDate to) {
+        boolean isPending = isHistoryPending(ticker);
+        if (isPending) {
+            marketDataService.triggerHistoryAsync(ticker);
+            return new SeriesResponseDto<>(List.of(), true, List.of(ticker));
+        }
         List<PriceHistory> history = priceHistoryRepository
                 .findByTickerAndTradeDateBetweenOrderByTradeDateAsc(ticker, from, to);
-        return history.stream().map(this::toPricePointDto).toList();
+        List<PricePointDto> series = history.stream().map(this::toPricePointDto).toList();
+        return new SeriesResponseDto<>(series, false, List.of());
+    }
+
+    private boolean isHistoryPending(String ticker) {
+        return marketDataService.getSecurityHistoryStatus(ticker) == HistoryStatus.PENDING;
+    }
+
+    private List<String> collectPendingAndTrigger(UUID userId) {
+        List<Position> positions = positionRepository.findByUserId(userId);
+        List<String> pending = new ArrayList<>();
+        for (Position pos : positions) {
+            String ticker = pos.getSecurity().getTicker();
+            if (pos.getSecurity().getHistoryStatus() == HistoryStatus.PENDING) {
+                marketDataService.triggerHistoryAsync(ticker);
+                pending.add(ticker);
+            }
+        }
+        return pending;
     }
 
     private Set<String> collectTickers(List<Transaction> txns) {

@@ -1,8 +1,8 @@
 package pyc.lopatuxin.investment.service.market;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.investment.client.moex.MoexIssClient;
@@ -33,7 +33,6 @@ import java.util.Optional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class MarketDataService {
 
     private final MoexIssClient moexIssClient;
@@ -41,6 +40,21 @@ public class MarketDataService {
     private final PriceSnapshotRepository priceSnapshotRepository;
     private final PriceHistoryRepository priceHistoryRepository;
     private final MoexProperties moexProperties;
+    private final HistoryLoaderService historyLoaderService;
+
+    public MarketDataService(MoexIssClient moexIssClient,
+                             SecurityRepository securityRepository,
+                             PriceSnapshotRepository priceSnapshotRepository,
+                             PriceHistoryRepository priceHistoryRepository,
+                             MoexProperties moexProperties,
+                             @Lazy HistoryLoaderService historyLoaderService) {
+        this.moexIssClient = moexIssClient;
+        this.securityRepository = securityRepository;
+        this.priceSnapshotRepository = priceSnapshotRepository;
+        this.priceHistoryRepository = priceHistoryRepository;
+        this.moexProperties = moexProperties;
+        this.historyLoaderService = historyLoaderService;
+    }
 
     @Transactional
     public Security ensureSecurity(String ticker, SecurityType fallbackType) {
@@ -151,6 +165,16 @@ public class MarketDataService {
         } catch (MoexUnavailableException e) {
             log.warn("MOEX unavailable for history {}, status remains PENDING", ticker);
         }
+    }
+
+    public void triggerHistoryAsync(String ticker) {
+        historyLoaderService.loadAsync(ticker);
+    }
+
+    public HistoryStatus getSecurityHistoryStatus(String ticker) {
+        return securityRepository.findById(ticker)
+                .map(Security::getHistoryStatus)
+                .orElse(HistoryStatus.PENDING);
     }
 
     public MoexSecurityDto getSecurityInfo(String ticker) {

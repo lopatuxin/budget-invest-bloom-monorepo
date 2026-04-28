@@ -18,4 +18,5 @@ public class PortfolioOverviewDto {
     private BigDecimal totalPnl;
     private BigDecimal dailyPnl;
     private int assetsCount;
+    private BigDecimal dividends12m;
 }

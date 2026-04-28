@@ -34,6 +34,7 @@ export interface PortfolioOverview {
   totalPnl: number;
   dailyPnl: number;
   assetsCount: number;
+  dividends12m: number;
 }
 
 export interface MoexSecuritySearchItem {
@@ -66,6 +67,36 @@ export interface PricePoint {
   high: number;
   low: number;
   volume: number;
+}
+
+export interface SeriesResponse<T> {
+  series: T[];
+  historyPending: boolean;
+  pendingTickers: string[];
+}
+
+export interface ProjectionPoint {
+  month: number;
+  date: string;
+  value: number;
+  deposit: number;
+  withdrawal: number;
+}
+
+export interface ProjectionResult {
+  startValue: number;
+  portfolioWeightedAnnualReturn: number;
+  monthlyReturn: number;
+  series: ProjectionPoint[];
+  pendingHistoryTickers: string[];
+}
+
+export interface ProjectionRequest {
+  horizonMonths: number;
+  monthlyDeposit: number;
+  withdrawalRatePerYear: number;
+  lookbackYears: number;
+  overrides: Record<string, number>;
 }
 
 export type { ApiResponse };

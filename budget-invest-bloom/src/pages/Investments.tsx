@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, PieChart, Coins, Trash2, BarChart2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { TrendingUp, PieChart, Coins, Trash2, BarChart2, Calculator } from 'lucide-react';
 import AddAssetDialog from '@/components/AddAssetDialog';
 import PortfolioValueChart from '@/components/PortfolioValueChart';
 import SecurityPriceChart from '@/components/SecurityPriceChart';
@@ -138,11 +139,10 @@ const Investments = () => {
     },
     {
       label: 'ДИВИДЕНДЫ',
-      value: '—',
+      value: isLoading ? null : formatCurrency(overview?.dividends12m ?? 0),
       icon: Coins,
       color: '#F59E0B',
       glow: 'rgba(245, 158, 11, 0.3)',
-      // TODO: phase 6 — dividends API
     },
   ];
 
@@ -216,6 +216,18 @@ const Investments = () => {
 
   return (
     <div className="space-y-6 pb-6">
+
+      {/* Page header */}
+      <div className="flex items-center justify-between animate-fade-slide-up">
+        <h1 className="text-lg font-semibold text-dashboard-text">Мои инвестиции</h1>
+        <Link
+          to="/investments/calculator"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all duration-200 rounded-xl text-sm font-medium"
+        >
+          <Calculator className="w-4 h-4" />
+          Калькулятор
+        </Link>
+      </div>
 
       {/* KPI Cards */}
       <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:grid lg:grid-cols-2 xl:grid-cols-4 lg:gap-5 lg:overflow-visible lg:pb-0 hide-scrollbar">

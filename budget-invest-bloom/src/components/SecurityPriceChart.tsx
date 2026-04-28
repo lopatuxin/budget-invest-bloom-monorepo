@@ -88,7 +88,9 @@ const SecurityPriceChart = ({ positions }: Props) => {
   const { from, to } = getPeriodDates(period);
   const { data, isLoading } = useSecurityPriceHistory(selectedTicker, from, to);
 
-  const points = data?.body ?? [];
+  const points = data?.body?.series ?? [];
+  const historyPending = data?.body?.historyPending ?? false;
+  const pendingTickers = data?.body?.pendingTickers ?? [];
 
   return (
     <div className="bg-white/5 rounded-2xl p-6 animate-fade-slide-up">
@@ -123,6 +125,12 @@ const SecurityPriceChart = ({ positions }: Props) => {
           </div>
         </div>
       </div>
+
+      {historyPending && pendingTickers.length > 0 && (
+        <div className="mb-3 px-3 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-yellow-400 text-xs">
+          История загружается по тикерам: {pendingTickers.join(', ')}. Данные могут быть неполными.
+        </div>
+      )}
 
       {isLoading ? (
         <Skeleton className="h-56 w-full" />

@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-add-dividend-unique
+      author: investment
+      changes:
+        - addUniqueConstraint:
+            tableName: dividends
+            columnNames: security_ticker, record_date
+            constraintName: uq_dividends_ticker_record_date

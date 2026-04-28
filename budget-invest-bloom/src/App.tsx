@@ -12,6 +12,7 @@ import BottomNav from "@/components/BottomNav";
 import Index from "./pages/Index";
 import Budget from "./pages/Budget";
 import Investments from "./pages/Investments";
+import InvestmentCalculator from "./pages/InvestmentCalculator";
 import CategoryExpenses from "./pages/CategoryExpenses";
 import MetricDetails from "./pages/MetricDetails";
 import Register from "./pages/Register";
@@ -54,6 +55,7 @@ const AppLayout = () => {
           <Route path="/budget/category/:category" element={<CategoryExpenses />} />
           <Route path="/budget/metric/:metric" element={<MetricDetails />} />
           <Route path="/investments" element={<Investments />} />
+          <Route path="/investments/calculator" element={<InvestmentCalculator />} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -75,6 +77,7 @@ const AppLayout = () => {
           <Route path="/budget/category/:category" element={<CategoryExpenses />} />
           <Route path="/budget/metric/:metric" element={<MetricDetails />} />
           <Route path="/investments" element={<Investments />} />
+          <Route path="/investments/calculator" element={<InvestmentCalculator />} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />

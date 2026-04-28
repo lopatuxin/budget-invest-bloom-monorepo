@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import pyc.lopatuxin.investment.client.moex.dto.MoexCandleDto;
+import pyc.lopatuxin.investment.client.moex.dto.MoexDividendDto;
 import pyc.lopatuxin.investment.client.moex.dto.MoexSecurityDto;
 import pyc.lopatuxin.investment.client.moex.dto.MoexSnapshotDto;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
@@ -98,6 +99,23 @@ public class MoexIssClient {
     @SuppressWarnings("unused")
     public List<MoexCandleDto> fetchHistoryFallback(String ticker, LocalDate from, LocalDate to, Throwable t) {
         log.warn("MOEX fetchHistory fallback for {}: {}", ticker, t.getMessage());
+        throw new MoexUnavailableException("MOEX unavailable: " + t.getMessage());
+    }
+
+    @Retry(name = "moex", fallbackMethod = "fetchDividendsFallback")
+    @CircuitBreaker(name = "moex", fallbackMethod = "fetchDividendsFallback")
+    public List<MoexDividendDto> fetchDividends(String ticker) {
+        String json = moexWebClient.get()
+                .uri("/iss/securities/{ticker}/dividends.json?iss.meta=off&iss.only=dividends", ticker)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
+        return parseDividends(json);
+    }
+
+    @SuppressWarnings("unused")
+    public List<MoexDividendDto> fetchDividendsFallback(String ticker, Throwable t) {
+        log.warn("MOEX fetchDividends fallback for {}: {}", ticker, t.getMessage());
         throw new MoexUnavailableException("MOEX unavailable: " + t.getMessage());
     }
 
@@ -303,6 +321,47 @@ public class MoexIssClient {
         } catch (Exception e) {
             log.error("Failed to parse MOEX market data: {}", e.getMessage());
             return Collections.emptyMap();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<MoexDividendDto> parseDividends(String json) {
+        if (json == null) return Collections.emptyList();
+        try {
+            Map<String, Object> root = objectMapper.readValue(json, new TypeReference<>() {});
+            Map<String, Object> block = (Map<String, Object>) root.get("dividends");
+            if (block == null) return Collections.emptyList();
+
+            List<String> cols = (List<String>) block.get("columns");
+            List<List<Object>> data = (List<List<Object>>) block.get("data");
+            if (cols == null || data == null || data.isEmpty()) return Collections.emptyList();
+
+            int secidIdx = MoexJsonMapper.indexOf(cols, "secid");
+            int recordDateIdx = MoexJsonMapper.indexOf(cols, "registryclosedate");
+            int paymentDateIdx = MoexJsonMapper.indexOf(cols, "dividendpaymentdate");
+            int valueIdx = MoexJsonMapper.indexOf(cols, "value");
+            int currencyIdx = MoexJsonMapper.indexOf(cols, "currencyid");
+
+            List<MoexDividendDto> result = new ArrayList<>();
+            for (List<Object> row : data) {
+                MoexDividendDto dto = new MoexDividendDto();
+                dto.setSecid(MoexJsonMapper.str(row, secidIdx));
+                String recordDateStr = MoexJsonMapper.str(row, recordDateIdx);
+                if (recordDateStr != null && !recordDateStr.isBlank()) {
+                    dto.setRegistryCloseDate(LocalDate.parse(recordDateStr));
+                }
+                String paymentDateStr = MoexJsonMapper.str(row, paymentDateIdx);
+                if (paymentDateStr != null && !paymentDateStr.isBlank()) {
+                    dto.setDividendPaymentDate(LocalDate.parse(paymentDateStr));
+                }
+                dto.setValue(MoexJsonMapper.decimal(row, valueIdx));
+                dto.setCurrencyId(MoexJsonMapper.str(row, currencyIdx));
+                result.add(dto);
+            }
+            return result;
+        } catch (Exception e) {
+            log.error("Failed to parse MOEX dividends response: {}", e.getMessage());
+            return Collections.emptyList();
         }
     }
 
