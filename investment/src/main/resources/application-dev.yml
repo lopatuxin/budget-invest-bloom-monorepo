@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: investment
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5434/investment_dev}
+    username: ${SPRING_DATASOURCE_USERNAME:investment_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:dev_password}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yml
+    contexts: data-migration
+
+  devtools:
+    restart:
+      enabled: true
+      poll-interval: 2s
+      quiet-period: 1s
+    livereload:
+      enabled: true
+
+  jmx:
+    enabled: true
+
+server:
+  port: 8084
+
+logging:
+  level:
+    pyc.lopatuxin.investment: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    liquibase: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env
+    jmx:
+      exposure:
+        include: '*'
+  endpoint:
+    health:
+      show-details: always

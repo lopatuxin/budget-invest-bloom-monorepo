@@ -1,0 +1,31 @@
+# Dockerfile for development with hot-reload
+FROM eclipse-temurin:24-jdk AS base
+
+ENV GRADLE_VERSION=8.14.2
+ENV GRADLE_HOME=/opt/gradle
+RUN apt-get update && apt-get install -y wget unzip curl && \
+    wget https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip && \
+    unzip gradle-${GRADLE_VERSION}-bin.zip && \
+    mv gradle-${GRADLE_VERSION} ${GRADLE_HOME} && \
+    rm gradle-${GRADLE_VERSION}-bin.zip && \
+    ln -s ${GRADLE_HOME}/bin/gradle /usr/bin/gradle
+
+WORKDIR /app
+
+COPY build.gradle.kts settings.gradle.kts ./
+COPY gradle gradle
+
+RUN gradle dependencies --no-daemon || true
+
+COPY src ./src
+
+ENV SPRING_PROFILES_ACTIVE=dev
+ENV GRADLE_OPTS="-Dorg.gradle.daemon=false --add-opens=java.base/java.lang=ALL-UNNAMED"
+ENV JAVA_TOOL_OPTIONS="--enable-native-access=ALL-UNNAMED"
+
+EXPOSE 8084
+EXPOSE 35732
+
+CMD bash -c "\
+  (gradle classes --continuous --no-daemon 2>/dev/null &) & \
+  gradle bootRun --no-daemon"

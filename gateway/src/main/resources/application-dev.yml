@@ -35,6 +35,13 @@ spring:
               filters:
                 - UserEnrichmentFilter
 
+            - id: investment
+              uri: ${gateway.services.investment-url}
+              predicates:
+                - Path=/api/investment/**
+              filters:
+                - UserEnrichmentFilter
+
   devtools:
     restart:
       enabled: true
@@ -47,6 +54,7 @@ gateway:
   services:
     auth-url: ${AUTH_SERVICE_URL:http://auth:8081}
     budget-url: ${BUDGET_SERVICE_URL:http://budget:8083}
+    investment-url: ${INVESTMENT_SERVICE_URL:http://investment-service:8084}
   cors:
     allowed-origins: ${GATEWAY_CORS_ALLOWED_ORIGINS:http://localhost:8080}
 

@@ -138,6 +138,71 @@ services:
       start_period: 90s
 
   # ========================================
+  # INVESTMENT SERVICE - Database
+  # ========================================
+
+  investment-postgres:
+    image: postgres:15-alpine
+    container_name: investment-postgres-dev
+    environment:
+      POSTGRES_DB: ${INVESTMENT_POSTGRES_DB:-investment_dev}
+      POSTGRES_USER: ${INVESTMENT_POSTGRES_USER:-investment_user}
+      POSTGRES_PASSWORD: ${INVESTMENT_POSTGRES_PASSWORD:-dev_password}
+    ports:
+      - "${INVESTMENT_POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - investment_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${INVESTMENT_POSTGRES_USER:-investment_user} -d ${INVESTMENT_POSTGRES_DB:-investment_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - finance-network
+
+  # ========================================
+  # INVESTMENT SERVICE - Application
+  # ========================================
+
+  investment-service:
+    build:
+      context: ./investment
+      dockerfile: Dockerfile.dev
+    container_name: investment-service-dev
+    environment:
+      # Spring Configuration
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://investment-postgres:5432/${INVESTMENT_POSTGRES_DB:-investment_dev}
+      SPRING_DATASOURCE_USERNAME: ${INVESTMENT_POSTGRES_USER:-investment_user}
+      SPRING_DATASOURCE_PASSWORD: ${INVESTMENT_POSTGRES_PASSWORD:-dev_password}
+
+      # DevTools Configuration
+      SPRING_DEVTOOLS_RESTART_ENABLED: ${DEVTOOLS_RESTART_ENABLED:-true}
+      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: ${DEVTOOLS_LIVERELOAD_ENABLED:-true}
+    expose:
+      - "8084"
+      - "35732"
+    volumes:
+      # Hot-reload volumes
+      - ./investment/src:/app/src:rw
+      - ./investment/build.gradle.kts:/app/build.gradle.kts:rw
+      - ./investment/settings.gradle.kts:/app/settings.gradle.kts:rw
+      - investment_gradle_cache:/root/.gradle
+    depends_on:
+      investment-postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - finance-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      interval: ${HEALTHCHECK_INTERVAL:-3s}
+      timeout: 2s
+      retries: 30
+      start_period: 90s
+
+  # ========================================
   # GATEWAY SERVICE - Application
   # ========================================
 
@@ -156,6 +221,7 @@ services:
       # Service URLs (inside Docker network)
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
       BUDGET_SERVICE_URL: ${BUDGET_SERVICE_URL:-http://budget-service:8083}
+      INVESTMENT_SERVICE_URL: ${INVESTMENT_SERVICE_URL:-http://investment-service:8084}
 
       # CORS
       GATEWAY_CORS_ALLOWED_ORIGINS: ${GATEWAY_CORS_ALLOWED_ORIGINS:-http://localhost:8080}
@@ -245,6 +311,11 @@ services:
       BUDGET_POSTGRES_DB: ${BUDGET_POSTGRES_DB:-budget_dev}
       BUDGET_POSTGRES_USER: ${BUDGET_POSTGRES_USER:-budget_user}
       BUDGET_POSTGRES_PASSWORD: ${BUDGET_POSTGRES_PASSWORD:-dev_password}
+      # Investment DB
+      INVESTMENT_POSTGRES_HOST: investment-postgres
+      INVESTMENT_POSTGRES_DB: ${INVESTMENT_POSTGRES_DB:-investment_dev}
+      INVESTMENT_POSTGRES_USER: ${INVESTMENT_POSTGRES_USER:-investment_user}
+      INVESTMENT_POSTGRES_PASSWORD: ${INVESTMENT_POSTGRES_PASSWORD:-dev_password}
       # Yandex Disk
       YADISK_LOGIN: ${YADISK_LOGIN}
       YADISK_APP_PASSWORD: ${YADISK_APP_PASSWORD}
@@ -255,6 +326,8 @@ services:
       auth-postgres:
         condition: service_healthy
       budget-postgres:
+        condition: service_healthy
+      investment-postgres:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -268,6 +341,10 @@ volumes:
   budget_postgres_data:
     driver: local
   budget_gradle_cache:
+    driver: local
+  investment_postgres_data:
+    driver: local
+  investment_gradle_cache:
     driver: local
   gateway_gradle_cache:
     driver: local
