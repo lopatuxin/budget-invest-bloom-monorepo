@@ -60,7 +60,7 @@ public class AnalyticsController {
     public ResponseApi<ProjectionResultDto> projection(
             @RequestBody @Valid ApiRequest<ProjectionRequestDto> request) {
         UUID userId = request.getUser().getUserId();
-        return ResponseApi.success(projectionService.project(userId, request.getData()));
+        return ResponseApi.success("Прогноз роста портфеля", projectionService.project(userId, request.getData()));
     }
 
     private void validateDateRange(LocalDate from, LocalDate to) {

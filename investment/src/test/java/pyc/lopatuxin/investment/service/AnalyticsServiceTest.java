@@ -9,12 +9,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pyc.lopatuxin.investment.dto.response.PortfolioValuePointDto;
 import pyc.lopatuxin.investment.dto.response.PricePointDto;
+import pyc.lopatuxin.investment.dto.response.SeriesResponseDto;
 import pyc.lopatuxin.investment.entity.PriceHistory;
 import pyc.lopatuxin.investment.entity.Security;
 import pyc.lopatuxin.investment.entity.Transaction;
 import pyc.lopatuxin.investment.entity.enums.HistoryStatus;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
 import pyc.lopatuxin.investment.entity.enums.TransactionType;
+import pyc.lopatuxin.investment.repository.PositionRepository;
 import pyc.lopatuxin.investment.repository.PriceHistoryRepository;
 import pyc.lopatuxin.investment.repository.TransactionRepository;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
@@ -40,6 +42,9 @@ class AnalyticsServiceTest {
 
     @Mock
     private PriceHistoryRepository priceHistoryRepository;
+
+    @Mock
+    private PositionRepository positionRepository;
 
     @Mock
     private MarketDataService marketDataService;
@@ -75,10 +80,10 @@ class AnalyticsServiceTest {
 
         LocalDate from = base;
         LocalDate to = base.plusDays(4);
-        List<PortfolioValuePointDto> result = analyticsService.portfolioValueHistory(userId, from, to);
+        SeriesResponseDto<PortfolioValuePointDto> result = analyticsService.portfolioValueHistory(userId, from, to);
 
-        assertThat(result).hasSize(5);
-        result.forEach(p -> assertThat(p.getValue()).isEqualByComparingTo(new BigDecimal("2700.00")));
+        assertThat(result.getSeries()).hasSize(5);
+        result.getSeries().forEach(p -> assertThat(p.getValue()).isEqualByComparingTo(new BigDecimal("2700.00")));
     }
 
     @Test
@@ -101,14 +106,14 @@ class AnalyticsServiceTest {
         when(priceHistoryRepository.findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(any(), any(), any()))
                 .thenReturn(history);
 
-        List<PortfolioValuePointDto> result = analyticsService.portfolioValueHistory(
+        SeriesResponseDto<PortfolioValuePointDto> result = analyticsService.portfolioValueHistory(
                 userId, buyDay, dayAfterSell);
 
-        assertThat(result).hasSize(2);
+        assertThat(result.getSeries()).hasSize(2);
         // Before sell: 10 × 270 = 2700
-        assertThat(result.get(0).getValue()).isEqualByComparingTo(new BigDecimal("2700.00"));
+        assertThat(result.getSeries().get(0).getValue()).isEqualByComparingTo(new BigDecimal("2700.00"));
         // After sell: 5 × 280 = 1400
-        assertThat(result.get(1).getValue()).isEqualByComparingTo(new BigDecimal("1400.00"));
+        assertThat(result.getSeries().get(1).getValue()).isEqualByComparingTo(new BigDecimal("1400.00"));
     }
 
     @Test
@@ -119,10 +124,10 @@ class AnalyticsServiceTest {
         when(priceHistoryRepository.findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(any(), any(), any()))
                 .thenReturn(List.of());
 
-        List<PortfolioValuePointDto> result = analyticsService.portfolioValueHistory(
+        SeriesResponseDto<PortfolioValuePointDto> result = analyticsService.portfolioValueHistory(
                 userId, LocalDate.now().minusYears(1), LocalDate.now());
 
-        assertThat(result).isEmpty();
+        assertThat(result.getSeries()).isEmpty();
     }
 
     @Test
@@ -138,11 +143,11 @@ class AnalyticsServiceTest {
         when(priceHistoryRepository.findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(any(), any(), any()))
                 .thenReturn(history);
 
-        List<PortfolioValuePointDto> result = analyticsService.portfolioValueHistory(userId, day1, day2);
+        SeriesResponseDto<PortfolioValuePointDto> result = analyticsService.portfolioValueHistory(userId, day1, day2);
 
         // Only day1 has data, so only 1 point
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getValue()).isEqualByComparingTo(new BigDecimal("2700.00"));
+        assertThat(result.getSeries()).hasSize(1);
+        assertThat(result.getSeries().get(0).getValue()).isEqualByComparingTo(new BigDecimal("2700.00"));
     }
 
     @Test
@@ -153,13 +158,13 @@ class AnalyticsServiceTest {
         when(priceHistoryRepository.findByTickerAndTradeDateBetweenOrderByTradeDateAsc(
                 anyString(), any(), any())).thenReturn(history);
 
-        List<PricePointDto> result = analyticsService.securityPriceHistory("SBER", base, base.plusDays(2));
+        SeriesResponseDto<PricePointDto> result = analyticsService.securityPriceHistory("SBER", base, base.plusDays(2));
 
-        assertThat(result).hasSize(3);
-        assertThat(result.get(0).getDate()).isEqualTo(base);
-        assertThat(result.get(0).getClose()).isEqualByComparingTo(new BigDecimal("271.00"));
-        assertThat(result.get(0).getOpen()).isEqualByComparingTo(new BigDecimal("270.00"));
-        assertThat(result.get(0).getVolume()).isEqualTo(11000L);
+        assertThat(result.getSeries()).hasSize(3);
+        assertThat(result.getSeries().get(0).getDate()).isEqualTo(base);
+        assertThat(result.getSeries().get(0).getClose()).isEqualByComparingTo(new BigDecimal("271.00"));
+        assertThat(result.getSeries().get(0).getOpen()).isEqualByComparingTo(new BigDecimal("270.00"));
+        assertThat(result.getSeries().get(0).getVolume()).isEqualTo(11000L);
     }
 
     private Transaction buildTransaction(TransactionType type, String quantity, String price, Instant executedAt) {

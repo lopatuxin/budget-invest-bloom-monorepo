@@ -8,6 +8,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import pyc.lopatuxin.investment.AbstractIntegrationTest;
 import pyc.lopatuxin.investment.dto.response.PortfolioValuePointDto;
 import pyc.lopatuxin.investment.dto.response.PricePointDto;
+import pyc.lopatuxin.investment.dto.response.SeriesResponseDto;
 import pyc.lopatuxin.investment.service.AnalyticsService;
 
 import java.math.BigDecimal;
@@ -43,10 +44,11 @@ class AnalyticsControllerTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("POST /portfolio/value-history — возвращает 200 и непустое тело")
     void portfolioValueHistory_returnsOk() throws Exception {
-        List<PortfolioValuePointDto> mockResult = List.of(
+        List<PortfolioValuePointDto> series = List.of(
                 PortfolioValuePointDto.builder().date(LocalDate.of(2024, 1, 15)).value(new BigDecimal("2700.00")).build(),
                 PortfolioValuePointDto.builder().date(LocalDate.of(2024, 1, 16)).value(new BigDecimal("2750.00")).build()
         );
+        SeriesResponseDto<PortfolioValuePointDto> mockResult = new SeriesResponseDto<>(series, false, List.of());
         when(analyticsService.portfolioValueHistory(any(UUID.class), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(mockResult);
 
@@ -55,16 +57,17 @@ class AnalyticsControllerTest extends AbstractIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status", is(200)))
-                .andExpect(jsonPath("$.body", notNullValue()))
-                .andExpect(jsonPath("$.body", hasSize(2)));
+                .andExpect(jsonPath("$.body.series", notNullValue()))
+                .andExpect(jsonPath("$.body.series", hasSize(2)));
     }
 
     @Test
     @DisplayName("POST /security/price-history — возвращает 200 и непустое тело")
     void securityPriceHistory_returnsOk() throws Exception {
-        List<PricePointDto> mockResult = List.of(
+        List<PricePointDto> priceSeries = List.of(
                 PricePointDto.builder().date(LocalDate.of(2024, 1, 15)).close(new BigDecimal("271.00")).build()
         );
+        SeriesResponseDto<PricePointDto> mockResult = new SeriesResponseDto<>(priceSeries, false, List.of());
         when(analyticsService.securityPriceHistory(anyString(), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(mockResult);
 
@@ -73,8 +76,8 @@ class AnalyticsControllerTest extends AbstractIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status", is(200)))
-                .andExpect(jsonPath("$.body", notNullValue()))
-                .andExpect(jsonPath("$.body", hasSize(1)));
+                .andExpect(jsonPath("$.body.series", notNullValue()))
+                .andExpect(jsonPath("$.body.series", hasSize(1)));
     }
 
     @Test
