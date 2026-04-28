@@ -7,18 +7,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.investment.client.moex.MoexIssClient;
 import pyc.lopatuxin.investment.client.moex.MoexUnavailableException;
+import pyc.lopatuxin.investment.client.moex.dto.MoexCandleDto;
 import pyc.lopatuxin.investment.client.moex.dto.MoexSecurityDto;
 import pyc.lopatuxin.investment.client.moex.dto.MoexSnapshotDto;
 import pyc.lopatuxin.investment.config.MoexProperties;
+import pyc.lopatuxin.investment.entity.PriceHistory;
 import pyc.lopatuxin.investment.entity.PriceSnapshot;
 import pyc.lopatuxin.investment.entity.Security;
 import pyc.lopatuxin.investment.entity.enums.HistoryStatus;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
+import pyc.lopatuxin.investment.repository.PriceHistoryRepository;
 import pyc.lopatuxin.investment.repository.PriceSnapshotRepository;
 import pyc.lopatuxin.investment.repository.SecurityRepository;
 import pyc.lopatuxin.investment.service.market.dto.SnapshotResult;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Collections;
@@ -35,6 +39,7 @@ public class MarketDataService {
     private final MoexIssClient moexIssClient;
     private final SecurityRepository securityRepository;
     private final PriceSnapshotRepository priceSnapshotRepository;
+    private final PriceHistoryRepository priceHistoryRepository;
     private final MoexProperties moexProperties;
 
     @Transactional
@@ -111,6 +116,40 @@ public class MarketDataService {
         } catch (MoexUnavailableException e) {
             log.warn("MOEX unavailable for search query: {}", query);
             return Collections.emptyList();
+        }
+    }
+
+    @Transactional
+    public void ensureHistory(String ticker) {
+        Optional<Security> secOpt = securityRepository.findById(ticker);
+        if (secOpt.isEmpty()) {
+            log.warn("Security {} not found, skipping history load", ticker);
+            return;
+        }
+        Security security = secOpt.get();
+        if (security.getHistoryStatus() == HistoryStatus.READY && priceHistoryRepository.existsByTicker(ticker)) {
+            return;
+        }
+        LocalDate from = LocalDate.now().minusYears(3);
+        LocalDate to = LocalDate.now();
+        try {
+            List<MoexCandleDto> candles = moexIssClient.fetchHistory(ticker, from, to);
+            List<PriceHistory> records = candles.stream()
+                    .map(c -> PriceHistory.builder()
+                            .ticker(c.ticker())
+                            .tradeDate(c.tradeDate())
+                            .open(c.open())
+                            .close(c.close())
+                            .high(c.high())
+                            .low(c.low())
+                            .volume(c.volume())
+                            .build())
+                    .toList();
+            priceHistoryRepository.saveAll(records);
+            security.setHistoryStatus(HistoryStatus.READY);
+            securityRepository.save(security);
+        } catch (MoexUnavailableException e) {
+            log.warn("MOEX unavailable for history {}, status remains PENDING", ticker);
         }
     }
 

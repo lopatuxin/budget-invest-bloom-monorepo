@@ -9,11 +9,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import pyc.lopatuxin.investment.client.moex.dto.MoexCandleDto;
 import pyc.lopatuxin.investment.client.moex.dto.MoexSecurityDto;
 import pyc.lopatuxin.investment.client.moex.dto.MoexSnapshotDto;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -81,6 +83,126 @@ public class MoexIssClient {
     public List<MoexSecurityDto> searchSecuritiesFallback(String query, Throwable t) {
         log.warn("MOEX searchSecurities fallback for {}: {}", query, t.getMessage());
         throw new MoexUnavailableException("MOEX unavailable: " + t.getMessage());
+    }
+
+    @Retry(name = "moex", fallbackMethod = "fetchHistoryFallback")
+    @CircuitBreaker(name = "moex", fallbackMethod = "fetchHistoryFallback")
+    public List<MoexCandleDto> fetchHistory(String ticker, LocalDate from, LocalDate to) {
+        List<MoexCandleDto> result = fetchHistoryFromMarket(ticker, "shares", from, to);
+        if (result.isEmpty()) {
+            result = fetchHistoryFromMarket(ticker, "bonds", from, to);
+        }
+        return result;
+    }
+
+    @SuppressWarnings("unused")
+    public List<MoexCandleDto> fetchHistoryFallback(String ticker, LocalDate from, LocalDate to, Throwable t) {
+        log.warn("MOEX fetchHistory fallback for {}: {}", ticker, t.getMessage());
+        throw new MoexUnavailableException("MOEX unavailable: " + t.getMessage());
+    }
+
+    private List<MoexCandleDto> fetchHistoryFromMarket(String ticker, String market, LocalDate from, LocalDate to) {
+        List<MoexCandleDto> all = new ArrayList<>();
+        int start = 0;
+        while (true) {
+            String json = fetchHistoryPageJson(ticker, market, from, to, start);
+            if (json == null) break;
+            List<MoexCandleDto> page = parseHistoryPage(json, ticker);
+            all.addAll(page);
+            if (page.isEmpty()) break;
+            int[] cursor = parseHistoryCursor(json);
+            if (cursor == null || cursor[0] + cursor[2] >= cursor[1]) break;
+            start = cursor[0] + cursor[2];
+        }
+        return all;
+    }
+
+    private String fetchHistoryPageJson(String ticker, String market, LocalDate from, LocalDate to, int start) {
+        return moexWebClient.get()
+                .uri("/history/engines/stock/markets/{market}/securities/{ticker}.json?from={from}&till={to}&iss.meta=off&iss.only=history&start={start}",
+                        market, ticker, from, to, start)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<MoexCandleDto> parseHistoryPage(String json, String ticker) {
+        if (json == null) return Collections.emptyList();
+        try {
+            Map<String, Object> root = objectMapper.readValue(json, new TypeReference<>() {});
+            Map<String, Object> historyBlock = (Map<String, Object>) root.get("history");
+            if (historyBlock == null) return Collections.emptyList();
+
+            List<String> cols = (List<String>) historyBlock.get("columns");
+            List<List<Object>> data = (List<List<Object>>) historyBlock.get("data");
+            if (cols == null || data == null || data.isEmpty()) return Collections.emptyList();
+
+            int dateIdx = MoexJsonMapper.indexOf(cols, "TRADEDATE");
+            int openIdx = MoexJsonMapper.indexOf(cols, "OPEN");
+            int closeIdx = MoexJsonMapper.indexOf(cols, "CLOSE");
+            int highIdx = MoexJsonMapper.indexOf(cols, "HIGH");
+            int lowIdx = MoexJsonMapper.indexOf(cols, "LOW");
+            int volumeIdx = MoexJsonMapper.indexOf(cols, "VOLUME");
+
+            List<MoexCandleDto> result = new ArrayList<>();
+            for (List<Object> row : data) {
+                BigDecimal close = MoexJsonMapper.decimal(row, closeIdx);
+                if (close == null || close.compareTo(BigDecimal.ZERO) == 0) continue;
+                String dateStr = MoexJsonMapper.str(row, dateIdx);
+                if (dateStr == null) continue;
+                LocalDate tradeDate = LocalDate.parse(dateStr);
+                BigDecimal open = MoexJsonMapper.decimal(row, openIdx);
+                BigDecimal high = MoexJsonMapper.decimal(row, highIdx);
+                BigDecimal low = MoexJsonMapper.decimal(row, lowIdx);
+                Long volume = parseVolume(row, volumeIdx);
+                result.add(new MoexCandleDto(ticker, tradeDate, open, close, high, low, volume));
+            }
+            return result;
+        } catch (Exception e) {
+            log.error("Failed to parse MOEX history page for {}: {}", ticker, e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private int[] parseHistoryCursor(String json) {
+        if (json == null) return null;
+        try {
+            Map<String, Object> root = objectMapper.readValue(json, new TypeReference<>() {});
+            Map<String, Object> cursorBlock = (Map<String, Object>) root.get("history.cursor");
+            if (cursorBlock == null) return null;
+
+            List<String> cols = (List<String>) cursorBlock.get("columns");
+            List<List<Object>> data = (List<List<Object>>) cursorBlock.get("data");
+            if (cols == null || data == null || data.isEmpty()) return null;
+
+            List<Object> row = data.get(0);
+            int indexIdx = MoexJsonMapper.indexOf(cols, "INDEX");
+            int totalIdx = MoexJsonMapper.indexOf(cols, "TOTAL");
+            int pageSizeIdx = MoexJsonMapper.indexOf(cols, "PAGESIZE");
+
+            BigDecimal index = MoexJsonMapper.decimal(row, indexIdx);
+            BigDecimal total = MoexJsonMapper.decimal(row, totalIdx);
+            BigDecimal pageSize = MoexJsonMapper.decimal(row, pageSizeIdx);
+            if (index == null || total == null || pageSize == null) return null;
+
+            return new int[]{index.intValue(), total.intValue(), pageSize.intValue()};
+        } catch (Exception e) {
+            log.error("Failed to parse MOEX history cursor: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private Long parseVolume(List<Object> row, int idx) {
+        if (idx < 0 || idx >= row.size()) return null;
+        Object val = row.get(idx);
+        if (val == null) return null;
+        try {
+            return new BigDecimal(val.toString()).longValue();
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private Map<String, MoexSnapshotDto> fetchMarketData(String csv, String engine, String market, String board) {

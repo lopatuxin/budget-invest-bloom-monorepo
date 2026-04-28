@@ -17,6 +17,7 @@ import pyc.lopatuxin.investment.entity.PriceSnapshot;
 import pyc.lopatuxin.investment.entity.Security;
 import pyc.lopatuxin.investment.entity.enums.HistoryStatus;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
+import pyc.lopatuxin.investment.repository.PriceHistoryRepository;
 import pyc.lopatuxin.investment.repository.PriceSnapshotRepository;
 import pyc.lopatuxin.investment.repository.SecurityRepository;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
@@ -47,6 +48,9 @@ class MarketDataServiceTest {
 
     @Mock
     private PriceSnapshotRepository priceSnapshotRepository;
+
+    @Mock
+    private PriceHistoryRepository priceHistoryRepository;
 
     @Mock
     private MoexProperties moexProperties;

@@ -54,4 +54,18 @@ export interface CreateTransactionRequest {
   executedAt: string;
 }
 
+export interface PortfolioValuePoint {
+  date: string;
+  value: number;
+}
+
+export interface PricePoint {
+  date: string;
+  open: number;
+  close: number;
+  high: number;
+  low: number;
+  volume: number;
+}
+
 export type { ApiResponse };
