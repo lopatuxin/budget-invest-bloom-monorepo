@@ -1,226 +1,243 @@
-import {useState, FormEvent} from 'react';
-import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger} from '@/components/ui/dialog';
-import {Button} from '@/components/ui/button';
-import {Input} from '@/components/ui/input';
-import {Label} from '@/components/ui/label';
-import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
-import {Plus} from 'lucide-react';
-import {useToast} from '@/hooks/use-toast';
-import {ScrollArea} from '@/components/ui/scroll-area';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Plus, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useCreateTransaction } from '@/hooks/useCreateTransaction';
 
-interface Asset {
-  symbol: string;
-  name: string;
-  shares: number;
-  price: number;
-  value: number;
-  change: number;
-  changePercent: number;
-  sector: string;
-}
+const schema = z.object({
+  ticker: z.string().trim().min(1, 'Обязательное поле').max(16).transform(v => v.toUpperCase()),
+  type: z.enum(['BUY', 'SELL']),
+  securityType: z.enum(['STOCK', 'BOND']),
+  quantity: z.coerce.number().positive('Должно быть > 0'),
+  price: z.coerce.number().positive('Должно быть > 0'),
+  executedAt: z.string().min(1, 'Обязательное поле'),
+});
+
+type FormValues = z.infer<typeof schema>;
 
 interface AddAssetDialogProps {
-  onAddAsset: (asset: Asset) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-const AddAssetDialog = ({ onAddAsset }: AddAssetDialogProps) => {
-  const [open, setOpen] = useState(false);
-  const [comboboxOpen, setComboboxOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [formData, setFormData] = useState({
-    asset: '',
-    shares: ''
-  });
+const AddAssetDialog = ({ open, onOpenChange }: AddAssetDialogProps) => {
   const { toast } = useToast();
+  const { mutateAsync, isPending } = useCreateTransaction();
 
-  // Моковые данные активов с Мосбиржи
-  const availableAssets = [
-    { symbol: 'SBER', name: 'ПАО Сбербанк', sector: 'Финансы', price: 285.5 },
-    { symbol: 'GAZP', name: 'Газпром', sector: 'Прочее', price: 165.2 },
-    { symbol: 'LKOH', name: 'ЛУКОЙЛ', sector: 'Прочее', price: 6850 },
-    { symbol: 'YNDX', name: 'Яндекс', sector: 'Технологии', price: 2890 },
-    { symbol: 'ROSN', name: 'Роснефть', sector: 'Прочее', price: 515.4 },
-    { symbol: 'NVTK', name: 'НОВАТЭК', sector: 'Прочее', price: 1125.8 },
-    { symbol: 'TCSG', name: 'TCS Group', sector: 'Финансы', price: 4250 },
-    { symbol: 'MTSS', name: 'МТС', sector: 'Технологии', price: 295.6 },
-    { symbol: 'MGNT', name: 'Магнит', sector: 'Потребительские товары', price: 4890 },
-    { symbol: 'AFLT', name: 'Аэрофлот', sector: 'Прочее', price: 48.75 }
-  ];
+  const form = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      ticker: '',
+      type: 'BUY',
+      securityType: 'STOCK',
+      quantity: '' as unknown as number,
+      price: '' as unknown as number,
+      executedAt: '',
+    },
+  });
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    
-    const selectedAsset = availableAssets.find(asset => asset.symbol === formData.asset);
-    
-    if (!formData.asset || !selectedAsset || !formData.shares) {
-      toast({
-        title: "Ошибка",
-        description: "Пожалуйста, заполните все поля",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const shares = Number.parseFloat(formData.shares);
-
-    if (Number.isNaN(shares) || shares <= 0) {
-      toast({
-        title: "Ошибка", 
-        description: "Количество акций должно быть положительным числом",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const newAsset = {
-      symbol: selectedAsset.symbol,
-      name: selectedAsset.name,
-      shares: shares,
-      price: selectedAsset.price,
-      value: shares * selectedAsset.price,
-      change: 0,
-      changePercent: 0,
-      sector: selectedAsset.sector
-    };
-
-    onAddAsset(newAsset);
-    setFormData({ asset: '', shares: '' });
-    setOpen(false);
-    
-    toast({
-      title: "Успешно",
-      description: `Актив ${selectedAsset.symbol} добавлен в портфель`
-    });
+  const handleOpenChange = (next: boolean) => {
+    if (!next) form.reset();
+    onOpenChange?.(next);
   };
 
-  const selectedAsset = availableAssets.find(asset => asset.symbol === formData.asset);
-  const totalValue = selectedAsset && formData.shares ? 
-    Number.parseFloat(formData.shares) * selectedAsset.price : 0;
-
-  const filteredAssets = availableAssets.filter(asset =>
-    asset.symbol.toLowerCase().includes(query.toLowerCase()) ||
-    asset.name.toLowerCase().includes(query.toLowerCase())
-  );
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleSubmit = async (values: FormValues) => {
+    try {
+      await mutateAsync({
+        ...values,
+        executedAt: new Date(values.executedAt).toISOString(),
+      });
+      toast({ title: 'Сделка добавлена' });
+      form.reset();
+      onOpenChange?.(false);
+    } catch (error) {
+      toast({
+        title: 'Ошибка',
+        description: error instanceof Error ? error.message : 'Не удалось добавить сделку',
+        variant: 'destructive',
+      });
+    }
   };
+
+  // Controlled mode: parent manages open state; uncontrolled: internal trigger button
+  const isControlled = open !== undefined;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button 
-          className="bg-gradient-primary hover:opacity-90"
-          size="sm"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Добавить актив
-        </Button>
-      </DialogTrigger>
+    <Dialog open={isControlled ? open : undefined} onOpenChange={handleOpenChange}>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button className="bg-gradient-primary hover:opacity-90" size="sm">
+            <Plus className="w-4 h-4 mr-2" />
+            Добавить актив
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Добавить новый актив</DialogTitle>
+          <DialogTitle>Добавить сделку</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="asset" className="text-dashboard-text-muted">Выберите актив</Label>
-            <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
-              <PopoverTrigger asChild>
-                <Input
-                  role="combobox"
-                  aria-expanded={comboboxOpen}
-                  placeholder="Выберите актив с Мосбиржи"
-                  value={query}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                    setComboboxOpen(true);
-                  }}
-                  onFocus={() => setComboboxOpen(true)}
-                  className="w-full bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
-                />
-              </PopoverTrigger>
-              <PopoverContent className="z-[70] w-[var(--radix-popover-trigger-width)] p-0 bg-[#0B1929] border-white/10 shadow-lg">
-                <ScrollArea className="h-64 w-full overscroll-contain" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
-                  {filteredAssets.length === 0 ? (
-                    <div className="py-6 text-center text-sm text-dashboard-text-muted">
-                      Активы не найдены
-                    </div>
-                  ) : (
-                    <ul className="divide-y divide-border">
-                      {filteredAssets.map((asset) => (
-                        <li key={asset.symbol}>
-                          <button
-                            type="button"
-                            className="w-full text-left px-3 py-2 hover:bg-white/5 focus:bg-white/5 focus:outline-none flex flex-col"
-                            onClick={() => {
-                              handleInputChange('asset', asset.symbol);
-                              setQuery(asset.name);
-                              setComboboxOpen(false);
-                            }}
-                          >
-                            <span className="font-medium">{asset.symbol}</span>
-                            <span className="text-sm text-dashboard-text-muted">{asset.name}</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </ScrollArea>
-              </PopoverContent>
-            </Popover>
-          </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="shares" className="text-dashboard-text-muted">Количество акций</Label>
-              <Input
-                id="shares"
-                type="number"
-                placeholder="10"
-                value={formData.shares}
-                onChange={(e) => handleInputChange('shares', e.target.value)}
-                min="0"
-                step="1"
-                className="bg-white/5 border-white/10 text-dashboard-text"
+            {/* Ticker */}
+            <FormField
+              control={form.control}
+              name="ticker"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-dashboard-text-muted">Тикер</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="SBER"
+                      className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Type */}
+            <FormField
+              control={form.control}
+              name="type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-dashboard-text-muted">Тип сделки</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-dashboard-text">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="BUY">Покупка (BUY)</SelectItem>
+                      <SelectItem value="SELL">Продажа (SELL)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Security type */}
+            <FormField
+              control={form.control}
+              name="securityType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-dashboard-text-muted">Тип инструмента</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-dashboard-text">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="STOCK">Акция (STOCK)</SelectItem>
+                      <SelectItem value="BOND">Облигация (BOND)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* Quantity */}
+              <FormField
+                control={form.control}
+                name="quantity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-dashboard-text-muted">Количество</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="10"
+                        min="0"
+                        step="1"
+                        className="bg-white/5 border-white/10 text-dashboard-text"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Price */}
+              <FormField
+                control={form.control}
+                name="price"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-dashboard-text-muted">Цена (₽)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="285.50"
+                        min="0"
+                        step="0.01"
+                        className="bg-white/5 border-white/10 text-dashboard-text"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="price" className="text-dashboard-text-muted">Цена за акцию (₽)</Label>
-              <Input
-                id="price"
-                type="number"
-                placeholder="Выберите актив"
-                value={selectedAsset ? selectedAsset.price.toString() : ''}
-                readOnly
-                className="bg-white/5 border-white/10 text-dashboard-text"
-              />
+
+            {/* Executed at */}
+            <FormField
+              control={form.control}
+              name="executedAt"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-dashboard-text-muted">Дата и время сделки</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="datetime-local"
+                      className="bg-white/5 border-white/10 text-dashboard-text"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="flex justify-end space-x-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+                Отмена
+              </Button>
+              <Button
+                type="submit"
+                disabled={isPending}
+                className="bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+              >
+                {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Добавить сделку
+              </Button>
             </div>
-          </div>
 
-          <div className="bg-white/5 p-4 rounded-lg">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-dashboard-text-muted">Общая стоимость:</span>
-              <span className="text-lg font-bold font-mono text-emerald-400">
-                ₽{totalValue.toLocaleString()}
-              </span>
-            </div>
-          </div>
-
-
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-            >
-              Отмена
-            </Button>
-            <Button type="submit" className="bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20">
-              Добавить актив
-            </Button>
-          </div>
-        </form>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
