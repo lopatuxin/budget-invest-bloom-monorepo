@@ -1,6 +1,8 @@
 package pyc.lopatuxin.investment.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import pyc.lopatuxin.investment.entity.Dividend;
 
 import java.time.LocalDate;
@@ -20,4 +22,7 @@ public interface DividendRepository extends JpaRepository<Dividend, UUID> {
     Optional<Dividend> findBySecurity_TickerAndRecordDate(String ticker, LocalDate recordDate);
 
     List<Dividend> findBySecurity_TickerAndPaymentDateAfter(String ticker, LocalDate after);
+
+    @Query("SELECT d FROM Dividend d JOIN FETCH d.security WHERE d.security.ticker IN :tickers AND d.paymentDate BETWEEN :from AND :to")
+    List<Dividend> findByTickerInAndPaymentDateBetweenWithSecurity(@Param("tickers") Collection<String> tickers, @Param("from") LocalDate from, @Param("to") LocalDate to);
 }

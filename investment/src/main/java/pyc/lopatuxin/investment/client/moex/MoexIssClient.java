@@ -106,7 +106,7 @@ public class MoexIssClient {
     @CircuitBreaker(name = "moex", fallbackMethod = "fetchDividendsFallback")
     public List<MoexDividendDto> fetchDividends(String ticker) {
         String json = moexWebClient.get()
-                .uri("/iss/securities/{ticker}/dividends.json?iss.meta=off&iss.only=dividends", ticker)
+                .uri("/securities/{ticker}/dividends.json?iss.meta=off&iss.only=dividends", ticker)
                 .retrieve()
                 .bodyToMono(String.class)
                 .block();

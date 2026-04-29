@@ -35,7 +35,7 @@ public class MarketDataController {
     @PostMapping("/security")
     public ResponseEntity<ResponseApi<MoexSecurityDto>> getSecurity(
             @RequestBody @Valid ApiRequest<MarketSecurityDto> request) {
-        MoexSecurityDto dto = marketDataService.getSecurityInfo(request.getData().getTicker());
+        MoexSecurityDto dto = marketDataService.getSecurityInfo(request.getData().getTicker().toUpperCase());
         return ResponseEntity.ok(ResponseApi.success("Информация о бумаге", dto));
     }
 }

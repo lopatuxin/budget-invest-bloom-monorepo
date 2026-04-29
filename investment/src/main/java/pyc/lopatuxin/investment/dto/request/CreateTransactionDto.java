@@ -24,7 +24,7 @@ import java.time.Instant;
 public class CreateTransactionDto {
 
     @NotBlank
-    @Size(max = 16)
+    @Size(max = 20)
     private String ticker;
 
     @NotNull

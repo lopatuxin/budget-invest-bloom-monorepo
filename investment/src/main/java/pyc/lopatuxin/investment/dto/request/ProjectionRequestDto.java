@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Min;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.Map;
 
 @Data
@@ -26,4 +27,8 @@ public class ProjectionRequestDto {
 
     // ticker -> annual return override (e.g. 0.12 for 12%)
     private Map<String, BigDecimal> overrides = Map.of();
+
+    public Map<String, BigDecimal> getOverrides() {
+        return overrides != null ? overrides : Collections.emptyMap();
+    }
 }

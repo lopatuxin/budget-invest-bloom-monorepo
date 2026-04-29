@@ -2,6 +2,7 @@ package pyc.lopatuxin.investment.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import pyc.lopatuxin.investment.entity.Position;
 
 import java.util.List;
@@ -16,4 +17,7 @@ public interface PositionRepository extends JpaRepository<Position, UUID> {
 
     @Query("select distinct p.security.ticker from Position p")
     List<String> findActiveTickers();
+
+    @Query("SELECT p FROM Position p JOIN FETCH p.security WHERE p.userId = :userId")
+    List<Position> findByUserIdWithSecurity(@Param("userId") UUID userId);
 }

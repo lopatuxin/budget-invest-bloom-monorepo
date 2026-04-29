@@ -38,7 +38,7 @@ public class TransactionService {
 
     @Transactional
     public TransactionResponseDto create(UUID userId, CreateTransactionDto dto) {
-        Security security = marketDataService.ensureSecurity(dto.getTicker(), dto.getSecurityType());
+        Security security = marketDataService.ensureSecurity(dto.getTicker().toUpperCase(), dto.getSecurityType());
 
         Transaction transaction = Transaction.builder()
                 .userId(userId)
@@ -60,9 +60,9 @@ public class TransactionService {
     public List<TransactionResponseDto> list(UUID userId, String ticker) {
         List<Transaction> transactions;
         if (ticker != null && !ticker.isBlank()) {
-            transactions = transactionRepository.findByUserIdAndSecurity_Ticker(userId, ticker.toUpperCase());
+            transactions = transactionRepository.findByUserIdAndTickerWithSecurity(userId, ticker.toUpperCase());
         } else {
-            transactions = transactionRepository.findByUserId(userId);
+            transactions = transactionRepository.findByUserIdWithSecurity(userId);
         }
         transactions.sort(Comparator.comparing(Transaction::getExecutedAt).reversed());
         return transactionMapper.toDtoList(transactions);
@@ -96,20 +96,15 @@ public class TransactionService {
                 totalCost = totalCost.add(t.getQuantity().multiply(t.getPrice()));
                 qty = qty.add(t.getQuantity());
             } else {
-                if (qty.compareTo(BigDecimal.ZERO) <= 0) {
+                if (qty.compareTo(t.getQuantity()) < 0) {
                     throw new IllegalStateException(
-                            "Insufficient shares for SELL: ticker=" + ticker + ", available=0");
+                            "Insufficient shares for SELL: ticker=" + ticker +
+                            ", tried to sell " + t.getQuantity() + " but only " + qty + " available");
                 }
                 BigDecimal avgCost = totalCost.divide(qty, 8, RoundingMode.HALF_UP);
                 BigDecimal costToRemove = avgCost.multiply(t.getQuantity());
                 totalCost = totalCost.subtract(costToRemove);
                 qty = qty.subtract(t.getQuantity());
-                if (qty.compareTo(BigDecimal.ZERO) < 0) {
-                    throw new IllegalStateException(
-                            "Insufficient shares for SELL: ticker=" + ticker +
-                            ", tried to sell " + t.getQuantity() + " but only " +
-                            qty.add(t.getQuantity()) + " available");
-                }
             }
         }
 

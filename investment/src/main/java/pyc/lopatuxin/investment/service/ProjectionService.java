@@ -42,7 +42,7 @@ public class ProjectionService {
     private final MarketDataService marketDataService;
 
     public ProjectionResultDto project(UUID userId, ProjectionRequestDto req) {
-        List<Position> positions = positionRepository.findByUserId(userId);
+        List<Position> positions = positionRepository.findByUserIdWithSecurity(userId);
         if (positions.isEmpty()) {
             return emptyResult();
         }

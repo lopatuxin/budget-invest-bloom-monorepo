@@ -40,7 +40,7 @@ public class AnalyticsService {
     private final MarketDataService marketDataService;
 
     public SeriesResponseDto<PortfolioValuePointDto> portfolioValueHistory(UUID userId, LocalDate from, LocalDate to) {
-        List<Transaction> txns = transactionRepository.findByUserId(userId).stream()
+        List<Transaction> txns = transactionRepository.findByUserIdWithSecurity(userId).stream()
                 .sorted(Comparator.comparing(Transaction::getExecutedAt))
                 .toList();
         if (txns.isEmpty()) {
@@ -88,7 +88,7 @@ public class AnalyticsService {
     }
 
     private List<String> collectPendingAndTrigger(UUID userId) {
-        List<Position> positions = positionRepository.findByUserId(userId);
+        List<Position> positions = positionRepository.findByUserIdWithSecurity(userId);
         List<String> pending = new ArrayList<>();
         for (Position pos : positions) {
             String ticker = pos.getSecurity().getTicker();

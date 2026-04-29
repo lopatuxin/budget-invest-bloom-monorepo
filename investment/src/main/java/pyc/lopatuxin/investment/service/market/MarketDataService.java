@@ -41,41 +41,50 @@ public class MarketDataService {
     private final PriceHistoryRepository priceHistoryRepository;
     private final MoexProperties moexProperties;
     private final HistoryLoaderService historyLoaderService;
+    private final MarketDataService self;
 
     public MarketDataService(MoexIssClient moexIssClient,
                              SecurityRepository securityRepository,
                              PriceSnapshotRepository priceSnapshotRepository,
                              PriceHistoryRepository priceHistoryRepository,
                              MoexProperties moexProperties,
-                             @Lazy HistoryLoaderService historyLoaderService) {
+                             @Lazy HistoryLoaderService historyLoaderService,
+                             @Lazy MarketDataService self) {
         this.moexIssClient = moexIssClient;
         this.securityRepository = securityRepository;
         this.priceSnapshotRepository = priceSnapshotRepository;
         this.priceHistoryRepository = priceHistoryRepository;
         this.moexProperties = moexProperties;
         this.historyLoaderService = historyLoaderService;
+        this.self = self;
     }
 
-    @Transactional
     public Security ensureSecurity(String ticker, SecurityType fallbackType) {
-        Optional<Security> existing = securityRepository.findById(ticker);
+        String normalizedTicker = ticker.toUpperCase();
+        Optional<Security> existing = securityRepository.findById(normalizedTicker);
         if (existing.isPresent()) {
             return existing.get();
         }
+        MoexSecurityDto moexDto = null;
         try {
-            Optional<MoexSecurityDto> moexDto = moexIssClient.fetchSecurity(ticker);
-            Security security = moexDto
-                    .map(dto -> buildReadySecurity(ticker, dto))
-                    .orElseGet(() -> buildPendingSecurity(ticker, fallbackType));
-            return securityRepository.save(security);
+            moexDto = moexIssClient.fetchSecurity(normalizedTicker).orElse(null);
         } catch (MoexUnavailableException e) {
-            log.warn("MOEX unavailable for ticker {}, saving as PENDING", ticker);
-            return securityRepository.save(buildPendingSecurity(ticker, fallbackType));
+            log.warn("MOEX unavailable for ticker {}, saving as PENDING", normalizedTicker);
         }
+        return self.persistNewSecurity(normalizedTicker, moexDto, fallbackType);
+    }
+
+    @Transactional
+    public Security persistNewSecurity(String ticker, MoexSecurityDto moexDto, SecurityType fallbackType) {
+        return securityRepository.findById(ticker).orElseGet(() -> {
+            Security security = moexDto != null
+                    ? buildReadySecurity(ticker, moexDto)
+                    : buildPendingSecurity(ticker, fallbackType);
+            return securityRepository.save(security);
+        });
     }
 
     @Cacheable(value = "moexSnapshots", key = "#ticker")
-    @Transactional
     public SnapshotResult getSnapshot(String ticker) {
         Optional<PriceSnapshot> dbSnapshot = priceSnapshotRepository.findById(ticker);
         if (dbSnapshot.isPresent() && !isStale(dbSnapshot.get())) {
@@ -97,7 +106,6 @@ public class MarketDataService {
         }
     }
 
-    @Transactional
     public Map<String, SnapshotResult> getSnapshots(Collection<String> tickers) {
         if (tickers.isEmpty()) {
             return Collections.emptyMap();
@@ -133,7 +141,6 @@ public class MarketDataService {
         }
     }
 
-    @Transactional
     public void ensureHistory(String ticker) {
         Optional<Security> secOpt = securityRepository.findById(ticker);
         if (secOpt.isEmpty()) {
@@ -159,12 +166,19 @@ public class MarketDataService {
                             .volume(c.volume())
                             .build())
                     .toList();
-            priceHistoryRepository.saveAll(records);
-            security.setHistoryStatus(HistoryStatus.READY);
-            securityRepository.save(security);
+            self.saveHistoryAndUpdateStatus(ticker, records);
         } catch (MoexUnavailableException e) {
             log.warn("MOEX unavailable for history {}, status remains PENDING", ticker);
         }
+    }
+
+    @Transactional
+    public void saveHistoryAndUpdateStatus(String ticker, List<PriceHistory> records) {
+        priceHistoryRepository.saveAll(records);
+        securityRepository.findById(ticker).ifPresent(s -> {
+            s.setHistoryStatus(HistoryStatus.READY);
+            securityRepository.save(s);
+        });
     }
 
     public void triggerHistoryAsync(String ticker) {

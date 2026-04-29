@@ -34,7 +34,7 @@ public class PortfolioService {
 
     @Transactional(readOnly = true)
     public List<PositionResponseDto> listPositions(UUID userId) {
-        List<Position> positions = positionRepository.findByUserId(userId);
+        List<Position> positions = positionRepository.findByUserIdWithSecurity(userId);
         Set<String> tickers = positions.stream()
                 .map(p -> p.getSecurity().getTicker())
                 .collect(Collectors.toSet());
@@ -55,7 +55,7 @@ public class PortfolioService {
 
     @Transactional(readOnly = true)
     public PortfolioOverviewDto getOverview(UUID userId) {
-        List<Position> positions = positionRepository.findByUserId(userId);
+        List<Position> positions = positionRepository.findByUserIdWithSecurity(userId);
         if (positions.isEmpty()) {
             return PortfolioOverviewDto.builder()
                     .totalValue(BigDecimal.ZERO)
@@ -99,7 +99,7 @@ public class PortfolioService {
     private BigDecimal calcDividends12m(Set<String> tickers, Map<String, BigDecimal> quantityByTicker) {
         LocalDate now = LocalDate.now();
         List<Dividend> dividends = dividendRepository
-                .findBySecurity_TickerInAndPaymentDateBetween(tickers, now.minusYears(1), now);
+                .findByTickerInAndPaymentDateBetweenWithSecurity(tickers, now.minusYears(1), now);
         BigDecimal total = BigDecimal.ZERO;
         for (Dividend d : dividends) {
             if (d.getAmountPerShare() == null) continue;

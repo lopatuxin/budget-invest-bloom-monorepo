@@ -42,6 +42,7 @@ public class DividendSyncService {
             if (dividendRepository.existsBySecurity_TickerAndRecordDate(ticker, dto.getRegistryCloseDate())) {
                 continue;
             }
+            if (dto.getValue() == null) continue;
             LocalDate paymentDate = dto.getDividendPaymentDate();
             DividendStatus status = (paymentDate != null && paymentDate.isBefore(LocalDate.now()))
                     ? DividendStatus.PAID : DividendStatus.ANNOUNCED;
