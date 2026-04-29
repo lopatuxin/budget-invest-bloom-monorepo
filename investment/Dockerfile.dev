@@ -1,7 +1,7 @@
 # Dockerfile for development with hot-reload
 FROM eclipse-temurin:24-jdk AS base
 
-ENV GRADLE_VERSION=8.14.2
+ENV GRADLE_VERSION=9.2.1
 ENV GRADLE_HOME=/opt/gradle
 RUN apt-get update && apt-get install -y wget unzip curl && \
     wget https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip && \
