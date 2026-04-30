@@ -7,8 +7,8 @@ import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClient;
 import pyc.lopatuxin.investment.client.moex.dto.MoexCandleDto;
 import pyc.lopatuxin.investment.client.moex.dto.MoexDividendDto;
 import pyc.lopatuxin.investment.client.moex.dto.MoexSecurityDto;
@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
@@ -30,17 +31,16 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class MoexIssClient {
 
-    private final WebClient moexWebClient;
+    private final RestClient moexRestClient;
     private final ObjectMapper objectMapper;
 
     @Retry(name = "moex", fallbackMethod = "fetchSecurityFallback")
     @CircuitBreaker(name = "moex", fallbackMethod = "fetchSecurityFallback")
     public Optional<MoexSecurityDto> fetchSecurity(String ticker) {
-        String json = moexWebClient.get()
-                .uri("/securities/{ticker}.json?iss.meta=off", ticker)
+        String json = moexRestClient.get()
+                .uri("/securities/{ticker}.json?iss.only=description,securities&iss.meta=off", ticker)
                 .retrieve()
-                .bodyToMono(String.class)
-                .block();
+                .body(String.class);
         return parseSecurity(json, ticker);
     }
 
@@ -58,8 +58,8 @@ public class MoexIssClient {
         }
         String csv = String.join(",", tickers);
         Map<String, MoexSnapshotDto> result = new HashMap<>();
-        result.putAll(fetchMarketData(csv, "stock", "shares", "TQBR"));
-        result.putAll(fetchMarketData(csv, "stock", "bonds", "TQCB"));
+        result.putAll(fetchMarketData(csv, "stock", "shares"));
+        result.putAll(fetchMarketData(csv, "stock", "bonds"));
         return result;
     }
 
@@ -72,11 +72,10 @@ public class MoexIssClient {
     @Retry(name = "moex", fallbackMethod = "searchSecuritiesFallback")
     @CircuitBreaker(name = "moex", fallbackMethod = "searchSecuritiesFallback")
     public List<MoexSecurityDto> searchSecurities(String query) {
-        String json = moexWebClient.get()
-                .uri("/securities.json?q={q}&limit=20&iss.meta=off", query)
+        String json = moexRestClient.get()
+                .uri("/securities.json?q={q}&limit=20&iss.only=securities&iss.meta=off", query)
                 .retrieve()
-                .bodyToMono(String.class)
-                .block();
+                .body(String.class);
         return parseSearchResults(json);
     }
 
@@ -105,11 +104,10 @@ public class MoexIssClient {
     @Retry(name = "moex", fallbackMethod = "fetchDividendsFallback")
     @CircuitBreaker(name = "moex", fallbackMethod = "fetchDividendsFallback")
     public List<MoexDividendDto> fetchDividends(String ticker) {
-        String json = moexWebClient.get()
+        String json = moexRestClient.get()
                 .uri("/securities/{ticker}/dividends.json?iss.meta=off&iss.only=dividends", ticker)
                 .retrieve()
-                .bodyToMono(String.class)
-                .block();
+                .body(String.class);
         return parseDividends(json);
     }
 
@@ -136,12 +134,11 @@ public class MoexIssClient {
     }
 
     private String fetchHistoryPageJson(String ticker, String market, LocalDate from, LocalDate to, int start) {
-        return moexWebClient.get()
-                .uri("/history/engines/stock/markets/{market}/securities/{ticker}.json?from={from}&till={to}&iss.meta=off&iss.only=history&start={start}",
+        return moexRestClient.get()
+                .uri("/history/engines/stock/markets/{market}/securities/{ticker}.json?from={from}&till={to}&iss.meta=off&iss.only=history,history.cursor&start={start}",
                         market, ticker, from, to, start)
                 .retrieve()
-                .bodyToMono(String.class)
-                .block();
+                .body(String.class);
     }
 
     @SuppressWarnings("unchecked")
@@ -223,17 +220,16 @@ public class MoexIssClient {
         }
     }
 
-    private Map<String, MoexSnapshotDto> fetchMarketData(String csv, String engine, String market, String board) {
+    private Map<String, MoexSnapshotDto> fetchMarketData(String csv, String engine, String market) {
         try {
-            String json = moexWebClient.get()
-                    .uri("/engines/{engine}/markets/{market}/boards/{board}/securities.json?securities={csv}&iss.meta=off&iss.only=marketdata",
-                            engine, market, board, csv)
+            String json = moexRestClient.get()
+                    .uri("/engines/{engine}/markets/{market}/securities.json?securities={csv}&iss.only=marketdata,securities&iss.meta=off",
+                            engine, market, csv)
                     .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
+                    .body(String.class);
             return parseMarketData(json);
-        } catch (WebClientResponseException e) {
-            log.debug("Market data fetch failed for board {}: {}", board, e.getStatusCode());
+        } catch (HttpClientErrorException e) {
+            log.debug("Market data fetch failed for {}/{}: {}", engine, market, e.getStatusCode());
             return Collections.emptyMap();
         }
     }
@@ -256,10 +252,15 @@ public class MoexIssClient {
             Map<String, String> descMap = buildDescMap(descData, nameIdx, valueIdx);
 
             Map<String, Object> secBlock = (Map<String, Object>) root.get("securities");
-            String boardId = extractBoardId(secBlock);
+            String boardId = extractPrimaryBoardId(secBlock);
             String name = descMap.getOrDefault("NAME", ticker);
-            String typename = descMap.getOrDefault("TYPENAME", "");
-            SecurityType securityType = typename.toLowerCase().contains("акци") ? SecurityType.STOCK : SecurityType.BOND;
+
+            String group = descMap.get("GROUP");
+            SecurityType securityType = MoexSecurityClassifier.fromGroup(group).orElseGet(() -> {
+                String typename = descMap.getOrDefault("TYPENAME", "");
+                return typename.toLowerCase().contains("акци") ? SecurityType.STOCK : SecurityType.BOND;
+            });
+
             String sector = descMap.get("SECTOR");
             String currency = descMap.get("CURRENCYID");
 
@@ -270,7 +271,6 @@ public class MoexIssClient {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private Map<String, String> buildDescMap(List<List<Object>> descData, int nameIdx, int valueIdx) {
         Map<String, String> map = new HashMap<>();
         for (List<Object> row : descData) {
@@ -283,14 +283,20 @@ public class MoexIssClient {
         return map;
     }
 
-    @SuppressWarnings("unchecked")
-    private String extractBoardId(Map<String, Object> secBlock) {
+    private String extractPrimaryBoardId(Map<String, Object> secBlock) {
         if (secBlock == null) return null;
-        List<String> cols = (List<String>) secBlock.get("columns");
-        List<List<Object>> data = (List<List<Object>>) secBlock.get("data");
-        if (cols == null || data == null || data.isEmpty()) return null;
-        int boardIdx = MoexJsonMapper.indexOf(cols, "BOARDID");
-        return MoexJsonMapper.str(data.get(0), boardIdx);
+        List<Map<String, Object>> rows = MoexJsonMapper.parseTableFromBlock(secBlock);
+        return rows.stream()
+                .filter(r -> MoexJsonMapper.boolFromMap(r, "is_primary", 1))
+                .map(r -> MoexJsonMapper.strFromMap(r, "BOARDID"))
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElseGet(() -> rows.stream()
+                        .filter(r -> MoexJsonMapper.boolFromMap(r, "is_traded", 1))
+                        .map(r -> MoexJsonMapper.strFromMap(r, "BOARDID"))
+                        .filter(Objects::nonNull)
+                        .findFirst()
+                        .orElseGet(() -> rows.isEmpty() ? null : MoexJsonMapper.strFromMap(rows.get(0), "BOARDID")));
     }
 
     @SuppressWarnings("unchecked")
@@ -324,38 +330,20 @@ public class MoexIssClient {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private List<MoexDividendDto> parseDividends(String json) {
         if (json == null) return Collections.emptyList();
         try {
-            Map<String, Object> root = objectMapper.readValue(json, new TypeReference<>() {});
-            Map<String, Object> block = (Map<String, Object>) root.get("dividends");
-            if (block == null) return Collections.emptyList();
-
-            List<String> cols = (List<String>) block.get("columns");
-            List<List<Object>> data = (List<List<Object>>) block.get("data");
-            if (cols == null || data == null || data.isEmpty()) return Collections.emptyList();
-
-            int secidIdx = MoexJsonMapper.indexOf(cols, "secid");
-            int recordDateIdx = MoexJsonMapper.indexOf(cols, "registryclosedate");
-            int paymentDateIdx = MoexJsonMapper.indexOf(cols, "dividendpaymentdate");
-            int valueIdx = MoexJsonMapper.indexOf(cols, "value");
-            int currencyIdx = MoexJsonMapper.indexOf(cols, "currencyid");
-
+            List<Map<String, Object>> rows = MoexJsonMapper.parseTable(objectMapper, json, "dividends");
             List<MoexDividendDto> result = new ArrayList<>();
-            for (List<Object> row : data) {
+            for (Map<String, Object> row : rows) {
                 MoexDividendDto dto = new MoexDividendDto();
-                dto.setSecid(MoexJsonMapper.str(row, secidIdx));
-                String recordDateStr = MoexJsonMapper.str(row, recordDateIdx);
-                if (recordDateStr != null && !recordDateStr.isBlank()) {
+                dto.setSecid(MoexJsonMapper.strFromMap(row, "secid"));
+                String recordDateStr = MoexJsonMapper.strFromMap(row, "registryclosedate");
+                if (recordDateStr != null) {
                     dto.setRegistryCloseDate(LocalDate.parse(recordDateStr));
                 }
-                String paymentDateStr = MoexJsonMapper.str(row, paymentDateIdx);
-                if (paymentDateStr != null && !paymentDateStr.isBlank()) {
-                    dto.setDividendPaymentDate(LocalDate.parse(paymentDateStr));
-                }
-                dto.setValue(MoexJsonMapper.decimal(row, valueIdx));
-                dto.setCurrencyId(MoexJsonMapper.str(row, currencyIdx));
+                dto.setValue(MoexJsonMapper.decimalFromMap(row, "value"));
+                dto.setCurrencyId(MoexJsonMapper.strFromMap(row, "currencyid"));
                 result.add(dto);
             }
             return result;
@@ -365,42 +353,23 @@ public class MoexIssClient {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private List<MoexSecurityDto> parseSearchResults(String json) {
         if (json == null) return Collections.emptyList();
         try {
-            Map<String, Object> root = objectMapper.readValue(json, new TypeReference<>() {});
-            Map<String, Object> secBlock = (Map<String, Object>) root.get("securities");
-            if (secBlock == null) return Collections.emptyList();
-
-            List<String> cols = (List<String>) secBlock.get("columns");
-            List<List<Object>> data = (List<List<Object>>) secBlock.get("data");
-            if (cols == null || data == null) return Collections.emptyList();
-
-            int secidIdx = MoexJsonMapper.indexOf(cols, "SECID");
-            int boardIdx = MoexJsonMapper.indexOf(cols, "BOARDID");
-            int nameIdx = MoexJsonMapper.indexOf(cols, "SHORTNAME");
-            int typeIdx = MoexJsonMapper.indexOf(cols, "TYPENAME");
-            int currIdx = MoexJsonMapper.indexOf(cols, "CURRENCYID");
-
+            List<Map<String, Object>> rows = MoexJsonMapper.parseTable(objectMapper, json, "securities");
             List<MoexSecurityDto> result = new ArrayList<>();
-            for (List<Object> row : data) {
-                String typename = MoexJsonMapper.str(row, typeIdx);
-                if (typename == null) continue;
-                String typenameLower = typename.toLowerCase();
-                SecurityType secType;
-                if (typenameLower.contains("акци")) {
-                    secType = SecurityType.STOCK;
-                } else if (typenameLower.contains("облигаци")) {
-                    secType = SecurityType.BOND;
-                } else {
-                    continue;
-                }
-                String secid = MoexJsonMapper.str(row, secidIdx);
-                String boardId = MoexJsonMapper.str(row, boardIdx);
-                String name = MoexJsonMapper.str(row, nameIdx);
-                String currency = MoexJsonMapper.str(row, currIdx);
-                result.add(new MoexSecurityDto(secid, boardId, name, secType, null, currency));
+            for (Map<String, Object> row : rows) {
+                String isTradedStr = MoexJsonMapper.strFromMap(row, "is_traded");
+                if (!"1".equals(isTradedStr)) continue;
+
+                String group = MoexJsonMapper.strFromMap(row, "group");
+                Optional<SecurityType> typeOpt = MoexSecurityClassifier.fromGroup(group);
+                if (typeOpt.isEmpty()) continue;
+
+                String secid = MoexJsonMapper.strFromMap(row, "secid");
+                String boardId = MoexJsonMapper.strFromMap(row, "primary_boardid");
+                String name = MoexJsonMapper.strFromMap(row, "shortname");
+                result.add(new MoexSecurityDto(secid, boardId, name, typeOpt.get(), null, null));
             }
             return result;
         } catch (Exception e) {

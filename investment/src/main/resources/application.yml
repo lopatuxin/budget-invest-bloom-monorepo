@@ -11,6 +11,7 @@ moex:
   iss:
     base-url: https://iss.moex.com/iss
     timeout-ms: 5000
+    connect-timeout-ms: 3000
     snapshot-ttl-minutes: 5
 
 resilience4j:

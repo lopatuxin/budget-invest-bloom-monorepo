@@ -4,13 +4,16 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.util.Timeout;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.client.reactive.ReactorClientHttpConnector;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.netty.http.client.HttpClient;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
 
-import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 @Configuration
 public class WebClientConfig {
@@ -25,12 +28,17 @@ public class WebClientConfig {
     }
 
     @Bean
-    public WebClient moexWebClient(MoexProperties props) {
-        HttpClient httpClient = HttpClient.create()
-                .responseTimeout(Duration.ofMillis(props.getTimeoutMs()));
-        return WebClient.builder()
+    public RestClient moexRestClient(MoexProperties props) {
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setConnectTimeout(Timeout.of(props.getConnectTimeoutMs(), TimeUnit.MILLISECONDS))
+                .setResponseTimeout(Timeout.of(props.getTimeoutMs(), TimeUnit.MILLISECONDS))
+                .build();
+        CloseableHttpClient httpClient = HttpClients.custom()
+                .setDefaultRequestConfig(requestConfig)
+                .build();
+        return RestClient.builder()
+                .requestFactory(new HttpComponentsClientHttpRequestFactory(httpClient))
                 .baseUrl(props.getBaseUrl())
-                .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .defaultHeader("Accept", "application/json")
                 .build();
     }

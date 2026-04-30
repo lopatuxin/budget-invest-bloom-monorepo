@@ -23,7 +23,7 @@ import type { MoexSecuritySearchItem } from '@/types/investment';
 const schema = z.object({
   ticker: z.string().trim().min(1, 'Обязательное поле').max(16).transform(v => v.toUpperCase()),
   type: z.enum(['BUY', 'SELL']),
-  securityType: z.enum(['STOCK', 'BOND']),
+  securityType: z.enum(['STOCK', 'BOND', 'ETF', 'OFZ']),
   quantity: z.coerce.number().positive('Должно быть > 0'),
   price: z.coerce.number().positive('Должно быть > 0'),
   executedAt: z.string().min(1, 'Обязательное поле'),
@@ -199,7 +199,7 @@ const AddAssetDialog = ({ open, onOpenChange }: AddAssetDialogProps) => {
                                 <span className="text-dashboard-text-muted ml-2">{item.name}</span>
                               </div>
                               <span className="text-xs text-dashboard-text-muted shrink-0">
-                                {item.securityType === 'STOCK' ? 'Акция' : 'Облигация'}
+                                {{ STOCK: 'Акция', BOND: 'Облигация', ETF: 'ETF', OFZ: 'ОФЗ' }[item.securityType] ?? item.securityType}
                               </span>
                             </button>
                           ))}
@@ -251,6 +251,8 @@ const AddAssetDialog = ({ open, onOpenChange }: AddAssetDialogProps) => {
                     <SelectContent>
                       <SelectItem value="STOCK">Акция (STOCK)</SelectItem>
                       <SelectItem value="BOND">Облигация (BOND)</SelectItem>
+                      <SelectItem value="ETF">ETF</SelectItem>
+                      <SelectItem value="OFZ">ОФЗ (OFZ)</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

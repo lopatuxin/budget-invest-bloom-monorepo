@@ -17,5 +17,7 @@ public class MoexProperties {
 
     private int timeoutMs = 5000;
 
+    private int connectTimeoutMs = 3000;
+
     private int snapshotTtlMinutes = 5;
 }

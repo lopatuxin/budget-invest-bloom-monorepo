@@ -9,7 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.client.RestClient;
 import pyc.lopatuxin.investment.client.moex.dto.MoexDividendDto;
 
 import java.io.IOException;
@@ -29,11 +29,11 @@ class MoexIssClientFetchDividendsTest {
     void setUp() throws IOException {
         mockWebServer = new MockWebServer();
         mockWebServer.start();
-        WebClient webClient = WebClient.builder()
+        RestClient restClient = RestClient.builder()
                 .baseUrl(mockWebServer.url("/").toString())
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                 .build();
-        client = new MoexIssClient(webClient, new ObjectMapper());
+        client = new MoexIssClient(restClient, new ObjectMapper());
     }
 
     @AfterEach
@@ -44,13 +44,14 @@ class MoexIssClientFetchDividendsTest {
     @Test
     @DisplayName("fetchDividends — MOEX вернул два дивиденда → список содержит 2 элемента с корректными полями")
     void fetchDividends_returnsListFromMoex() {
+        // Real MOEX columns: secid, registryclosedate, value, currencyid (no dividendpaymentdate)
         String responseBody = """
                 {
                   "dividends": {
-                    "columns": ["secid","registryclosedate","dividendpaymentdate","value","currencyid"],
+                    "columns": ["secid","registryclosedate","value","currencyid"],
                     "data": [
-                      ["SBER","2023-05-15","2023-07-21",25.0,"RUB"],
-                      ["SBER","2022-05-20","2022-07-15",18.7,"RUB"]
+                      ["SBER","2023-05-15",25.0,"RUB"],
+                      ["SBER","2022-05-20",18.7,"RUB"]
                     ]
                   }
                 }
@@ -66,7 +67,6 @@ class MoexIssClientFetchDividendsTest {
         MoexDividendDto first = result.get(0);
         assertThat(first.getSecid()).isEqualTo("SBER");
         assertThat(first.getRegistryCloseDate()).isEqualTo(LocalDate.of(2023, 5, 15));
-        assertThat(first.getDividendPaymentDate()).isEqualTo(LocalDate.of(2023, 7, 21));
         assertThat(first.getValue()).isEqualByComparingTo(new BigDecimal("25.0"));
         assertThat(first.getCurrencyId()).isEqualTo("RUB");
 
@@ -81,7 +81,7 @@ class MoexIssClientFetchDividendsTest {
         String responseBody = """
                 {
                   "dividends": {
-                    "columns": ["secid","registryclosedate","dividendpaymentdate","value","currencyid"],
+                    "columns": ["secid","registryclosedate","value","currencyid"],
                     "data": []
                   }
                 }

@@ -9,9 +9,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.client.RestClient;
 import pyc.lopatuxin.investment.client.moex.MoexIssClient;
-import pyc.lopatuxin.investment.client.moex.MoexUnavailableException;
 import pyc.lopatuxin.investment.client.moex.dto.MoexCandleDto;
 import pyc.lopatuxin.investment.client.moex.dto.MoexSecurityDto;
 import pyc.lopatuxin.investment.client.moex.dto.MoexSnapshotDto;
@@ -37,11 +36,11 @@ class MoexIssClientTest {
     void setUp() throws IOException {
         mockWebServer = new MockWebServer();
         mockWebServer.start();
-        WebClient webClient = WebClient.builder()
+        RestClient restClient = RestClient.builder()
                 .baseUrl(mockWebServer.url("/").toString())
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                 .build();
-        client = new MoexIssClient(webClient, new ObjectMapper());
+        client = new MoexIssClient(restClient, new ObjectMapper());
     }
 
     @AfterEach
@@ -59,13 +58,13 @@ class MoexIssClientTest {
                     "data": [
                       ["SECID","Код","SBER"],
                       ["NAME","Наименование","Сбербанк"],
-                      ["TYPENAME","Тип","Акция обыкновенная"],
+                      ["GROUP","Группа","stock_shares"],
                       ["CURRENCYID","Валюта","RUB"]
                     ]
                   },
                   "securities": {
-                    "columns": ["SECID","BOARDID","SHORTNAME"],
-                    "data": [["SBER","TQBR","Сбербанк"]]
+                    "columns": ["SECID","BOARDID","SHORTNAME","is_primary"],
+                    "data": [["SBER","TQBR","Сбербанк",1]]
                   }
                 }
                 """;

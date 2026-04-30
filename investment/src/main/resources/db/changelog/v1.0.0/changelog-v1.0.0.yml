@@ -16,3 +16,5 @@ databaseChangeLog:
       file: db/changelog/v1.0.0/007-add-dividend-unique.yml
   - include:
       file: db/changelog/v1.0.0/008-add-positions-version.yml
+  - include:
+      file: db/changelog/v1.0.0/010-extend-security-type.yml

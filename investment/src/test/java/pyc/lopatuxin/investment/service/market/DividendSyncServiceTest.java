@@ -65,7 +65,6 @@ class DividendSyncServiceTest {
         MoexDividendDto dto = new MoexDividendDto();
         dto.setSecid("SBER");
         dto.setRegistryCloseDate(LocalDate.of(2023, 5, 15));
-        dto.setDividendPaymentDate(LocalDate.of(2023, 7, 21));
         dto.setValue(new BigDecimal("25.0"));
         dto.setCurrencyId("RUB");
 
@@ -91,7 +90,6 @@ class DividendSyncServiceTest {
         MoexDividendDto dto = new MoexDividendDto();
         dto.setSecid("SBER");
         dto.setRegistryCloseDate(LocalDate.of(2023, 5, 15));
-        dto.setDividendPaymentDate(LocalDate.of(2023, 7, 21));
         dto.setValue(new BigDecimal("25.0"));
         dto.setCurrencyId("RUB");
 
@@ -118,14 +116,11 @@ class DividendSyncServiceTest {
     }
 
     @Test
-    @DisplayName("syncDividends — paymentDate в прошлом → status = PAID")
-    void syncDividends_setsPaidStatus_whenPaymentDateInPast() {
-        LocalDate pastDate = LocalDate.now().minusDays(1);
-
+    @DisplayName("syncDividends — registryCloseDate в прошлом → status = PAID")
+    void syncDividends_setsPaidStatus_whenRegistryDateInPast() {
         MoexDividendDto dto = new MoexDividendDto();
         dto.setSecid("SBER");
         dto.setRegistryCloseDate(LocalDate.now().minusDays(10));
-        dto.setDividendPaymentDate(pastDate);
         dto.setValue(new BigDecimal("18.5"));
         dto.setCurrencyId("RUB");
 
@@ -141,14 +136,11 @@ class DividendSyncServiceTest {
     }
 
     @Test
-    @DisplayName("syncDividends — paymentDate в будущем → status = ANNOUNCED")
-    void syncDividends_setsAnnouncedStatus_whenPaymentDateInFuture() {
-        LocalDate futureDate = LocalDate.now().plusDays(30);
-
+    @DisplayName("syncDividends — registryCloseDate в будущем → status = ANNOUNCED")
+    void syncDividends_setsAnnouncedStatus_whenRegistryDateInFuture() {
         MoexDividendDto dto = new MoexDividendDto();
         dto.setSecid("SBER");
         dto.setRegistryCloseDate(LocalDate.now().plusDays(10));
-        dto.setDividendPaymentDate(futureDate);
         dto.setValue(new BigDecimal("30.0"));
         dto.setCurrencyId("RUB");
 

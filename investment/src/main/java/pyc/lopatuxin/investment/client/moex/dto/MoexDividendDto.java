@@ -15,9 +15,6 @@ public class MoexDividendDto {
     @JsonProperty("registryclosedate")
     private LocalDate registryCloseDate;
 
-    @JsonProperty("dividendpaymentdate")
-    private LocalDate dividendPaymentDate;
-
     @JsonProperty("value")
     private BigDecimal value;
 

@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/010-extend-security-type.yml
+  - changeSet:
+      id: 010-extend-security-type
+      author: investment
+      changes:
+        - sql:
+            sql: |
+              ALTER TABLE securities DROP CONSTRAINT IF EXISTS chk_securities_type;
+              ALTER TABLE securities ADD CONSTRAINT chk_securities_type
+                CHECK (type IN ('STOCK', 'BOND', 'ETF', 'OFZ'));
+      rollback:
+        - sql:
+            sql: |
+              ALTER TABLE securities DROP CONSTRAINT IF EXISTS chk_securities_type;
+              ALTER TABLE securities ADD CONSTRAINT chk_securities_type
+                CHECK (type IN ('STOCK', 'BOND'));

@@ -43,14 +43,13 @@ public class DividendSyncService {
                 continue;
             }
             if (dto.getValue() == null) continue;
-            LocalDate paymentDate = dto.getDividendPaymentDate();
-            DividendStatus status = (paymentDate != null && paymentDate.isBefore(LocalDate.now()))
+            DividendStatus status = dto.getRegistryCloseDate().isBefore(LocalDate.now())
                     ? DividendStatus.PAID : DividendStatus.ANNOUNCED;
 
             Dividend dividend = new Dividend();
             dividend.setSecurity(security);
             dividend.setRecordDate(dto.getRegistryCloseDate());
-            dividend.setPaymentDate(paymentDate);
+            dividend.setPaymentDate(null);
             dividend.setAmountPerShare(dto.getValue());
             dividend.setCurrency(dto.getCurrencyId() != null ? dto.getCurrencyId() : "RUB");
             dividend.setStatus(status);

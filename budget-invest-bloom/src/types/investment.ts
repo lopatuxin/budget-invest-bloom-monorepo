@@ -1,7 +1,7 @@
 import type { ApiResponse } from './budget';
 
 export type TransactionType = 'BUY' | 'SELL';
-export type SecurityType = 'STOCK' | 'BOND';
+export type SecurityType = 'STOCK' | 'BOND' | 'ETF' | 'OFZ';
 
 export interface TransactionResponse {
   id: string;
@@ -41,7 +41,7 @@ export interface MoexSecuritySearchItem {
   ticker: string;
   boardId: string;
   name: string;
-  securityType: 'STOCK' | 'BOND';
+  securityType: SecurityType;
   sector: string | null;
   currency: string | null;
 }
