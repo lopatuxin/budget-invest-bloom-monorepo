@@ -11,6 +11,7 @@ import pyc.lopatuxin.investment.client.moex.dto.MoexCandleDto;
 import pyc.lopatuxin.investment.client.moex.dto.MoexSecurityDto;
 import pyc.lopatuxin.investment.client.moex.dto.MoexSnapshotDto;
 import pyc.lopatuxin.investment.config.MoexProperties;
+import pyc.lopatuxin.investment.dto.request.SearchCategory;
 import pyc.lopatuxin.investment.entity.PriceHistory;
 import pyc.lopatuxin.investment.entity.PriceSnapshot;
 import pyc.lopatuxin.investment.entity.Security;
@@ -30,6 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -131,14 +133,28 @@ public class MarketDataService {
         return result;
     }
 
-    @Cacheable(value = "moexSecurities", key = "#query")
-    public List<MoexSecurityDto> search(String query) {
+    @Cacheable(value = "moexSecurities", key = "#query + ':' + (#category != null ? #category.name() : 'ALL')")
+    public List<MoexSecurityDto> search(String query, SearchCategory category) {
         try {
-            return moexIssClient.searchSecurities(query);
+            List<MoexSecurityDto> results = moexIssClient.searchSecurities(query);
+            if (category == null) {
+                return results;
+            }
+            Set<SecurityType> allowed = resolveTypes(category);
+            return results.stream()
+                    .filter(r -> allowed.contains(r.securityType()))
+                    .toList();
         } catch (MoexUnavailableException e) {
             log.warn("MOEX unavailable for search query: {}", query);
             return Collections.emptyList();
         }
+    }
+
+    private Set<SecurityType> resolveTypes(SearchCategory category) {
+        return switch (category) {
+            case STOCKS -> Set.of(SecurityType.STOCK, SecurityType.ETF);
+            case BONDS -> Set.of(SecurityType.BOND, SecurityType.OFZ);
+        };
     }
 
     public void ensureHistory(String ticker) {

@@ -3,7 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { apiPost } from '@/lib/api';
 import type { ApiResponse, MoexSecuritySearchItem } from '@/types/investment';
 
-export function useSecuritySearch(query: string) {
+export type SearchCategory = 'STOCKS' | 'BONDS';
+
+export function useSecuritySearch(query: string, category?: SearchCategory) {
   const [debouncedQuery, setDebouncedQuery] = useState(query);
 
   useEffect(() => {
@@ -12,10 +14,11 @@ export function useSecuritySearch(query: string) {
   }, [query]);
 
   return useQuery({
-    queryKey: ['moex-search', debouncedQuery],
+    queryKey: ['moex-search', debouncedQuery, category ?? 'ALL'],
     queryFn: () =>
       apiPost<ApiResponse<MoexSecuritySearchItem[]>>('/api/investment/market/search', {
         q: debouncedQuery,
+        ...(category ? { category } : {}),
       }),
     enabled: debouncedQuery.trim().length >= 2,
     staleTime: 60_000,

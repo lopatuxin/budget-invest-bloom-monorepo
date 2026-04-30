@@ -28,7 +28,9 @@ public class MarketDataController {
     @PostMapping("/search")
     public ResponseEntity<ResponseApi<List<MoexSecurityDto>>> search(
             @RequestBody @Valid ApiRequest<MarketSearchDto> request) {
-        List<MoexSecurityDto> results = marketDataService.search(request.getData().getQ());
+        List<MoexSecurityDto> results = marketDataService.search(
+                request.getData().getQ(),
+                request.getData().getCategory());
         return ResponseEntity.ok(ResponseApi.success("Результаты поиска", results));
     }
 

@@ -13,6 +13,7 @@ import pyc.lopatuxin.investment.client.moex.MoexUnavailableException;
 import pyc.lopatuxin.investment.client.moex.dto.MoexSecurityDto;
 import pyc.lopatuxin.investment.client.moex.dto.MoexSnapshotDto;
 import pyc.lopatuxin.investment.config.MoexProperties;
+import pyc.lopatuxin.investment.dto.request.SearchCategory;
 import pyc.lopatuxin.investment.entity.PriceSnapshot;
 import pyc.lopatuxin.investment.entity.Security;
 import pyc.lopatuxin.investment.entity.enums.HistoryStatus;
@@ -175,5 +176,48 @@ class MarketDataServiceTest {
 
         assertThat(result.stale()).isTrue();
         assertThat(result.lastPrice()).isNull();
+    }
+
+    @Test
+    @DisplayName("search — category=null → возвращает все типы")
+    void search_categoryNull_returnsAll() {
+        when(moexIssClient.searchSecurities("test")).thenReturn(searchFixture());
+
+        List<MoexSecurityDto> result = marketDataService.search("test", null);
+
+        assertThat(result).hasSize(4);
+    }
+
+    @Test
+    @DisplayName("search — category=STOCKS → только STOCK и ETF")
+    void search_categoryStocks_returnsStocksAndEtf() {
+        when(moexIssClient.searchSecurities("test")).thenReturn(searchFixture());
+
+        List<MoexSecurityDto> result = marketDataService.search("test", SearchCategory.STOCKS);
+
+        assertThat(result)
+                .extracting(MoexSecurityDto::securityType)
+                .containsExactlyInAnyOrder(SecurityType.STOCK, SecurityType.ETF);
+    }
+
+    @Test
+    @DisplayName("search — category=BONDS → только BOND и OFZ")
+    void search_categoryBonds_returnsBondsAndOfz() {
+        when(moexIssClient.searchSecurities("test")).thenReturn(searchFixture());
+
+        List<MoexSecurityDto> result = marketDataService.search("test", SearchCategory.BONDS);
+
+        assertThat(result)
+                .extracting(MoexSecurityDto::securityType)
+                .containsExactlyInAnyOrder(SecurityType.BOND, SecurityType.OFZ);
+    }
+
+    private List<MoexSecurityDto> searchFixture() {
+        return List.of(
+                new MoexSecurityDto("SBER", "TQBR", "Сбербанк", SecurityType.STOCK, null, "RUB"),
+                new MoexSecurityDto("FXRL", "TQTF", "FinEx ETF", SecurityType.ETF, null, "RUB"),
+                new MoexSecurityDto("RU000A0JX0J2", "TQCB", "Корп. облигация", SecurityType.BOND, null, "RUB"),
+                new MoexSecurityDto("SU26238RMFS4", "TQOB", "ОФЗ 26238", SecurityType.OFZ, null, "RUB")
+        );
     }
 }

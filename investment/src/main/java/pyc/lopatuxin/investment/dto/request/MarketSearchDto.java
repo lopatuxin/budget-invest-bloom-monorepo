@@ -16,4 +16,6 @@ public class MarketSearchDto {
 
     @NotBlank
     private String q;
+
+    private SearchCategory category;
 }

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -14,11 +14,14 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Plus, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCreateTransaction } from '@/hooks/useCreateTransaction';
 import { useSecuritySearch } from '@/hooks/useSecuritySearch';
 import type { MoexSecuritySearchItem } from '@/types/investment';
+import { SecurityLogo } from '@/components/SecurityLogo';
 
 const schema = z.object({
   ticker: z.string().trim().min(1, 'Обязательное поле').max(16).transform(v => v.toUpperCase()),
@@ -36,35 +39,21 @@ interface AddAssetDialogProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-const AddAssetDialog = ({ open, onOpenChange }: AddAssetDialogProps) => {
+const AddAssetDialog = ({ open: dialogOpen, onOpenChange }: AddAssetDialogProps) => {
   const { toast } = useToast();
   const { mutateAsync, isPending } = useCreateTransaction();
 
   // Ticker autocomplete state
   const [tickerInput, setTickerInput] = useState('');
-  const [selectedSecurityName, setSelectedSecurityName] = useState<string | null>(null);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const tickerInputRef = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false); // popover open
+  const [category, setCategory] = useState<'stocks' | 'bonds'>('stocks');
+  const [selectedSecurity, setSelectedSecurity] = useState<MoexSecuritySearchItem | null>(null);
 
-  const { data: searchData, isFetching: searchLoading } = useSecuritySearch(tickerInput);
-  const searchResults: MoexSecuritySearchItem[] = searchData?.body ?? [];
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node) &&
-        tickerInputRef.current &&
-        !tickerInputRef.current.contains(e.target as Node)
-      ) {
-        setShowDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const { data: searchData, isFetching: searchLoading } = useSecuritySearch(
+    tickerInput,
+    category === 'stocks' ? 'STOCKS' : 'BONDS',
+  );
+  const filteredResults: MoexSecuritySearchItem[] = searchData?.body ?? [];
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -72,8 +61,8 @@ const AddAssetDialog = ({ open, onOpenChange }: AddAssetDialogProps) => {
       ticker: '',
       type: 'BUY',
       securityType: 'STOCK',
-      quantity: '' as unknown as number,
-      price: '' as unknown as number,
+      quantity: undefined as unknown as number,
+      price: undefined as unknown as number,
       executedAt: '',
     },
   });
@@ -82,8 +71,9 @@ const AddAssetDialog = ({ open, onOpenChange }: AddAssetDialogProps) => {
     if (!next) {
       form.reset();
       setTickerInput('');
-      setSelectedSecurityName(null);
-      setShowDropdown(false);
+      setOpen(false);
+      setSelectedSecurity(null);
+      setCategory('stocks');
     }
     onOpenChange?.(next);
   };
@@ -92,11 +82,15 @@ const AddAssetDialog = ({ open, onOpenChange }: AddAssetDialogProps) => {
     form.setValue('ticker', item.ticker, { shouldValidate: true });
     form.setValue('securityType', item.securityType, { shouldValidate: true });
     setTickerInput(item.ticker);
-    setSelectedSecurityName(item.name);
-    setShowDropdown(false);
+    setSelectedSecurity(item);
+    setOpen(false);
   };
 
   const handleSubmit = async (values: FormValues) => {
+    if (!selectedSecurity) {
+      form.setError('ticker', { message: 'Выберите бумагу из списка' });
+      return;
+    }
     try {
       await mutateAsync({
         ...values,
@@ -105,7 +99,9 @@ const AddAssetDialog = ({ open, onOpenChange }: AddAssetDialogProps) => {
       toast({ title: 'Сделка добавлена' });
       form.reset();
       setTickerInput('');
-      setSelectedSecurityName(null);
+      setSelectedSecurity(null);
+      setCategory('stocks');
+      setOpen(false);
       onOpenChange?.(false);
     } catch (error) {
       toast({
@@ -117,10 +113,10 @@ const AddAssetDialog = ({ open, onOpenChange }: AddAssetDialogProps) => {
   };
 
   // Controlled mode: parent manages open state; uncontrolled: internal trigger button
-  const isControlled = open !== undefined;
+  const isControlled = dialogOpen !== undefined;
 
   return (
-    <Dialog open={isControlled ? open : undefined} onOpenChange={handleOpenChange}>
+    <Dialog open={isControlled ? dialogOpen : undefined} onOpenChange={handleOpenChange}>
       {!isControlled && (
         <DialogTrigger asChild>
           <Button className="bg-gradient-primary hover:opacity-90" size="sm">
@@ -136,76 +132,106 @@ const AddAssetDialog = ({ open, onOpenChange }: AddAssetDialogProps) => {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
 
-            {/* Ticker with autocomplete */}
+            {/* Security picker with Popover + Command combobox */}
             <FormField
               control={form.control}
               name="ticker"
-              render={({ field }) => (
+              render={() => (
                 <FormItem>
-                  <FormLabel className="text-dashboard-text-muted">Тикер</FormLabel>
+                  <FormLabel className="text-dashboard-text-muted">Бумага</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <Input
-                        ref={tickerInputRef}
-                        placeholder="SBER"
-                        className="bg-white/5 border-white/10 text-dashboard-text placeholder:text-dashboard-text-muted"
-                        value={tickerInput}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setTickerInput(val);
-                          field.onChange(val);
-                          setSelectedSecurityName(null);
-                          setShowDropdown(val.trim().length >= 2);
-                        }}
-                        onFocus={() => {
-                          if (tickerInput.trim().length >= 2) setShowDropdown(true);
-                        }}
-                        autoComplete="off"
-                      />
-                      {/* Selected security name hint */}
-                      {selectedSecurityName && (
-                        <p className="text-xs text-dashboard-text-muted mt-1">{selectedSecurityName}</p>
-                      )}
-                      {/* Autocomplete dropdown */}
-                      {showDropdown && (
-                        <div
-                          ref={dropdownRef}
-                          className="absolute top-full left-0 right-0 bg-slate-800 border border-white/10 rounded-lg mt-1 z-50 max-h-48 overflow-y-auto"
+                    <Popover open={open} onOpenChange={setOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-start bg-white/5 border-white/10 text-dashboard-text hover:bg-white/10 font-normal"
                         >
-                          {searchLoading && (
-                            <div className="flex items-center gap-2 px-3 py-2 text-sm text-dashboard-text-muted">
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                              <span>Поиск...</span>
-                            </div>
+                          {selectedSecurity ? (
+                            <span className="flex items-center gap-2 min-w-0">
+                              <SecurityLogo ticker={selectedSecurity.ticker} size={20} />
+                              <span className="font-mono font-semibold">{selectedSecurity.ticker}</span>
+                              <span className="text-dashboard-text-muted truncate">{selectedSecurity.name}</span>
+                            </span>
+                          ) : (
+                            <span className="text-dashboard-text-muted">Выберите бумагу...</span>
                           )}
-                          {!searchLoading && searchResults.length === 0 && tickerInput.trim().length >= 2 && (
-                            <div className="px-3 py-2 text-sm text-dashboard-text-muted">
-                              Ничего не найдено
-                            </div>
-                          )}
-                          {!searchLoading && searchResults.map((item) => (
-                            <button
-                              key={`${item.ticker}-${item.boardId}`}
-                              type="button"
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors flex items-center justify-between gap-2"
-                              onMouseDown={(e) => {
-                                // Use mousedown to fire before blur
-                                e.preventDefault();
-                                handleSelectSuggestion(item);
-                              }}
-                            >
-                              <div>
-                                <span className="font-semibold text-dashboard-text font-mono">{item.ticker}</span>
-                                <span className="text-dashboard-text-muted ml-2">{item.name}</span>
-                              </div>
-                              <span className="text-xs text-dashboard-text-muted shrink-0">
-                                {{ STOCK: 'Акция', BOND: 'Облигация', ETF: 'ETF', OFZ: 'ОФЗ' }[item.securityType] ?? item.securityType}
-                              </span>
-                            </button>
-                          ))}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[380px] p-0 bg-slate-800 border-white/10" align="start">
+                        {/* Category tabs */}
+                        <div role="tablist" className="flex border-b border-white/10">
+                          <button
+                            role="tab"
+                            aria-selected={category === 'stocks'}
+                            type="button"
+                            onClick={() => setCategory('stocks')}
+                            className={`flex-1 py-2 text-sm transition-colors ${
+                              category === 'stocks'
+                                ? 'bg-white/10 text-white'
+                                : 'text-dashboard-text-muted hover:text-white'
+                            }`}
+                          >
+                            Акции
+                          </button>
+                          <button
+                            role="tab"
+                            aria-selected={category === 'bonds'}
+                            type="button"
+                            onClick={() => setCategory('bonds')}
+                            className={`flex-1 py-2 text-sm transition-colors ${
+                              category === 'bonds'
+                                ? 'bg-white/10 text-white'
+                                : 'text-dashboard-text-muted hover:text-white'
+                            }`}
+                          >
+                            Облигации
+                          </button>
                         </div>
-                      )}
-                    </div>
+                        <Command shouldFilter={false}>
+                          <CommandInput
+                            placeholder="Поиск по тикеру или названию..."
+                            value={tickerInput}
+                            onValueChange={(val) => {
+                              setTickerInput(val);
+                              setSelectedSecurity(null);
+                            }}
+                            className="border-b border-white/10"
+                          />
+                          <CommandList className="max-h-48">
+                            {tickerInput.trim().length < 2 && (
+                              <div className="px-3 py-3 text-sm text-dashboard-text-muted text-center">
+                                Введите минимум 2 символа
+                              </div>
+                            )}
+                            {tickerInput.trim().length >= 2 && searchLoading && (
+                              <div className="flex items-center gap-2 px-3 py-3 text-sm text-dashboard-text-muted">
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                <span>Поиск...</span>
+                              </div>
+                            )}
+                            {tickerInput.trim().length >= 2 && !searchLoading && filteredResults.length === 0 && (
+                              <CommandEmpty>Ничего не найдено</CommandEmpty>
+                            )}
+                            {tickerInput.trim().length >= 2 && !searchLoading && filteredResults.map((item) => (
+                              <CommandItem
+                                key={`${item.ticker}-${item.boardId}`}
+                                value={item.ticker}
+                                onSelect={() => handleSelectSuggestion(item)}
+                                className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-white/10"
+                              >
+                                <SecurityLogo ticker={item.ticker} size={24} />
+                                <span className="font-mono font-semibold text-dashboard-text">{item.ticker}</span>
+                                <span className="text-dashboard-text-muted text-sm truncate flex-1">{item.name}</span>
+                                <span className="text-xs text-dashboard-text-muted shrink-0">
+                                  {{ STOCK: 'Акция', BOND: 'Облигация', ETF: 'ETF', OFZ: 'ОФЗ' }[item.securityType] ?? item.securityType}
+                                </span>
+                              </CommandItem>
+                            ))}
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -228,31 +254,6 @@ const AddAssetDialog = ({ open, onOpenChange }: AddAssetDialogProps) => {
                     <SelectContent>
                       <SelectItem value="BUY">Покупка (BUY)</SelectItem>
                       <SelectItem value="SELL">Продажа (SELL)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Security type */}
-            <FormField
-              control={form.control}
-              name="securityType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-dashboard-text-muted">Тип инструмента</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="bg-white/5 border-white/10 text-dashboard-text">
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="STOCK">Акция (STOCK)</SelectItem>
-                      <SelectItem value="BOND">Облигация (BOND)</SelectItem>
-                      <SelectItem value="ETF">ETF</SelectItem>
-                      <SelectItem value="OFZ">ОФЗ (OFZ)</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
