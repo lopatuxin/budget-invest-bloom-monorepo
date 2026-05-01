@@ -20,6 +20,7 @@ import { Plus, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCreateTransaction } from '@/hooks/useCreateTransaction';
 import { useSecuritySearch } from '@/hooks/useSecuritySearch';
+import { useSecurityList } from '@/hooks/useSecurityList';
 import type { MoexSecuritySearchItem } from '@/types/investment';
 import { SecurityLogo } from '@/components/SecurityLogo';
 
@@ -49,11 +50,22 @@ const AddAssetDialog = ({ open: dialogOpen, onOpenChange }: AddAssetDialogProps)
   const [category, setCategory] = useState<'stocks' | 'bonds'>('stocks');
   const [selectedSecurity, setSelectedSecurity] = useState<MoexSecuritySearchItem | null>(null);
 
+  const isSearchMode = tickerInput.trim().length >= 2;
+
   const { data: searchData, isFetching: searchLoading } = useSecuritySearch(
     tickerInput,
     category === 'stocks' ? 'STOCKS' : 'BONDS',
   );
-  const filteredResults: MoexSecuritySearchItem[] = searchData?.body ?? [];
+
+  const { data: listData, isFetching: listLoading } = useSecurityList(
+    category === 'stocks' ? 'STOCKS' : 'BONDS',
+    open && !isSearchMode,
+  );
+
+  const allResults: MoexSecuritySearchItem[] = isSearchMode
+    ? (searchData?.body ?? [])
+    : (listData?.body ?? []);
+  const isFetching = isSearchMode ? searchLoading : listLoading;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -149,7 +161,7 @@ const AddAssetDialog = ({ open: dialogOpen, onOpenChange }: AddAssetDialogProps)
                         >
                           {selectedSecurity ? (
                             <span className="flex items-center gap-2 min-w-0">
-                              <SecurityLogo ticker={selectedSecurity.ticker} size={20} />
+                              <SecurityLogo ticker={selectedSecurity.ticker} size={20} securityType={selectedSecurity.securityType} />
                               <span className="font-mono font-semibold">{selectedSecurity.ticker}</span>
                               <span className="text-dashboard-text-muted truncate">{selectedSecurity.name}</span>
                             </span>
@@ -198,29 +210,27 @@ const AddAssetDialog = ({ open: dialogOpen, onOpenChange }: AddAssetDialogProps)
                             }}
                             className="border-b border-white/10"
                           />
-                          <CommandList className="max-h-48">
-                            {tickerInput.trim().length < 2 && (
-                              <div className="px-3 py-3 text-sm text-dashboard-text-muted text-center">
-                                Введите минимум 2 символа
-                              </div>
-                            )}
-                            {tickerInput.trim().length >= 2 && searchLoading && (
+                          <CommandList
+                            className="max-h-48"
+                            onWheel={(e) => e.stopPropagation()}
+                          >
+                            {isFetching && (
                               <div className="flex items-center gap-2 px-3 py-3 text-sm text-dashboard-text-muted">
                                 <Loader2 className="w-3 h-3 animate-spin" />
-                                <span>Поиск...</span>
+                                <span>Загрузка...</span>
                               </div>
                             )}
-                            {tickerInput.trim().length >= 2 && !searchLoading && filteredResults.length === 0 && (
+                            {!isFetching && allResults.length === 0 && (
                               <CommandEmpty>Ничего не найдено</CommandEmpty>
                             )}
-                            {tickerInput.trim().length >= 2 && !searchLoading && filteredResults.map((item) => (
+                            {!isFetching && allResults.map((item) => (
                               <CommandItem
                                 key={`${item.ticker}-${item.boardId}`}
                                 value={item.ticker}
                                 onSelect={() => handleSelectSuggestion(item)}
                                 className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-white/10"
                               >
-                                <SecurityLogo ticker={item.ticker} size={24} />
+                                <SecurityLogo ticker={item.ticker} size={24} securityType={item.securityType} />
                                 <span className="font-mono font-semibold text-dashboard-text">{item.ticker}</span>
                                 <span className="text-dashboard-text-muted text-sm truncate flex-1">{item.name}</span>
                                 <span className="text-xs text-dashboard-text-muted shrink-0">

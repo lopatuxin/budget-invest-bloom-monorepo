@@ -25,6 +25,7 @@ import pyc.lopatuxin.investment.service.market.dto.SnapshotResult;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -131,6 +132,24 @@ public class MarketDataService {
             }
         }
         return result;
+    }
+
+    @Cacheable(value = "moexSecurities", key = "'list:' + (#category != null ? #category.name() : 'ALL')")
+    public List<MoexSecurityDto> listSecurities(SearchCategory category) {
+        try {
+            List<MoexSecurityDto> result = new ArrayList<>();
+            if (category == null || category == SearchCategory.STOCKS) {
+                result.addAll(moexIssClient.listBoardSecurities("shares", "TQBR", SecurityType.STOCK));
+                result.addAll(moexIssClient.listBoardSecurities("shares", "TQTF", SecurityType.ETF));
+            }
+            if (category == null || category == SearchCategory.BONDS) {
+                result.addAll(moexIssClient.listBoardSecurities("bonds", "TQOB", SecurityType.BOND));
+            }
+            return result;
+        } catch (MoexUnavailableException e) {
+            log.warn("MOEX unavailable for listSecurities category={}", category);
+            return Collections.emptyList();
+        }
     }
 
     @Cacheable(value = "moexSecurities", key = "#query + ':' + (#category != null ? #category.name() : 'ALL')")

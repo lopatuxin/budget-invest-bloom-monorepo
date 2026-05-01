@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { localLogoUrl } from '@/lib/securityLogos';
 
 const PALETTE = [
   'from-blue-500 to-blue-700',
@@ -16,9 +17,10 @@ function tickerColor(ticker: string) {
 interface SecurityLogoProps {
   ticker: string;
   size?: number;
+  securityType?: string;
 }
 
-export function SecurityLogo({ ticker, size = 24 }: SecurityLogoProps) {
+export function SecurityLogo({ ticker, size = 24, securityType }: SecurityLogoProps) {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -28,10 +30,13 @@ export function SecurityLogo({ ticker, size = 24 }: SecurityLogoProps) {
   const initials = ticker.slice(0, 2).toUpperCase();
   const style = { width: size, height: size, minWidth: size };
 
-  if (!failed) {
+  const isBond = securityType === 'BOND' || securityType === 'OFZ';
+  const url = localLogoUrl(ticker);
+
+  if (!failed && !isBond && url !== null) {
     return (
       <img
-        src={`https://invest-brands.cdn-tinkoff.ru/${ticker}x160.png`}
+        src={url}
         alt={ticker}
         style={style}
         className="rounded-full object-contain bg-white/5"

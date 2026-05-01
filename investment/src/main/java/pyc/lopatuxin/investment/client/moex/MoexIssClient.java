@@ -85,6 +85,23 @@ public class MoexIssClient {
         throw new MoexUnavailableException("MOEX unavailable: " + t.getMessage());
     }
 
+    @Retry(name = "moex", fallbackMethod = "listBoardSecuritiesFallback")
+    @CircuitBreaker(name = "moex", fallbackMethod = "listBoardSecuritiesFallback")
+    public List<MoexSecurityDto> listBoardSecurities(String market, String board, SecurityType securityType) {
+        String json = moexRestClient.get()
+                .uri("/engines/stock/markets/{market}/boards/{board}/securities.json?iss.only=securities&iss.meta=off&securities.columns=SECID,BOARDID,SHORTNAME,STATUS",
+                        market, board)
+                .retrieve()
+                .body(String.class);
+        return parseBoardSecurities(json, securityType);
+    }
+
+    @SuppressWarnings("unused")
+    public List<MoexSecurityDto> listBoardSecuritiesFallback(String market, String board, SecurityType securityType, Throwable t) {
+        log.warn("MOEX listBoardSecurities fallback for {}/{}: {}", market, board, t.getMessage());
+        throw new MoexUnavailableException("MOEX unavailable: " + t.getMessage());
+    }
+
     @Retry(name = "moex", fallbackMethod = "fetchHistoryFallback")
     @CircuitBreaker(name = "moex", fallbackMethod = "fetchHistoryFallback")
     public List<MoexCandleDto> fetchHistory(String ticker, LocalDate from, LocalDate to) {
@@ -349,6 +366,42 @@ public class MoexIssClient {
             return result;
         } catch (Exception e) {
             log.error("Failed to parse MOEX dividends response: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<MoexSecurityDto> parseBoardSecurities(String json, SecurityType securityType) {
+        if (json == null) return Collections.emptyList();
+        try {
+            Map<String, Object> root = objectMapper.readValue(json, new TypeReference<>() {});
+            Map<String, Object> secBlock = (Map<String, Object>) root.get("securities");
+            if (secBlock == null) return Collections.emptyList();
+
+            List<String> cols = (List<String>) secBlock.get("columns");
+            List<List<Object>> data = (List<List<Object>>) secBlock.get("data");
+            if (cols == null || data == null) return Collections.emptyList();
+
+            int secidIdx  = MoexJsonMapper.indexOf(cols, "SECID");
+            int boardIdx  = MoexJsonMapper.indexOf(cols, "BOARDID");
+            int nameIdx   = MoexJsonMapper.indexOf(cols, "SHORTNAME");
+            int statusIdx = MoexJsonMapper.indexOf(cols, "STATUS");
+
+            List<MoexSecurityDto> result = new ArrayList<>();
+            for (List<Object> row : data) {
+                String status = MoexJsonMapper.str(row, statusIdx);
+                if (!"A".equals(status)) continue;
+
+                String secid   = MoexJsonMapper.str(row, secidIdx);
+                String boardId = MoexJsonMapper.str(row, boardIdx);
+                String name    = MoexJsonMapper.str(row, nameIdx);
+                if (secid == null) continue;
+
+                result.add(new MoexSecurityDto(secid, boardId, name, securityType, null, null));
+            }
+            return result;
+        } catch (Exception e) {
+            log.error("Failed to parse MOEX board securities: {}", e.getMessage());
             return Collections.emptyList();
         }
     }
