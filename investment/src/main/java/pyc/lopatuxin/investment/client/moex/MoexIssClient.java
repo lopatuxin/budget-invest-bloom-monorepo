@@ -336,9 +336,12 @@ public class MoexIssClient {
             for (List<Object> row : data) {
                 String secid = MoexJsonMapper.str(row, secidIdx);
                 BigDecimal last = MoexJsonMapper.decimal(row, lastIdx);
-                if (secid == null || last == null || last.compareTo(BigDecimal.ZERO) == 0) continue;
+                if (secid == null) continue;
                 BigDecimal prev = MoexJsonMapper.decimal(row, prevIdx);
-                result.put(secid, new MoexSnapshotDto(secid, last, prev));
+                boolean lastEmpty = last == null || last.compareTo(BigDecimal.ZERO) == 0;
+                boolean prevEmpty = prev == null || prev.compareTo(BigDecimal.ZERO) == 0;
+                if (lastEmpty && prevEmpty) continue;
+                result.put(secid, new MoexSnapshotDto(secid, lastEmpty ? null : last, prevEmpty ? null : prev));
             }
             return result;
         } catch (Exception e) {

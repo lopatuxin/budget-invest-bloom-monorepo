@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCreateTransaction } from '@/hooks/useCreateTransaction';
 import { useSecuritySearch } from '@/hooks/useSecuritySearch';
 import { useSecurityList } from '@/hooks/useSecurityList';
+import { useSecuritySnapshot } from '@/hooks/useSecuritySnapshot';
 import type { MoexSecuritySearchItem } from '@/types/investment';
 import { SecurityLogo } from '@/components/SecurityLogo';
 
@@ -43,6 +44,7 @@ interface AddAssetDialogProps {
 const AddAssetDialog = ({ open: dialogOpen, onOpenChange }: AddAssetDialogProps) => {
   const { toast } = useToast();
   const { mutateAsync, isPending } = useCreateTransaction();
+  const { mutateAsync: fetchSnapshot } = useSecuritySnapshot();
 
   // Ticker autocomplete state
   const [tickerInput, setTickerInput] = useState('');
@@ -90,12 +92,30 @@ const AddAssetDialog = ({ open: dialogOpen, onOpenChange }: AddAssetDialogProps)
     onOpenChange?.(next);
   };
 
-  const handleSelectSuggestion = (item: MoexSecuritySearchItem) => {
+  const handleSelectSuggestion = async (item: MoexSecuritySearchItem) => {
     form.setValue('ticker', item.ticker, { shouldValidate: true });
     form.setValue('securityType', item.securityType, { shouldValidate: true });
     setTickerInput(item.ticker);
     setSelectedSecurity(item);
     setOpen(false);
+
+    // Auto-fill executed date with current local datetime (no seconds, for datetime-local input)
+    const now = new Date();
+    const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 16);
+    form.setValue('executedAt', localIso, { shouldValidate: true });
+
+    // Auto-fill price from MOEX snapshot; silent fail — user can fill manually
+    try {
+      const result = await fetchSnapshot(item.ticker);
+      const price = result?.body?.lastPrice ?? result?.body?.previousClose;
+      if (price != null) {
+        form.setValue('price', price, { shouldValidate: true });
+      }
+    } catch {
+      // Silent fail: price field remains empty for manual input
+    }
   };
 
   const handleSubmit = async (values: FormValues) => {

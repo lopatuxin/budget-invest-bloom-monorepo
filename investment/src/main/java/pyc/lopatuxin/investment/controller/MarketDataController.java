@@ -16,7 +16,9 @@ import pyc.lopatuxin.investment.dto.request.MarketSearchDto;
 import pyc.lopatuxin.investment.dto.request.MarketSecurityDto;
 import pyc.lopatuxin.investment.dto.request.SearchCategory;
 import pyc.lopatuxin.investment.dto.response.ResponseApi;
+import pyc.lopatuxin.investment.dto.response.SnapshotResponseDto;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
+import pyc.lopatuxin.investment.service.market.dto.SnapshotResult;
 
 import java.util.List;
 
@@ -49,5 +51,20 @@ public class MarketDataController {
             @RequestBody @Valid ApiRequest<MarketSecurityDto> request) {
         MoexSecurityDto dto = marketDataService.getSecurityInfo(request.getData().getTicker().toUpperCase());
         return ResponseEntity.ok(ResponseApi.success("Информация о бумаге", dto));
+    }
+
+    @PostMapping("/snapshot")
+    public ResponseEntity<ResponseApi<SnapshotResponseDto>> getSnapshot(
+            @RequestBody @Valid ApiRequest<MarketSecurityDto> request) {
+        String ticker = request.getData().getTicker().toUpperCase();
+        SnapshotResult result = marketDataService.getSnapshotReadOnly(ticker);
+        SnapshotResponseDto dto = SnapshotResponseDto.builder()
+                .ticker(ticker)
+                .lastPrice(result.lastPrice())
+                .previousClose(result.previousClose())
+                .fetchedAt(result.fetchedAt())
+                .stale(result.stale())
+                .build();
+        return ResponseEntity.ok(ResponseApi.success("Снапшот по бумаге", dto));
     }
 }

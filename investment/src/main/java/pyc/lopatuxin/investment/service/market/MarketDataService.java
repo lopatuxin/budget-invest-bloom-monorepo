@@ -87,6 +87,26 @@ public class MarketDataService {
         });
     }
 
+    public SnapshotResult getSnapshotReadOnly(String ticker) {
+        Optional<PriceSnapshot> dbSnapshot = priceSnapshotRepository.findById(ticker);
+        if (dbSnapshot.isPresent() && !isStale(dbSnapshot.get())) {
+            return toSnapshotResult(dbSnapshot.get(), false);
+        }
+        try {
+            Map<String, MoexSnapshotDto> fetched = moexIssClient.fetchSnapshots(List.of(ticker));
+            MoexSnapshotDto dto = fetched.get(ticker);
+            if (dto != null) {
+                return new SnapshotResult(dto.lastPrice(), dto.previousClose(), Instant.now(), false);
+            }
+            return dbSnapshot.map(s -> toSnapshotResult(s, true))
+                    .orElse(new SnapshotResult(null, null, null, true));
+        } catch (MoexUnavailableException e) {
+            log.warn("MOEX unavailable for snapshot {} (read-only)", ticker);
+            return dbSnapshot.map(s -> toSnapshotResult(s, true))
+                    .orElse(new SnapshotResult(null, null, null, true));
+        }
+    }
+
     @Cacheable(value = "moexSnapshots", key = "#ticker")
     public SnapshotResult getSnapshot(String ticker) {
         Optional<PriceSnapshot> dbSnapshot = priceSnapshotRepository.findById(ticker);
