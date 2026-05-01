@@ -3,7 +3,6 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { TrendingUp, PieChart, Coins, Trash2, BarChart2, Calculator } from 'lucide-react';
 import AddAssetDialog from '@/components/AddAssetDialog';
 import PortfolioValueChart from '@/components/PortfolioValueChart';
-import SecurityPriceChart from '@/components/SecurityPriceChart';
 import EmptyState from '@/components/EmptyState';
 import { SecurityLogo } from '@/components/SecurityLogo';
 import { usePositions } from '@/hooks/usePositions';
@@ -350,8 +349,6 @@ const Investments = () => {
               })}
             </div>
           </div>
-
-          {positions.length > 0 && <SecurityPriceChart positions={positions} />}
 
           {/* Recent transactions (top 5) */}
           {transactions.length > 0 && (
