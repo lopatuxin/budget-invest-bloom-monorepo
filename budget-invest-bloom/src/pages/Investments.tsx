@@ -5,6 +5,7 @@ import AddAssetDialog from '@/components/AddAssetDialog';
 import PortfolioValueChart from '@/components/PortfolioValueChart';
 import SecurityPriceChart from '@/components/SecurityPriceChart';
 import EmptyState from '@/components/EmptyState';
+import { SecurityLogo } from '@/components/SecurityLogo';
 import { usePositions } from '@/hooks/usePositions';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useDeleteTransaction } from '@/hooks/useDeleteTransaction';
@@ -306,7 +307,6 @@ const Investments = () => {
                     </div>
                     <div className="space-y-3">
                       {sectorPositions.map((position) => {
-                        const colorIdx = (holdingColorIndex.get(position.ticker) ?? 0) % DONUT_COLORS.length;
                         const pnlPositive = (position.pnl ?? 0) >= 0;
                         return (
                           <div
@@ -314,14 +314,7 @@ const Investments = () => {
                             className="flex items-center justify-between p-3 bg-white/[0.03] rounded-lg hover:bg-white/[0.07] transition-all duration-200"
                           >
                             <div className="flex items-center space-x-4">
-                              <div
-                                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                                style={{ backgroundColor: `${DONUT_COLORS[colorIdx]}20` }}
-                              >
-                                <span className="font-bold text-sm" style={{ color: DONUT_COLORS[colorIdx] }}>
-                                  {position.ticker.slice(0, 2)}
-                                </span>
-                              </div>
+                              <SecurityLogo ticker={position.ticker} size={40} securityType={position.securityType} />
                               <div>
                                 <div className="font-semibold text-dashboard-text">{position.ticker}</div>
                                 <div className="text-sm text-dashboard-text-muted">{position.securityName}</div>
