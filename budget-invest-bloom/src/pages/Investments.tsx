@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { TrendingUp, PieChart, Coins, Trash2, BarChart2, Calculator } from 'lucide-react';
 import AddAssetDialog from '@/components/AddAssetDialog';
 import PortfolioValueChart from '@/components/PortfolioValueChart';
@@ -53,6 +53,16 @@ const Investments = () => {
   const { data: overviewData, isLoading: overviewLoading } = useInvestmentOverview();
   const { mutate: deleteTransaction } = useDeleteTransaction();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Open add-asset dialog when navigated with ?action=add-asset
+  const actionParam = searchParams.get('action');
+  useEffect(() => {
+    if (actionParam === 'add-asset') {
+      setDialogOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [actionParam, setSearchParams]);
 
   const isLoading = positionsLoading || overviewLoading;
 
@@ -217,6 +227,9 @@ const Investments = () => {
   return (
     <div className="space-y-6 pb-6">
 
+      {/* Controlled dialog — opened via sidebar quick action or empty-state button */}
+      <AddAssetDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+
       {/* Page header */}
       <div className="flex items-center justify-between animate-fade-slide-up">
         <h1 className="text-lg font-semibold text-dashboard-text">Мои инвестиции</h1>
@@ -264,9 +277,8 @@ const Investments = () => {
 
           {/* My assets */}
           <div className="glass-card p-5 animate-fade-slide-up" style={{ animationDelay: '300ms' }}>
-            <div className="flex items-center justify-between mb-4">
+            <div className="mb-4">
               <h3 className="text-sm font-semibold text-dashboard-text">Мои активы</h3>
-              <AddAssetDialog />
             </div>
             <div className="space-y-6 max-h-[400px] overflow-y-auto dashboard-scroll pr-1">
               {Object.entries(positionsBySector).map(([sectorName, sectorPositions], sectorIdx) => {
