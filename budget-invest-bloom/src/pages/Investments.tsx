@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { TrendingUp, PieChart, Coins, Trash2, BarChart2, Calculator } from 'lucide-react';
 import AddAssetDialog from '@/components/AddAssetDialog';
-import PortfolioValueChart from '@/components/PortfolioValueChart';
 import EmptyState from '@/components/EmptyState';
 import { SecurityLogo } from '@/components/SecurityLogo';
 import { usePositions } from '@/hooks/usePositions';
@@ -281,8 +280,6 @@ const Investments = () => {
           );
         })}
       </div>
-
-      <PortfolioValueChart />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Holdings + recent transactions */}
