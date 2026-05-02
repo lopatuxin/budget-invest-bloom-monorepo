@@ -69,7 +69,6 @@ const Investments = () => {
 
   const animTotalValue = useCountUp(overview?.totalValue ?? 0);
   const animTotalPnl = useCountUp(overview?.totalPnl ?? 0);
-  const animDailyPnl = useCountUp(overview?.dailyPnl ?? 0);
 
   const totalCost = overview?.totalCost ?? 0;
   const totalPnlPercent = totalCost > 0 && overview
@@ -147,15 +146,6 @@ const Investments = () => {
       glow: (overview?.totalPnl ?? 0) >= 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)',
     },
     {
-      label: 'ЗА ДЕНЬ',
-      value: isLoading ? null : overview
-        ? `${animDailyPnl >= 0 ? '+' : ''}${formatCurrency(animDailyPnl)}`
-        : '—',
-      icon: TrendingUp,
-      color: '#8B5CF6',
-      glow: 'rgba(139, 92, 246, 0.3)',
-    },
-    {
       label: 'ДИВИДЕНДЫ',
       value: isLoading ? null : formatCurrency(overview?.dividends12m ?? 0),
       icon: Coins,
@@ -168,8 +158,8 @@ const Investments = () => {
   if (isLoading) {
     return (
       <div className="space-y-6 pb-6">
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-5">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="grid grid-cols-2 xl:grid-cols-3 gap-5">
+          {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-28" />
           ))}
         </div>
@@ -190,7 +180,7 @@ const Investments = () => {
   if (positions.length === 0) {
     return (
       <div className="space-y-6 pb-6">
-        <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:grid lg:grid-cols-2 xl:grid-cols-4 lg:gap-5 lg:overflow-visible lg:pb-0 hide-scrollbar">
+        <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:pb-0 hide-scrollbar">
           {kpiCards.map((card, index) => {
             const Icon = card.icon;
             return (
@@ -251,7 +241,7 @@ const Investments = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:grid lg:grid-cols-2 xl:grid-cols-4 lg:gap-5 lg:overflow-visible lg:pb-0 hide-scrollbar">
+      <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:pb-0 hide-scrollbar">
         {kpiCards.map((card, index) => {
           const Icon = card.icon;
           return (
