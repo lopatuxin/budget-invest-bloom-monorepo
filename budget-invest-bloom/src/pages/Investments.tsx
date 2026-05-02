@@ -8,6 +8,7 @@ import { useInvestmentPortfolio } from '@/hooks/useInvestmentPortfolio';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useDeleteTransaction } from '@/hooks/useDeleteTransaction';
 import { useToast } from '@/hooks/use-toast';
+import { getSectorEmoji } from '@/lib/sectorEmoji';
 import { SECURITY_TYPE_LABEL, SECURITY_TYPE_ORDER } from '@/lib/securityType';
 import type { SecurityType } from '@/types/investment';
 
@@ -320,7 +321,7 @@ const Investments = () => {
                             style={{ animationDelay: `${460 + typeIdx * 100 + sectorIdx * 60}ms` }}
                           >
                             <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
-                              <h4 className="text-sm font-semibold text-dashboard-text-muted">{sectorName}</h4>
+                              <h4 className="text-sm font-semibold text-dashboard-text-muted"><span className="mr-2">{getSectorEmoji(sectorName)}</span>{sectorName}</h4>
                               <div className="flex items-center gap-3">
                                 <span className="text-xs font-medium font-mono text-dashboard-text-muted">
                                   {sectorPercentage}%
@@ -435,7 +436,7 @@ const Investments = () => {
                 <div className="flex justify-between items-center">
                   <div className="flex items-center space-x-3">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: sector.color }} />
-                    <span className="font-medium text-sm text-dashboard-text">{sector.name}</span>
+                    <span className="font-medium text-sm text-dashboard-text"><span className="mr-2">{getSectorEmoji(sector.name)}</span>{sector.name}</span>
                   </div>
                   <div className="text-right">
                     <div className="font-semibold text-sm text-dashboard-text font-mono">
