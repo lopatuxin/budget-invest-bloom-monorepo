@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.investment.dto.response.PortfolioOverviewDto;
 import pyc.lopatuxin.investment.dto.response.PortfolioPageResponseDto;
 import pyc.lopatuxin.investment.dto.response.PositionResponseDto;
+import pyc.lopatuxin.investment.dto.response.UpcomingDividendDto;
 import pyc.lopatuxin.investment.entity.Dividend;
 import pyc.lopatuxin.investment.entity.Position;
 import pyc.lopatuxin.investment.mapper.PositionMapper;
@@ -49,6 +50,7 @@ public class PortfolioService {
         Map<String, BigDecimal> quantityByTicker = positions.stream()
                 .collect(Collectors.toMap(p -> p.getSecurity().getTicker(), Position::getQuantity));
         BigDecimal dividends12m = calcDividends12m(tickers, quantityByTicker);
+        List<UpcomingDividendDto> upcomingDividends = buildUpcomingDividends(tickers, quantityByTicker);
         PortfolioOverviewDto overview = buildOverview(positions, snapshots, dividends12m);
         List<PositionResponseDto> positionDtos = positions.stream()
                 .map(p -> enrichPosition(positionMapper.toDto(p), p, snapshots))
@@ -56,6 +58,7 @@ public class PortfolioService {
         return PortfolioPageResponseDto.builder()
                 .overview(overview)
                 .positions(positionDtos)
+                .upcomingDividends(upcomingDividends)
                 .build();
     }
 
@@ -97,6 +100,32 @@ public class PortfolioService {
         dto.setCurrentPrice(currentPrice);
         dto.setPnl(pnl);
         return dto;
+    }
+
+    private List<UpcomingDividendDto> buildUpcomingDividends(Set<String> tickers,
+                                                              Map<String, BigDecimal> quantityByTicker) {
+        if (tickers.isEmpty()) {
+            return List.of();
+        }
+        List<Dividend> dividends = dividendRepository.findUpcomingByTickersWithSecurity(tickers, LocalDate.now());
+        List<UpcomingDividendDto> result = new java.util.ArrayList<>();
+        for (Dividend d : dividends) {
+            if (d.getAmountPerShare() == null) continue;
+            BigDecimal qty = quantityByTicker.getOrDefault(d.getSecurity().getTicker(), BigDecimal.ZERO);
+            if (qty.compareTo(BigDecimal.ZERO) == 0) continue;
+            BigDecimal totalAmount = d.getAmountPerShare().multiply(qty).setScale(2, RoundingMode.HALF_UP);
+            result.add(UpcomingDividendDto.builder()
+                    .ticker(d.getSecurity().getTicker())
+                    .securityName(d.getSecurity().getName())
+                    .recordDate(d.getRecordDate())
+                    .paymentDate(d.getPaymentDate())
+                    .amountPerShare(d.getAmountPerShare())
+                    .quantity(qty)
+                    .totalAmount(totalAmount)
+                    .currency(d.getCurrency())
+                    .build());
+        }
+        return result;
     }
 
     private BigDecimal calcDividends12m(Set<String> tickers, Map<String, BigDecimal> quantityByTicker) {

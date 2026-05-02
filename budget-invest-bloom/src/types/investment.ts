@@ -37,9 +37,21 @@ export interface PortfolioOverview {
   dividends12m: number;
 }
 
+export interface UpcomingDividend {
+  ticker: string;
+  securityName: string;
+  recordDate: string;
+  paymentDate: string;
+  amountPerShare: number;
+  quantity: number;
+  totalAmount: number;
+  currency: string;
+}
+
 export interface PortfolioPageResponse {
   overview: PortfolioOverview;
   positions: PositionResponse[];
+  upcomingDividends: UpcomingDividend[];
 }
 
 export interface MoexSecuritySearchItem {

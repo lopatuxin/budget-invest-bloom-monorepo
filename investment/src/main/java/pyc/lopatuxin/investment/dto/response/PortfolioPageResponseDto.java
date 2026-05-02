@@ -15,4 +15,5 @@ public class PortfolioPageResponseDto {
 
     private PortfolioOverviewDto overview;
     private List<PositionResponseDto> positions;
+    private List<UpcomingDividendDto> upcomingDividends;
 }
