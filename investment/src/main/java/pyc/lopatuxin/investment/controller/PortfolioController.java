@@ -11,16 +11,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import pyc.lopatuxin.investment.dto.common.ApiRequest;
+import pyc.lopatuxin.investment.dto.request.EmptyRequestDto;
 import pyc.lopatuxin.investment.dto.request.GetPositionByTickerDto;
-import pyc.lopatuxin.investment.dto.request.ListTransactionsDto;
-import pyc.lopatuxin.investment.dto.response.PortfolioOverviewDto;
+import pyc.lopatuxin.investment.dto.response.PortfolioPageResponseDto;
 import pyc.lopatuxin.investment.dto.response.PositionResponseDto;
 import pyc.lopatuxin.investment.dto.response.ResponseApi;
 import pyc.lopatuxin.investment.service.PortfolioService;
-
-import org.springframework.http.ResponseEntity;
-
-import java.util.List;
 
 @Slf4j
 @RestController
@@ -31,14 +27,14 @@ public class PortfolioController {
 
     private final PortfolioService portfolioService;
 
-    @PostMapping("/positions")
+    @PostMapping("/page")
     @ResponseStatus(HttpStatus.OK)
-    public ResponseApi<List<PositionResponseDto>> listPositions(
-            @RequestBody @Valid ApiRequest<ListTransactionsDto> request) {
-        List<PositionResponseDto> positions = portfolioService.listPositions(
+    public ResponseApi<PortfolioPageResponseDto> getPortfolioPage(
+            @RequestBody @Valid ApiRequest<EmptyRequestDto> request) {
+        PortfolioPageResponseDto page = portfolioService.getPortfolioPage(
                 request.getUser().getUserId()
         );
-        return ResponseApi.success("Список позиций", positions);
+        return ResponseApi.success("Страница портфеля", page);
     }
 
     @PostMapping("/positions/by-ticker")
@@ -50,12 +46,5 @@ public class PortfolioController {
                 request.getData().getTicker()
         );
         return ResponseApi.success("Позиция найдена", position);
-    }
-
-    @PostMapping("/overview")
-    public ResponseEntity<ResponseApi<PortfolioOverviewDto>> getOverview(
-            @RequestBody @Valid ApiRequest<Void> request) {
-        PortfolioOverviewDto overview = portfolioService.getOverview(request.getUser().getUserId());
-        return ResponseEntity.ok(ResponseApi.success("Обзор портфеля", overview));
     }
 }

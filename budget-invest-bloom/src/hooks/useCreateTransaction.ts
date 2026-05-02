@@ -9,7 +9,7 @@ export function useCreateTransaction() {
     mutationFn: (data: CreateTransactionRequest) =>
       apiPost<ApiResponse<TransactionResponse>>('/api/investment/transactions', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['investment-positions'] });
+      queryClient.invalidateQueries({ queryKey: ['investment-portfolio'] });
       queryClient.invalidateQueries({ queryKey: ['investment-transactions'] });
     },
   });

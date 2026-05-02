@@ -37,6 +37,11 @@ export interface PortfolioOverview {
   dividends12m: number;
 }
 
+export interface PortfolioPageResponse {
+  overview: PortfolioOverview;
+  positions: PositionResponse[];
+}
+
 export interface MoexSecuritySearchItem {
   ticker: string;
   boardId: string;

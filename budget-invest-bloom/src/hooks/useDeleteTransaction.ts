@@ -9,7 +9,7 @@ export function useDeleteTransaction() {
     mutationFn: (id: string) =>
       apiPost<ApiResponse<void>>('/api/investment/transactions/delete', { id }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['investment-positions'] });
+      queryClient.invalidateQueries({ queryKey: ['investment-portfolio'] });
       queryClient.invalidateQueries({ queryKey: ['investment-transactions'] });
     },
   });

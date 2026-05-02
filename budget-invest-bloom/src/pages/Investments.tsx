@@ -4,10 +4,9 @@ import { TrendingUp, PieChart, Coins, Trash2, BarChart2, Calculator } from 'luci
 import AddAssetDialog from '@/components/AddAssetDialog';
 import EmptyState from '@/components/EmptyState';
 import { SecurityLogo } from '@/components/SecurityLogo';
-import { usePositions } from '@/hooks/usePositions';
+import { useInvestmentPortfolio } from '@/hooks/useInvestmentPortfolio';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useDeleteTransaction } from '@/hooks/useDeleteTransaction';
-import { useInvestmentOverview } from '@/hooks/useInvestmentOverview';
 import { useToast } from '@/hooks/use-toast';
 import { SECURITY_TYPE_LABEL, SECURITY_TYPE_ORDER } from '@/lib/securityType';
 import type { SecurityType } from '@/types/investment';
@@ -49,9 +48,8 @@ const Skeleton = ({ className = '' }: { className?: string }) => (
 
 const Investments = () => {
   const { toast } = useToast();
-  const { data: positionsData, isLoading: positionsLoading } = usePositions();
+  const { data: portfolioData, isLoading } = useInvestmentPortfolio();
   const { data: transactionsData } = useTransactions();
-  const { data: overviewData, isLoading: overviewLoading } = useInvestmentOverview();
   const { mutate: deleteTransaction } = useDeleteTransaction();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -65,11 +63,9 @@ const Investments = () => {
     }
   }, [actionParam, setSearchParams]);
 
-  const isLoading = positionsLoading || overviewLoading;
-
-  const positions = positionsData?.body ?? [];
+  const positions = portfolioData?.body?.positions ?? [];
   const transactions = transactionsData?.body ?? [];
-  const overview = overviewData?.body;
+  const overview = portfolioData?.body?.overview;
 
   const animTotalValue = useCountUp(overview?.totalValue ?? 0);
   const animTotalPnl = useCountUp(overview?.totalPnl ?? 0);
