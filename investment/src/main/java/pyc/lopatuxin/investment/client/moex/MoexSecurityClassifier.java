@@ -19,4 +19,23 @@ public final class MoexSecurityClassifier {
             default -> Optional.empty();
         };
     }
+
+    // Maps ISS `type` field (from description block) to SecurityType. Returns empty if unknown.
+    public static Optional<SecurityType> fromType(String type) {
+        if (type == null) return Optional.empty();
+        return switch (type) {
+            case "ofz_bond", "subfederal_bond", "municipal_bond", "public_ppif" -> Optional.of(SecurityType.OFZ);
+            case "exchange_bond", "corporate_bond" -> Optional.of(SecurityType.BOND);
+            default -> Optional.empty();
+        };
+    }
+
+    // Returns true if the ISS `type` field represents an OFZ-like government bond.
+    public static boolean isOfzType(String type) {
+        if (type == null) return false;
+        return switch (type) {
+            case "ofz_bond", "subfederal_bond", "municipal_bond", "public_ppif" -> true;
+            default -> false;
+        };
+    }
 }

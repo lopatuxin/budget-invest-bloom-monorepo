@@ -274,10 +274,8 @@ public class MoexIssClient {
             String name = descMap.getOrDefault("NAME", ticker);
 
             String group = descMap.get("GROUP");
-            SecurityType securityType = MoexSecurityClassifier.fromGroup(group).orElseGet(() -> {
-                String typename = descMap.getOrDefault("TYPENAME", "");
-                return typename.toLowerCase().contains("акци") ? SecurityType.STOCK : SecurityType.BOND;
-            });
+            String moexType = descMap.get("TYPE");
+            SecurityType securityType = resolveSecurityType(group, moexType, descMap);
 
             String sector = resolveSector(ticker, descMap, securityType);
             String currency = descMap.get("CURRENCYID");
@@ -287,6 +285,28 @@ public class MoexIssClient {
             log.error("Failed to parse MOEX security response for {}: {}", ticker, e.getMessage());
             return Optional.empty();
         }
+    }
+
+    private SecurityType resolveSecurityType(String group, String moexType, Map<String, String> descMap) {
+        SecurityType fromGroup = MoexSecurityClassifier.fromGroup(group).orElse(null);
+
+        // If group resolved to BOND but the type field says it's government/OFZ — override
+        if (fromGroup == SecurityType.BOND && MoexSecurityClassifier.isOfzType(moexType)) {
+            return SecurityType.OFZ;
+        }
+        if (fromGroup != null) {
+            return fromGroup;
+        }
+
+        // Fallback: try the type field directly
+        SecurityType fromType = MoexSecurityClassifier.fromType(moexType).orElse(null);
+        if (fromType != null) {
+            return fromType;
+        }
+
+        // Last resort: typename heuristic
+        String typename = descMap.getOrDefault("TYPENAME", "");
+        return typename.toLowerCase().contains("акци") ? SecurityType.STOCK : SecurityType.BOND;
     }
 
     private String resolveSector(String ticker, Map<String, String> descMap, SecurityType type) {

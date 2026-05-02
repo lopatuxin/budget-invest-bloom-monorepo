@@ -325,5 +325,32 @@ public class MarketDataService {
             }
         }
         log.info("Sector backfill: updated {} securities", updated);
+        reclassifyMistypedOfz();
+    }
+
+    private void reclassifyMistypedOfz() {
+        List<Security> candidates = securityRepository.findByTypeAndSector(
+                SecurityType.BOND, SectorDefaults.CORPORATE_BONDS);
+        int fixed = 0;
+        for (Security security : candidates) {
+            if (!isOfzTicker(security.getTicker())) continue;
+            try {
+                Optional<MoexSecurityDto> dto = moexIssClient.fetchSecurity(security.getTicker());
+                if (dto.isPresent() && dto.get().securityType() == SecurityType.OFZ) {
+                    security.setType(SecurityType.OFZ);
+                    security.setSector(SectorDefaults.GOVERNMENT_BONDS);
+                    securityRepository.save(security);
+                    fixed++;
+                }
+            } catch (Exception e) {
+                log.warn("Failed to reclassify OFZ candidate {}: {}", security.getTicker(), e.getMessage());
+            }
+        }
+        log.info("OFZ reclassification: fixed {} securities", fixed);
+    }
+
+    // OFZ tickers follow the pattern SU + 5 digits + RMFS + 1 digit (e.g. SU26219RMFS4)
+    private boolean isOfzTicker(String ticker) {
+        return ticker != null && ticker.matches("SU\\d{5}RMFS\\d");
     }
 }

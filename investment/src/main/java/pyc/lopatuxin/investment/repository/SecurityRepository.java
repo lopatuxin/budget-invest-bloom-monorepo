@@ -14,4 +14,6 @@ public interface SecurityRepository extends JpaRepository<Security, String> {
     List<Security> findAllByHistoryStatus(HistoryStatus status);
 
     List<Security> findBySectorIsNull();
+
+    List<Security> findByTypeAndSector(SecurityType type, String sector);
 }
