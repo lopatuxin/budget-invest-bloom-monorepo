@@ -1,8 +1,10 @@
 package pyc.lopatuxin.investment.service.market;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.investment.client.moex.MoexIssClient;
@@ -259,12 +261,16 @@ public class MarketDataService {
     }
 
     private Security buildReadySecurity(String ticker, MoexSecurityDto dto) {
+        // If MOEX did not return a sector, resolve from local dictionary
+        String sector = dto.sector() != null
+                ? dto.sector()
+                : SectorDefaults.resolveSector(ticker, dto.securityType());
         return Security.builder()
                 .ticker(ticker)
                 .boardId(dto.boardId())
                 .name(dto.name() != null ? dto.name() : ticker)
                 .type(dto.securityType())
-                .sector(dto.sector())
+                .sector(sector)
                 .currency(dto.currency())
                 .historyStatus(HistoryStatus.READY)
                 .build();
@@ -275,6 +281,7 @@ public class MarketDataService {
                 .ticker(ticker)
                 .name(ticker)
                 .type(fallbackType)
+                .sector(SectorDefaults.resolveSector(ticker, fallbackType))
                 .historyStatus(HistoryStatus.PENDING)
                 .build();
     }
@@ -302,5 +309,21 @@ public class MarketDataService {
 
     private SnapshotResult toSnapshotResult(PriceSnapshot snapshot, boolean stale) {
         return new SnapshotResult(snapshot.getLastPrice(), snapshot.getPreviousClose(), snapshot.getFetchedAt(), stale);
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    @Transactional
+    public void backfillMissingSectors() {
+        List<Security> missing = securityRepository.findBySectorIsNull();
+        int updated = 0;
+        for (Security security : missing) {
+            String sector = SectorDefaults.resolveSector(security.getTicker(), security.getType());
+            if (sector != null) {
+                security.setSector(sector);
+                securityRepository.save(security);
+                updated++;
+            }
+        }
+        log.info("Sector backfill: updated {} securities", updated);
     }
 }

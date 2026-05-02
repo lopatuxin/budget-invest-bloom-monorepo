@@ -14,6 +14,7 @@ import pyc.lopatuxin.investment.client.moex.dto.MoexDividendDto;
 import pyc.lopatuxin.investment.client.moex.dto.MoexSecurityDto;
 import pyc.lopatuxin.investment.client.moex.dto.MoexSnapshotDto;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
+import pyc.lopatuxin.investment.service.market.SectorDefaults;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -278,7 +279,7 @@ public class MoexIssClient {
                 return typename.toLowerCase().contains("акци") ? SecurityType.STOCK : SecurityType.BOND;
             });
 
-            String sector = descMap.get("SECTOR");
+            String sector = resolveSector(ticker, descMap, securityType);
             String currency = descMap.get("CURRENCYID");
 
             return Optional.of(new MoexSecurityDto(ticker, boardId, name, securityType, sector, currency));
@@ -286,6 +287,21 @@ public class MoexIssClient {
             log.error("Failed to parse MOEX security response for {}: {}", ticker, e.getMessage());
             return Optional.empty();
         }
+    }
+
+    private String resolveSector(String ticker, Map<String, String> descMap, SecurityType type) {
+        String sector = descMap.get("SECTORNAME");
+        if (sector == null || sector.isBlank()) {
+            sector = descMap.get("SECTORID");
+        }
+        if (sector == null || sector.isBlank()) {
+            sector = descMap.get("SECTOR");
+        }
+        if (sector == null || sector.isBlank()) {
+            // MOEX does not return sector for stocks — use local dictionary fallback
+            sector = SectorDefaults.resolveSector(ticker, type);
+        }
+        return sector;
     }
 
     private Map<String, String> buildDescMap(List<List<Object>> descData, int nameIdx, int valueIdx) {

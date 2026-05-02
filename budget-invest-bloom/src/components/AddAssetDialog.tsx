@@ -24,6 +24,7 @@ import { useSecurityList } from '@/hooks/useSecurityList';
 import { useSecuritySnapshot } from '@/hooks/useSecuritySnapshot';
 import type { MoexSecuritySearchItem } from '@/types/investment';
 import { SecurityLogo } from '@/components/SecurityLogo';
+import { SECURITY_TYPE_LABEL_SINGULAR } from '@/lib/securityType';
 
 const schema = z.object({
   ticker: z.string().trim().min(1, 'Обязательное поле').max(16).transform(v => v.toUpperCase()),
@@ -254,7 +255,7 @@ const AddAssetDialog = ({ open: dialogOpen, onOpenChange }: AddAssetDialogProps)
                                 <span className="font-mono font-semibold text-dashboard-text">{item.ticker}</span>
                                 <span className="text-dashboard-text-muted text-sm truncate flex-1">{item.name}</span>
                                 <span className="text-xs text-dashboard-text-muted shrink-0">
-                                  {{ STOCK: 'Акция', BOND: 'Облигация', ETF: 'ETF', OFZ: 'ОФЗ' }[item.securityType] ?? item.securityType}
+                                  {SECURITY_TYPE_LABEL_SINGULAR[item.securityType] ?? item.securityType}
                                 </span>
                               </CommandItem>
                             ))}

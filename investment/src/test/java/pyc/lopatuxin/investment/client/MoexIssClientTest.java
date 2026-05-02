@@ -112,6 +112,36 @@ class MoexIssClientTest {
     }
 
     @Test
+    @DisplayName("fetchSecurity — SBER без SECTOR в MOEX-ответе → sector = 'Финансы' из локального справочника")
+    void fetchSecurity_resolvesSectorFromLocalDictionaryWhenMoexHasNone() {
+        String responseBody = """
+                {
+                  "description": {
+                    "columns": ["name","title","value"],
+                    "data": [
+                      ["SECID","Код","SBER"],
+                      ["NAME","Наименование","Сбербанк"],
+                      ["GROUP","Группа","stock_shares"],
+                      ["CURRENCYID","Валюта","RUB"]
+                    ]
+                  },
+                  "securities": {
+                    "columns": ["SECID","BOARDID","SHORTNAME","is_primary"],
+                    "data": [["SBER","TQBR","Сбербанк",1]]
+                  }
+                }
+                """;
+        mockWebServer.enqueue(new MockResponse()
+                .setBody(responseBody)
+                .addHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE));
+
+        Optional<MoexSecurityDto> result = client.fetchSecurity("SBER");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().sector()).isEqualTo("Финансы");
+    }
+
+    @Test
     @DisplayName("fetchSecurity — пустой data блок возвращает Optional.empty()")
     void fetchSecurity_returnsEmptyWhenDataEmpty() {
         String responseBody = """

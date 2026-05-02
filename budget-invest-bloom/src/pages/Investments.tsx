@@ -10,6 +10,8 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { useDeleteTransaction } from '@/hooks/useDeleteTransaction';
 import { useInvestmentOverview } from '@/hooks/useInvestmentOverview';
 import { useToast } from '@/hooks/use-toast';
+import { SECURITY_TYPE_LABEL, SECURITY_TYPE_ORDER } from '@/lib/securityType';
+import type { SecurityType } from '@/types/investment';
 
 const DONUT_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#14B8A6'];
 const formatCurrency = (value: number) => value.toLocaleString('ru-RU') + ' ₽';
@@ -95,13 +97,24 @@ const Investments = () => {
     color: DONUT_COLORS[index % DONUT_COLORS.length],
   }));
 
-  // Group positions by sector for the holdings list
-  const positionsBySector = positions.reduce<Record<string, typeof positions>>((acc, p) => {
-    const name = p.sector ?? 'Без сектора';
-    if (!acc[name]) acc[name] = [];
-    acc[name].push(p);
+  // Group positions by type → sector for the holdings list
+  const positionsByTypeAndSector = positions.reduce<Record<SecurityType, Record<string, typeof positions>>>(
+    (acc, p) => {
+      const type = p.securityType;
+      const sector = p.sector ?? 'Без сектора';
+      if (!acc[type]) acc[type] = {};
+      if (!acc[type][sector]) acc[type][sector] = [];
+      acc[type][sector].push(p);
+      return acc;
+    },
+    {} as Record<SecurityType, Record<string, typeof positions>>,
+  );
+
+  // Total cost per security type
+  const totalCostByType = positions.reduce<Record<SecurityType, number>>((acc, p) => {
+    acc[p.securityType] = (acc[p.securityType] ?? 0) + p.totalCost;
     return acc;
-  }, {});
+  }, {} as Record<SecurityType, number>);
 
   // Color index per ticker position
   const holdingColorIndex = new Map<string, number>();
@@ -281,64 +294,98 @@ const Investments = () => {
               <h3 className="text-sm font-semibold text-dashboard-text">Мои активы</h3>
             </div>
             <div className="space-y-6 max-h-[400px] overflow-y-auto dashboard-scroll pr-1">
-              {Object.entries(positionsBySector).map(([sectorName, sectorPositions], sectorIdx) => {
-                const sectorValue = sectorPositions.reduce((sum, p) => sum + p.totalCost, 0);
-                const sectorPercentage = totalValue > 0
-                  ? ((sectorValue / totalValue) * 100).toFixed(1)
-                  : '0.0';
+              {SECURITY_TYPE_ORDER.filter((type) => positionsByTypeAndSector[type]).map((type, typeIdx) => {
+                const typeSectors = positionsByTypeAndSector[type];
+                const typeTotal = totalCostByType[type] ?? 0;
+                const typeAssetCount = Object.values(typeSectors).reduce((sum, arr) => sum + arr.length, 0);
+                const typePercentage = totalValue > 0 ? ((typeTotal / totalValue) * 100).toFixed(1) : '0.0';
 
                 return (
                   <div
-                    key={sectorName}
-                    className="space-y-3 animate-fade-slide-up"
-                    style={{ animationDelay: `${400 + sectorIdx * 80}ms` }}
+                    key={type}
+                    className="space-y-4 animate-fade-slide-up"
+                    style={{ animationDelay: `${400 + typeIdx * 100}ms` }}
                   >
-                    <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                      <h3 className="font-semibold text-dashboard-text">{sectorName}</h3>
+                    {/* Type-level header */}
+                    <div className="flex items-center justify-between border-b-2 border-white/20 pb-2">
+                      <h3 className="text-base font-bold text-dashboard-text">{SECURITY_TYPE_LABEL[type]}</h3>
                       <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium font-mono text-dashboard-text">
-                          {sectorPercentage}%
+                        <span className="text-sm font-bold font-mono text-dashboard-text">
+                          {formatCurrency(typeTotal)}
+                        </span>
+                        <span className="text-xs font-mono text-dashboard-text-muted">
+                          {typePercentage}%
                         </span>
                         <span className="text-sm text-dashboard-text-muted">
-                          {pluralAssets(sectorPositions.length)}
+                          {pluralAssets(typeAssetCount)}
                         </span>
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      {sectorPositions.map((position) => {
-                        const pnlPositive = (position.pnl ?? 0) >= 0;
+
+                    {/* Sector subgroups */}
+                    <div className="space-y-4 pl-0">
+                      {Object.entries(typeSectors).map(([sectorName, sectorPositions], sectorIdx) => {
+                        const sectorValue = sectorPositions.reduce((sum, p) => sum + p.totalCost, 0);
+                        const sectorPercentage = totalValue > 0
+                          ? ((sectorValue / totalValue) * 100).toFixed(1)
+                          : '0.0';
+
                         return (
                           <div
-                            key={position.id}
-                            className="flex items-center justify-between p-3 bg-white/[0.03] rounded-lg hover:bg-white/[0.07] transition-all duration-200"
+                            key={sectorName}
+                            className="space-y-3 animate-fade-slide-up"
+                            style={{ animationDelay: `${460 + typeIdx * 100 + sectorIdx * 60}ms` }}
                           >
-                            <div className="flex items-center space-x-4">
-                              <SecurityLogo ticker={position.ticker} size={40} securityType={position.securityType} />
-                              <div>
-                                <div className="font-semibold text-dashboard-text">{position.ticker}</div>
-                                <div className="text-sm text-dashboard-text-muted">{position.securityName}</div>
-                                <div className="text-xs text-dashboard-text-muted font-mono">
-                                  {position.quantity} × {formatCurrency(position.averagePrice)}
-                                  {position.currentPrice !== null && (
-                                    <span className="ml-2 text-dashboard-text-muted">
-                                      Тек. цена: {formatCurrency(position.currentPrice)}
-                                    </span>
-                                  )}
-                                  {position.currentPrice === null && (
-                                    <span className="ml-2">Тек. цена: —</span>
-                                  )}
-                                </div>
+                            <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                              <h4 className="text-sm font-semibold text-dashboard-text-muted">{sectorName}</h4>
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs font-medium font-mono text-dashboard-text-muted">
+                                  {sectorPercentage}%
+                                </span>
+                                <span className="text-xs text-dashboard-text-muted">
+                                  {pluralAssets(sectorPositions.length)}
+                                </span>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <div className="font-semibold text-dashboard-text font-mono">
-                                {formatCurrency(position.totalCost)}
-                              </div>
-                              {position.pnl !== null && (
-                                <div className={`text-xs font-mono ${pnlPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                                  {pnlPositive ? '+' : ''}{formatCurrency(position.pnl)}
-                                </div>
-                              )}
+                            <div className="space-y-3">
+                              {sectorPositions.map((position) => {
+                                const pnlPositive = (position.pnl ?? 0) >= 0;
+                                return (
+                                  <div
+                                    key={position.id}
+                                    className="flex items-center justify-between p-3 bg-white/[0.03] rounded-lg hover:bg-white/[0.07] transition-all duration-200"
+                                  >
+                                    <div className="flex items-center space-x-4">
+                                      <SecurityLogo ticker={position.ticker} size={40} securityType={position.securityType} />
+                                      <div>
+                                        <div className="font-semibold text-dashboard-text">{position.ticker}</div>
+                                        <div className="text-sm text-dashboard-text-muted">{position.securityName}</div>
+                                        <div className="text-xs text-dashboard-text-muted font-mono">
+                                          {position.quantity} × {formatCurrency(position.averagePrice)}
+                                          {position.currentPrice !== null && (
+                                            <span className="ml-2 text-dashboard-text-muted">
+                                              Тек. цена: {formatCurrency(position.currentPrice)}
+                                            </span>
+                                          )}
+                                          {position.currentPrice === null && (
+                                            <span className="ml-2">Тек. цена: —</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="font-semibold text-dashboard-text font-mono">
+                                        {formatCurrency(position.totalCost)}
+                                      </div>
+                                      {position.pnl !== null && (
+                                        <div className={`text-xs font-mono ${pnlPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                                          {pnlPositive ? '+' : ''}{formatCurrency(position.pnl)}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         );
