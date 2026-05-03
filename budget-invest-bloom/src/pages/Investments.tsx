@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { TrendingUp, PieChart, Coins, Trash2, BarChart2, Calculator } from 'lucide-react';
+import { TrendingUp, PieChart, Coins, Trash2, BarChart2 } from 'lucide-react';
 import AddAssetDialog from '@/components/AddAssetDialog';
 import EmptyState from '@/components/EmptyState';
 import { SecurityLogo } from '@/components/SecurityLogo';
@@ -234,23 +234,16 @@ const Investments = () => {
       {/* Page header */}
       <div className="flex items-center justify-between animate-fade-slide-up">
         <h1 className="text-lg font-semibold text-dashboard-text">Мои инвестиции</h1>
-        <Link
-          to="/investments/calculator"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all duration-200 rounded-xl text-sm font-medium"
-        >
-          <Calculator className="w-4 h-4" />
-          Калькулятор
-        </Link>
       </div>
 
       {/* KPI Cards */}
       <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:pb-0 hide-scrollbar">
         {kpiCards.map((card, index) => {
           const Icon = card.icon;
-          return (
+          const isPortfolioCard = card.label === 'СТОИМОСТЬ ПОРТФЕЛЯ';
+          const cardContent = (
             <div
-              key={card.label}
-              className="glass-card p-5 flex items-start justify-between group transition-all duration-300 hover:scale-[1.02] animate-fade-slide-up min-w-[260px] snap-start lg:min-w-0"
+              className={`glass-card p-5 flex items-start justify-between group transition-all duration-300 hover:scale-[1.02] animate-fade-slide-up min-w-[260px] snap-start lg:min-w-0${isPortfolioCard ? ' cursor-pointer hover:border-blue-500/40' : ''}`}
               style={{ borderLeft: `3px solid ${card.color}`, animationDelay: `${index * 60}ms` }}
             >
               <div className="space-y-2">
@@ -265,6 +258,15 @@ const Investments = () => {
               >
                 <Icon className="w-5 h-5" style={{ color: card.color }} />
               </div>
+            </div>
+          );
+          return isPortfolioCard ? (
+            <Link key={card.label} to="/investments/analytics" className="contents">
+              {cardContent}
+            </Link>
+          ) : (
+            <div key={card.label} className="contents">
+              {cardContent}
             </div>
           );
         })}

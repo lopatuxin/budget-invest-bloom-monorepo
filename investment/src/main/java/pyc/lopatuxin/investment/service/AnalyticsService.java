@@ -10,20 +10,15 @@ import pyc.lopatuxin.investment.dto.response.SeriesResponseDto;
 import pyc.lopatuxin.investment.entity.Dividend;
 import pyc.lopatuxin.investment.entity.PriceHistory;
 import pyc.lopatuxin.investment.entity.Position;
-import pyc.lopatuxin.investment.entity.Transaction;
 import pyc.lopatuxin.investment.entity.enums.HistoryStatus;
-import pyc.lopatuxin.investment.entity.enums.TransactionType;
 import pyc.lopatuxin.investment.repository.DividendRepository;
 import pyc.lopatuxin.investment.repository.PositionRepository;
 import pyc.lopatuxin.investment.repository.PriceHistoryRepository;
-import pyc.lopatuxin.investment.repository.TransactionRepository;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +32,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AnalyticsService {
 
-    private final TransactionRepository transactionRepository;
     private final PriceHistoryRepository priceHistoryRepository;
     private final PositionRepository positionRepository;
     private final MarketDataService marketDataService;
@@ -50,23 +44,25 @@ public class AnalyticsService {
     }
 
     public SeriesResponseDto<PortfolioValuePointDto> portfolioValueHistory(UUID userId, LocalDate from, LocalDate to) {
-        List<Transaction> txns = transactionRepository.findByUserIdWithSecurity(userId).stream()
-                .sorted(Comparator.comparing(Transaction::getExecutedAt))
-                .toList();
-        if (txns.isEmpty()) {
+        List<Position> positions = positionRepository.findByUserIdWithSecurity(userId);
+        if (positions.isEmpty()) {
             return new SeriesResponseDto<>(List.of(), false, List.of());
         }
 
-        List<String> pendingTickers = collectPendingAndTrigger(userId);
+        List<String> pendingTickers = collectPendingAndTrigger(positions);
 
-        Set<String> readyTickers = collectTickers(txns).stream()
-                .filter(t -> !pendingTickers.contains(t))
-                .collect(Collectors.toSet());
+        Map<String, BigDecimal> quantitiesByTicker = positions.stream()
+                .filter(p -> !pendingTickers.contains(p.getSecurity().getTicker()))
+                .collect(Collectors.toMap(
+                        p -> p.getSecurity().getTicker(),
+                        Position::getQuantity
+                ));
 
-        if (readyTickers.isEmpty()) {
+        if (quantitiesByTicker.isEmpty()) {
             return new SeriesResponseDto<>(List.of(), !pendingTickers.isEmpty(), pendingTickers);
         }
 
+        Set<String> readyTickers = quantitiesByTicker.keySet();
         List<PriceHistory> history = priceHistoryRepository
                 .findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(readyTickers, from, to);
         if (history.isEmpty()) {
@@ -77,7 +73,7 @@ public class AnalyticsService {
         List<LocalDate> sortedDates = closePriceByDate.keySet().stream().sorted().toList();
 
         Map<String, BigDecimal> lastKnownClose = new HashMap<>();
-        List<PortfolioValuePointDto> series = buildValuePoints(txns, sortedDates, closePriceByDate, lastKnownClose);
+        List<PortfolioValuePointDto> series = buildValuePoints(quantitiesByTicker, sortedDates, closePriceByDate, lastKnownClose);
         return new SeriesResponseDto<>(series, !pendingTickers.isEmpty(), pendingTickers);
     }
 
@@ -97,8 +93,7 @@ public class AnalyticsService {
         return marketDataService.getSecurityHistoryStatus(ticker) == HistoryStatus.PENDING;
     }
 
-    private List<String> collectPendingAndTrigger(UUID userId) {
-        List<Position> positions = positionRepository.findByUserIdWithSecurity(userId);
+    private List<String> collectPendingAndTrigger(List<Position> positions) {
         List<String> pending = new ArrayList<>();
         for (Position pos : positions) {
             String ticker = pos.getSecurity().getTicker();
@@ -108,12 +103,6 @@ public class AnalyticsService {
             }
         }
         return pending;
-    }
-
-    private Set<String> collectTickers(List<Transaction> txns) {
-        return txns.stream()
-                .map(t -> t.getSecurity().getTicker())
-                .collect(Collectors.toSet());
     }
 
     private Map<LocalDate, Map<String, BigDecimal>> groupCloseByDate(List<PriceHistory> history) {
@@ -126,7 +115,7 @@ public class AnalyticsService {
     }
 
     private List<PortfolioValuePointDto> buildValuePoints(
-            List<Transaction> txns,
+            Map<String, BigDecimal> quantitiesByTicker,
             List<LocalDate> sortedDates,
             Map<LocalDate, Map<String, BigDecimal>> closePriceByDate,
             Map<String, BigDecimal> lastKnownClose) {
@@ -134,8 +123,7 @@ public class AnalyticsService {
         List<PortfolioValuePointDto> points = new ArrayList<>();
         for (LocalDate date : sortedDates) {
             updateLastKnownClose(lastKnownClose, closePriceByDate.get(date));
-            Map<String, BigDecimal> quantities = calcQuantitiesAtEndOfDay(txns, date);
-            BigDecimal dayValue = calcDayValue(quantities, lastKnownClose);
+            BigDecimal dayValue = calcDayValue(quantitiesByTicker, lastKnownClose);
             if (dayValue.compareTo(BigDecimal.ZERO) > 0) {
                 points.add(PortfolioValuePointDto.builder().date(date).value(dayValue).build());
             }
@@ -147,22 +135,6 @@ public class AnalyticsService {
         if (dayPrices != null) {
             lastKnownClose.putAll(dayPrices);
         }
-    }
-
-    private Map<String, BigDecimal> calcQuantitiesAtEndOfDay(List<Transaction> txns, LocalDate date) {
-        long endOfDayEpoch = date.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli();
-        Map<String, BigDecimal> quantities = new HashMap<>();
-        for (Transaction t : txns) {
-            if (t.getExecutedAt().toEpochMilli() >= endOfDayEpoch) continue;
-            String ticker = t.getSecurity().getTicker();
-            BigDecimal current = quantities.getOrDefault(ticker, BigDecimal.ZERO);
-            if (t.getType() == TransactionType.BUY) {
-                quantities.put(ticker, current.add(t.getQuantity()));
-            } else {
-                quantities.put(ticker, current.subtract(t.getQuantity()));
-            }
-        }
-        return quantities;
     }
 
     private BigDecimal calcDayValue(Map<String, BigDecimal> quantities, Map<String, BigDecimal> lastKnownClose) {

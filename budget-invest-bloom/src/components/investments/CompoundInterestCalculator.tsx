@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, Calculator, Percent, CalendarDays, Loader2 } from 'lucide-react';
+import { TrendingUp, Calculator, Percent, CalendarDays, Loader2 } from 'lucide-react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -52,7 +51,7 @@ const CustomTooltip = ({
   );
 };
 
-const InvestmentCalculator = () => {
+const CompoundInterestCalculator = () => {
   const projection = useProjection();
 
   const [horizonMonths, setHorizonMonths] = useState(120);
@@ -75,25 +74,9 @@ const InvestmentCalculator = () => {
   const horizonYears = Math.round(horizonMonths / 12);
 
   return (
-    <div className="space-y-6 pb-6">
-      {/* Header */}
-      <div className="flex items-center gap-4 animate-fade-slide-up">
-        <Link
-          to="/investments"
-          className="flex items-center gap-2 text-sm text-dashboard-text-muted hover:text-dashboard-text transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Портфель
-        </Link>
-        <div className="h-4 w-px bg-white/10" />
-        <h1 className="text-lg font-semibold text-dashboard-text flex items-center gap-2">
-          <Calculator className="w-5 h-5 text-blue-400" />
-          Калькулятор сложного процента
-        </h1>
-      </div>
-
+    <div className="space-y-5">
       {/* Form */}
-      <div className="glass-card p-5 animate-fade-slide-up" style={{ animationDelay: '60ms' }}>
+      <div className="glass-card p-5">
         <h3 className="text-sm font-semibold text-dashboard-text mb-5">Параметры прогноза</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
 
@@ -133,7 +116,7 @@ const InvestmentCalculator = () => {
 
           {/* Withdrawal rate */}
           <div className="space-y-1.5">
-            <label className="flex items-center gap-1.5 text-[11px] font-semibold tracking-widest text-dashboard-text-muted uppercase">
+            <label className="flex items-center gap-1.5 text-[11px] font-semibold tracking-widests text-dashboard-text-muted uppercase">
               <Percent className="w-3.5 h-3.5" />
               Ставка изъятия (% / год)
             </label>
@@ -188,7 +171,7 @@ const InvestmentCalculator = () => {
 
       {/* Error state */}
       {projection.isError && (
-        <div className="glass-card p-4 border-l-4 border-red-500 animate-fade-slide-up">
+        <div className="glass-card p-4 border-l-4 border-red-500">
           <p className="text-red-400 text-sm">
             {projection.error instanceof Error ? projection.error.message : 'Ошибка при расчёте прогноза'}
           </p>
@@ -197,7 +180,7 @@ const InvestmentCalculator = () => {
 
       {/* Loading skeleton for results */}
       {projection.isPending && (
-        <div className="space-y-5 animate-fade-slide-up">
+        <div className="space-y-5">
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-5">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-28" />
@@ -213,16 +196,14 @@ const InvestmentCalculator = () => {
 
           {/* Pending tickers banner */}
           {result.pendingHistoryTickers.length > 0 && (
-            <div
-              className="px-4 py-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-yellow-400 text-sm animate-fade-slide-up"
-            >
+            <div className="px-4 py-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-yellow-400 text-sm">
               Данные истории по тикерам <span className="font-mono font-semibold">{result.pendingHistoryTickers.join(', ')}</span> ещё загружаются. Прогноз приблизительный.
             </div>
           )}
 
           {/* No positions message */}
           {result.startValue === 0 && (
-            <div className="glass-card p-8 text-center animate-fade-slide-up">
+            <div className="glass-card p-8 text-center">
               <TrendingUp className="w-12 h-12 text-dashboard-text-muted mx-auto mb-3" />
               <p className="text-dashboard-text font-semibold mb-1">Портфель пуст</p>
               <p className="text-dashboard-text-muted text-sm">
@@ -234,11 +215,8 @@ const InvestmentCalculator = () => {
           {/* KPI cards */}
           {result.startValue > 0 && (
             <>
-              <div className="grid grid-cols-2 xl:grid-cols-4 gap-5 animate-fade-slide-up">
-                <div
-                  className="glass-card p-5 flex items-start justify-between"
-                  style={{ borderLeft: '3px solid #3B82F6' }}
-                >
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-5">
+                <div className="glass-card p-5 flex items-start justify-between" style={{ borderLeft: '3px solid #3B82F6' }}>
                   <div className="space-y-2">
                     <p className="text-[11px] font-semibold tracking-widest text-dashboard-text-muted">СТОИМОСТЬ СЕЙЧАС</p>
                     <p className="text-xl font-bold text-dashboard-text font-mono">
@@ -253,10 +231,7 @@ const InvestmentCalculator = () => {
                   </div>
                 </div>
 
-                <div
-                  className="glass-card p-5 flex items-start justify-between"
-                  style={{ borderLeft: '3px solid #10B981' }}
-                >
+                <div className="glass-card p-5 flex items-start justify-between" style={{ borderLeft: '3px solid #10B981' }}>
                   <div className="space-y-2">
                     <p className="text-[11px] font-semibold tracking-widest text-dashboard-text-muted">
                       ЧЕРЕЗ {horizonYears} {horizonYears >= 5 ? 'ЛЕТ' : horizonYears >= 2 ? 'ГОДА' : 'ГОД'}
@@ -273,10 +248,7 @@ const InvestmentCalculator = () => {
                   </div>
                 </div>
 
-                <div
-                  className="glass-card p-5 flex items-start justify-between"
-                  style={{ borderLeft: '3px solid #8B5CF6' }}
-                >
+                <div className="glass-card p-5 flex items-start justify-between" style={{ borderLeft: '3px solid #8B5CF6' }}>
                   <div className="space-y-2">
                     <p className="text-[11px] font-semibold tracking-widest text-dashboard-text-muted">ДОХОДНОСТЬ В ГОД</p>
                     <p className="text-xl font-bold text-dashboard-text font-mono">
@@ -291,10 +263,7 @@ const InvestmentCalculator = () => {
                   </div>
                 </div>
 
-                <div
-                  className="glass-card p-5 flex items-start justify-between"
-                  style={{ borderLeft: '3px solid #F59E0B' }}
-                >
+                <div className="glass-card p-5 flex items-start justify-between" style={{ borderLeft: '3px solid #F59E0B' }}>
                   <div className="space-y-2">
                     <p className="text-[11px] font-semibold tracking-widest text-dashboard-text-muted">ДОХОДНОСТЬ В МЕС</p>
                     <p className="text-xl font-bold text-dashboard-text font-mono">
@@ -312,7 +281,7 @@ const InvestmentCalculator = () => {
 
               {/* Projection chart */}
               {result.series.length > 0 && (
-                <div className="bg-white/5 rounded-2xl p-6 animate-fade-slide-up">
+                <div className="bg-white/5 rounded-2xl p-6">
                   <h3 className="text-sm font-semibold text-white mb-5">Прогноз роста портфеля</h3>
                   <ResponsiveContainer width="100%" height={280}>
                     <AreaChart data={result.series} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
@@ -360,4 +329,4 @@ const InvestmentCalculator = () => {
   );
 };
 
-export default InvestmentCalculator;
+export default CompoundInterestCalculator;
