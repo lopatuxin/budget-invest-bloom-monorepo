@@ -474,13 +474,13 @@ const Investments = () => {
             ) : (
               <div className="space-y-2 max-h-[300px] overflow-y-auto dashboard-scroll pr-1">
                 {upcomingDividends.map((d) => (
-                  <div key={`${d.ticker}-${d.paymentDate}`} className="flex items-center justify-between p-3 bg-white/[0.03] rounded-lg">
+                  <div key={`${d.ticker}-${d.recordDate}`} className="flex items-center justify-between p-3 bg-white/[0.03] rounded-lg">
                     <div className="flex items-center space-x-3">
                       <SecurityLogo ticker={d.ticker} size={32} />
                       <div>
                         <div className="font-semibold text-sm text-dashboard-text">{d.ticker}</div>
                         <div className="text-xs text-dashboard-text-muted">
-                          {new Date(d.paymentDate).toLocaleDateString('ru-RU')}
+                          {new Date(d.recordDate).toLocaleDateString('ru-RU')}
                         </div>
                       </div>
                     </div>

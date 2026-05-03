@@ -275,7 +275,7 @@ const SecurityDetails = () => {
                 className="flex items-center justify-between p-3 bg-white/[0.03] rounded-lg"
               >
                 <span className="text-sm text-dashboard-text-muted">
-                  {new Date(div.paymentDate).toLocaleDateString('ru-RU')}
+                  {new Date(div.recordDate).toLocaleDateString('ru-RU')}
                 </span>
                 <span className="text-sm font-mono text-dashboard-text">
                   {div.amountPerShare.toLocaleString('ru-RU')} {div.currency} на акцию
