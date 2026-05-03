@@ -28,9 +28,9 @@ public interface DividendRepository extends JpaRepository<Dividend, UUID> {
 
     @Query("SELECT d FROM Dividend d JOIN FETCH d.security " +
            "WHERE d.security.ticker IN :tickers " +
-           "AND d.paymentDate >= :from " +
+           "AND d.recordDate >= :from " +
            "AND d.status <> pyc.lopatuxin.investment.entity.enums.DividendStatus.CANCELLED " +
-           "ORDER BY d.paymentDate ASC")
+           "ORDER BY d.recordDate ASC")
     List<Dividend> findUpcomingByTickersWithSecurity(
             @Param("tickers") Collection<String> tickers,
             @Param("from") LocalDate from);

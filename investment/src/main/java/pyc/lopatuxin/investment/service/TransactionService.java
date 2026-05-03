@@ -12,9 +12,11 @@ import pyc.lopatuxin.investment.entity.Security;
 import pyc.lopatuxin.investment.entity.Transaction;
 import pyc.lopatuxin.investment.entity.enums.TransactionType;
 import pyc.lopatuxin.investment.mapper.TransactionMapper;
+import pyc.lopatuxin.investment.repository.DividendRepository;
 import pyc.lopatuxin.investment.repository.PositionRepository;
 import pyc.lopatuxin.investment.repository.SecurityRepository;
 import pyc.lopatuxin.investment.repository.TransactionRepository;
+import pyc.lopatuxin.investment.service.market.DividendSyncService;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
 
 import java.math.BigDecimal;
@@ -35,6 +37,8 @@ public class TransactionService {
     private final SecurityRepository securityRepository;
     private final TransactionMapper transactionMapper;
     private final MarketDataService marketDataService;
+    private final DividendSyncService dividendSyncService;
+    private final DividendRepository dividendRepository;
 
     @Transactional
     public TransactionResponseDto create(UUID userId, CreateTransactionDto dto) {
@@ -127,5 +131,10 @@ public class TransactionService {
         position.setTotalCost(totalCost.setScale(2, RoundingMode.HALF_UP));
         position.setAveragePrice(avgPrice);
         positionRepository.save(position);
+
+        // Trigger async dividend sync on first encounter of this ticker
+        if (dividendRepository.findBySecurity_Ticker(ticker).isEmpty()) {
+            dividendSyncService.syncDividendsAsync(ticker);
+        }
     }
 }
