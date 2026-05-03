@@ -66,7 +66,7 @@ const CompoundInterestCalculator = () => {
     });
   };
 
-  const result = projection.data;
+  const result = projection.data?.body;
   const lastPoint = result?.series?.[result.series.length - 1];
   const horizonYears = Math.round(horizonMonths / 12);
 
