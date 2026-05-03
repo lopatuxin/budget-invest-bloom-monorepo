@@ -116,4 +116,12 @@ export interface ProjectionRequest {
   overrides: Record<string, number>;
 }
 
+export interface PaidDividend {
+  ticker: string;
+  recordDate: string;
+  paymentDate: string;
+  amountPerShare: number;
+  currency: string;
+}
+
 export type { ApiResponse };

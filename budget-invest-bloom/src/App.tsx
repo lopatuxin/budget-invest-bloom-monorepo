@@ -19,6 +19,7 @@ import Register from "./pages/Register";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import NotFound from "./pages/NotFound";
+import SecurityDetails from "./pages/SecurityDetails";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,7 @@ const AppLayout = () => {
           <Route path="/budget/metric/:metric" element={<MetricDetails />} />
           <Route path="/investments" element={<Investments />} />
           <Route path="/investments/calculator" element={<InvestmentCalculator />} />
+          <Route path="/investments/security/:ticker" element={<SecurityDetails />} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -78,6 +80,7 @@ const AppLayout = () => {
           <Route path="/budget/metric/:metric" element={<MetricDetails />} />
           <Route path="/investments" element={<Investments />} />
           <Route path="/investments/calculator" element={<InvestmentCalculator />} />
+          <Route path="/investments/security/:ticker" element={<SecurityDetails />} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { TrendingUp, PieChart, Coins, Trash2, BarChart2, Calculator } from 'lucide-react';
 import AddAssetDialog from '@/components/AddAssetDialog';
 import EmptyState from '@/components/EmptyState';
@@ -49,6 +49,7 @@ const Skeleton = ({ className = '' }: { className?: string }) => (
 
 const Investments = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { data: portfolioData, isLoading } = useInvestmentPortfolio();
   const { data: transactionsData } = useTransactions();
   const { mutate: deleteTransaction } = useDeleteTransaction();
@@ -338,7 +339,8 @@ const Investments = () => {
                                 return (
                                   <div
                                     key={position.id}
-                                    className="flex items-center justify-between p-3 bg-white/[0.03] rounded-lg hover:bg-white/[0.07] transition-all duration-200"
+                                    className="flex items-center justify-between p-3 bg-white/[0.03] rounded-lg hover:bg-white/[0.07] transition-all duration-200 cursor-pointer"
+                                    onClick={() => navigate(`/investments/security/${position.ticker}`)}
                                   >
                                     <div className="flex items-center space-x-4">
                                       <SecurityLogo ticker={position.ticker} size={40} securityType={position.securityType} />

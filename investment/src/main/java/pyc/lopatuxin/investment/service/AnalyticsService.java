@@ -3,14 +3,17 @@ package pyc.lopatuxin.investment.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import pyc.lopatuxin.investment.dto.response.PaidDividendDto;
 import pyc.lopatuxin.investment.dto.response.PortfolioValuePointDto;
 import pyc.lopatuxin.investment.dto.response.PricePointDto;
 import pyc.lopatuxin.investment.dto.response.SeriesResponseDto;
+import pyc.lopatuxin.investment.entity.Dividend;
 import pyc.lopatuxin.investment.entity.PriceHistory;
 import pyc.lopatuxin.investment.entity.Position;
 import pyc.lopatuxin.investment.entity.Transaction;
 import pyc.lopatuxin.investment.entity.enums.HistoryStatus;
 import pyc.lopatuxin.investment.entity.enums.TransactionType;
+import pyc.lopatuxin.investment.repository.DividendRepository;
 import pyc.lopatuxin.investment.repository.PositionRepository;
 import pyc.lopatuxin.investment.repository.PriceHistoryRepository;
 import pyc.lopatuxin.investment.repository.TransactionRepository;
@@ -38,6 +41,13 @@ public class AnalyticsService {
     private final PriceHistoryRepository priceHistoryRepository;
     private final PositionRepository positionRepository;
     private final MarketDataService marketDataService;
+    private final DividendRepository dividendRepository;
+
+    public List<PaidDividendDto> securityDividendsHistory(String ticker) {
+        return dividendRepository.findPaidByTickerWithSecurity(ticker).stream()
+                .map(this::toPaidDividendDto)
+                .toList();
+    }
 
     public SeriesResponseDto<PortfolioValuePointDto> portfolioValueHistory(UUID userId, LocalDate from, LocalDate to) {
         List<Transaction> txns = transactionRepository.findByUserIdWithSecurity(userId).stream()
@@ -165,6 +175,16 @@ public class AnalyticsService {
             total = total.add(qty.multiply(price));
         }
         return total;
+    }
+
+    private PaidDividendDto toPaidDividendDto(Dividend d) {
+        return PaidDividendDto.builder()
+                .ticker(d.getSecurity().getTicker())
+                .recordDate(d.getRecordDate())
+                .paymentDate(d.getPaymentDate())
+                .amountPerShare(d.getAmountPerShare())
+                .currency(d.getCurrency())
+                .build();
     }
 
     private PricePointDto toPricePointDto(PriceHistory ph) {
