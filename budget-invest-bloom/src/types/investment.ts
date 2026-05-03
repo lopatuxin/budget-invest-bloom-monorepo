@@ -112,7 +112,6 @@ export interface ProjectionRequest {
   horizonMonths: number;
   monthlyDeposit: number;
   withdrawalRatePerYear: number;
-  lookbackYears: number;
   overrides: Record<string, number>;
 }
 

@@ -7,6 +7,7 @@ import pyc.lopatuxin.investment.entity.PriceHistoryId;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface PriceHistoryRepository extends JpaRepository<PriceHistory, PriceHistoryId> {
 
@@ -17,4 +18,6 @@ public interface PriceHistoryRepository extends JpaRepository<PriceHistory, Pric
     List<PriceHistory> findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(Collection<String> tickers, LocalDate from, LocalDate to);
 
     List<PriceHistory> findByTickerAndTradeDateBetweenOrderByTradeDateAsc(String ticker, LocalDate from, LocalDate to);
+
+    Optional<PriceHistory> findFirstByTickerAndTradeDateLessThanEqualOrderByTradeDateDesc(String ticker, LocalDate date);
 }

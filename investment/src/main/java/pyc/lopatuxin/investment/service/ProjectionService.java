@@ -7,8 +7,9 @@ import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.investment.dto.request.ProjectionRequestDto;
 import pyc.lopatuxin.investment.dto.response.ProjectionPointDto;
 import pyc.lopatuxin.investment.dto.response.ProjectionResultDto;
-import pyc.lopatuxin.investment.entity.PriceHistory;
+import pyc.lopatuxin.investment.entity.Dividend;
 import pyc.lopatuxin.investment.entity.Position;
+import pyc.lopatuxin.investment.entity.enums.DividendStatus;
 import pyc.lopatuxin.investment.repository.DividendRepository;
 import pyc.lopatuxin.investment.repository.PositionRepository;
 import pyc.lopatuxin.investment.repository.PriceHistoryRepository;
@@ -19,12 +20,12 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -60,11 +61,9 @@ public class ProjectionService {
             totalValue = BigDecimal.ONE;
         }
 
-        LocalDate now = LocalDate.now();
-        LocalDate lookbackFrom = now.minusYears(req.getLookbackYears());
         List<String> pendingTickers = new ArrayList<>();
         BigDecimal weightedAnnualReturn = computeWeightedAnnualReturn(
-                positions, currentValues, totalValue, snapshots, req, lookbackFrom, now, pendingTickers);
+                positions, currentValues, totalValue, req, pendingTickers);
 
         double wReturnDouble = weightedAnnualReturn.doubleValue();
         double monthlyReturnDouble = Math.pow(1.0 + wReturnDouble, 1.0 / 12.0) - 1.0;
@@ -73,6 +72,7 @@ public class ProjectionService {
         BigDecimal monthlyWithdrawalRate = req.getWithdrawalRatePerYear()
                 .divide(BigDecimal.valueOf(12), MC);
 
+        LocalDate now = LocalDate.now();
         List<ProjectionPointDto> series = simulateSeries(
                 totalValue, monthlyReturn, monthlyWithdrawalRate, req, now);
 
@@ -105,10 +105,7 @@ public class ProjectionService {
     private BigDecimal computeWeightedAnnualReturn(List<Position> positions,
                                                    Map<String, BigDecimal> currentValues,
                                                    BigDecimal totalValue,
-                                                   Map<String, SnapshotResult> snapshots,
                                                    ProjectionRequestDto req,
-                                                   LocalDate lookbackFrom,
-                                                   LocalDate now,
                                                    List<String> pendingTickers) {
         BigDecimal weightedReturn = BigDecimal.ZERO;
         for (Position pos : positions) {
@@ -118,10 +115,8 @@ public class ProjectionService {
             if (req.getOverrides().containsKey(ticker)) {
                 annualReturn = req.getOverrides().get(ticker);
             } else {
-                annualReturn = computeHistoricalAnnualReturn(ticker, lookbackFrom, now, pendingTickers);
+                annualReturn = computeAnnualReturn(ticker, pendingTickers);
             }
-
-            annualReturn = annualReturn.add(computeDividendYield(ticker, currentValues.get(ticker), pos.getQuantity(), now));
 
             BigDecimal weight = currentValues.get(ticker).divide(totalValue, MC);
             weightedReturn = weightedReturn.add(weight.multiply(annualReturn, MC));
@@ -129,50 +124,55 @@ public class ProjectionService {
         return weightedReturn;
     }
 
-    private BigDecimal computeDividendYield(String ticker, BigDecimal positionValue,
-                                            BigDecimal quantity, LocalDate now) {
-        if (quantity.compareTo(BigDecimal.ZERO) == 0) return BigDecimal.ZERO;
-        BigDecimal currentPrice = positionValue.divide(quantity, MC);
-        if (currentPrice.compareTo(BigDecimal.ZERO) <= 0) return BigDecimal.ZERO;
-
-        BigDecimal dividendSum = dividendRepository
-                .findBySecurity_TickerAndPaymentDateAfter(ticker, now.minusYears(1))
+    private BigDecimal computeAnnualReturn(String ticker, List<String> pendingTickers) {
+        List<Dividend> paidDividends = dividendRepository.findBySecurity_Ticker(ticker)
                 .stream()
-                .map(d -> d.getAmountPerShare() != null ? d.getAmountPerShare() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .filter(d -> d.getStatus() == DividendStatus.PAID)
+                .toList();
 
-        return dividendSum.divide(currentPrice, MC);
+        if (paidDividends.isEmpty()) {
+            pendingTickers.add(ticker);
+            return BigDecimal.ZERO;
+        }
+
+        Map<Integer, BigDecimal> yieldByYear = computeYieldByYear(ticker, paidDividends);
+
+        if (yieldByYear.isEmpty()) {
+            pendingTickers.add(ticker);
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal sum = yieldByYear.values().stream()
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return sum.divide(BigDecimal.valueOf(yieldByYear.size()), MC);
     }
 
-    private BigDecimal computeHistoricalAnnualReturn(String ticker, LocalDate from, LocalDate to,
-                                                     List<String> pendingTickers) {
-        List<PriceHistory> history = priceHistoryRepository
-                .findByTickerAndTradeDateBetweenOrderByTradeDateAsc(ticker, from, to);
-
-        if (history.size() < 2) {
-            pendingTickers.add(ticker);
-            return BigDecimal.ZERO;
+    private Map<Integer, BigDecimal> computeYieldByYear(String ticker, List<Dividend> dividends) {
+        Map<Integer, BigDecimal> yieldByYear = new LinkedHashMap<>();
+        for (Dividend div : dividends) {
+            if (div.getPaymentDate() == null || div.getAmountPerShare() == null) {
+                continue;
+            }
+            BigDecimal yieldI = computeDividendYield(ticker, div);
+            if (yieldI == null) {
+                continue;
+            }
+            int year = div.getPaymentDate().getYear();
+            yieldByYear.merge(year, yieldI, BigDecimal::add);
         }
+        return yieldByYear;
+    }
 
-        BigDecimal startClose = history.get(0).getClose();
-        BigDecimal endClose = history.get(history.size() - 1).getClose();
-
-        if (startClose == null || startClose.compareTo(BigDecimal.ZERO) == 0 || endClose == null) {
-            pendingTickers.add(ticker);
-            return BigDecimal.ZERO;
-        }
-
-        double ratio = endClose.divide(startClose, MC).doubleValue();
-        double actualYears = (double) history.get(0).getTradeDate()
-                .until(history.get(history.size() - 1).getTradeDate(), ChronoUnit.DAYS) / 365.25;
-
-        if (actualYears <= 0) {
-            pendingTickers.add(ticker);
-            return BigDecimal.ZERO;
-        }
-
-        double cagr = Math.pow(ratio, 1.0 / actualYears) - 1.0;
-        return BigDecimal.valueOf(cagr).setScale(6, RM);
+    private BigDecimal computeDividendYield(String ticker, Dividend div) {
+        return priceHistoryRepository
+                .findFirstByTickerAndTradeDateLessThanEqualOrderByTradeDateDesc(ticker, div.getPaymentDate())
+                .map(ph -> {
+                    if (ph.getClose() == null || ph.getClose().compareTo(BigDecimal.ZERO) <= 0) {
+                        return null;
+                    }
+                    return div.getAmountPerShare().divide(ph.getClose(), MC);
+                })
+                .orElse(null);
     }
 
     private List<ProjectionPointDto> simulateSeries(BigDecimal startValue,

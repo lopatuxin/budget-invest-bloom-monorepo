@@ -9,9 +9,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pyc.lopatuxin.investment.dto.request.ProjectionRequestDto;
 import pyc.lopatuxin.investment.dto.response.ProjectionResultDto;
+import pyc.lopatuxin.investment.entity.Dividend;
 import pyc.lopatuxin.investment.entity.PriceHistory;
 import pyc.lopatuxin.investment.entity.Position;
 import pyc.lopatuxin.investment.entity.Security;
+import pyc.lopatuxin.investment.entity.enums.DividendStatus;
 import pyc.lopatuxin.investment.entity.enums.HistoryStatus;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
 import pyc.lopatuxin.investment.repository.DividendRepository;
@@ -25,6 +27,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -70,7 +73,7 @@ class ProjectionServiceTest {
     @Test
     @DisplayName("project — пустой список позиций → startValue=0, series пустой")
     void project_returnsEmptyResult_whenNoPositions() {
-        when(positionRepository.findByUserId(userId)).thenReturn(List.of());
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of());
 
         ProjectionRequestDto req = new ProjectionRequestDto();
         req.setHorizonMonths(12);
@@ -82,8 +85,8 @@ class ProjectionServiceTest {
     }
 
     @Test
-    @DisplayName("project — фиксированные позиции и история (2 точки), horizonMonths=3 → series содержит 3 точки, value[0] > startValue")
-    void project_computesCorrectSeries_withFixedInputs() {
+    @DisplayName("project — дивиденды за 2 года → аннуальная доходность = среднее по годам, series содержит 3 точки")
+    void project_computesAverageAnnualReturn_fromMultipleYearsDividends() {
         Position position = Position.builder()
                 .id(UUID.randomUUID())
                 .userId(userId)
@@ -93,37 +96,28 @@ class ProjectionServiceTest {
                 .totalCost(new BigDecimal("2500.00"))
                 .build();
 
-        when(positionRepository.findByUserId(userId)).thenReturn(List.of(position));
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(position));
 
         SnapshotResult snap = new SnapshotResult(new BigDecimal("300.00"), new BigDecimal("295.00"), Instant.now(), false);
         when(marketDataService.getSnapshots(List.of("SBER"))).thenReturn(Map.of("SBER", snap));
 
-        LocalDate now = LocalDate.now();
-        PriceHistory h1 = PriceHistory.builder()
-                .ticker("SBER")
-                .tradeDate(now.minusDays(400))
-                .open(new BigDecimal("200.00"))
-                .close(new BigDecimal("200.00"))
-                .high(new BigDecimal("205.00"))
-                .low(new BigDecimal("195.00"))
-                .volume(10000L)
-                .build();
-        PriceHistory h2 = PriceHistory.builder()
-                .ticker("SBER")
-                .tradeDate(now.minusDays(10))
-                .open(new BigDecimal("290.00"))
-                .close(new BigDecimal("295.00"))
-                .high(new BigDecimal("300.00"))
-                .low(new BigDecimal("285.00"))
-                .volume(12000L)
-                .build();
+        // year 2022: amountPerShare=20, close=200 → yield=0.10
+        Dividend div2022 = buildPaidDividend("SBER", LocalDate.of(2022, 7, 1), new BigDecimal("20.00"));
+        // year 2023: amountPerShare=30, close=300 → yield=0.10
+        Dividend div2023 = buildPaidDividend("SBER", LocalDate.of(2023, 7, 1), new BigDecimal("30.00"));
 
-        when(priceHistoryRepository.findByTickerAndTradeDateBetweenOrderByTradeDateAsc(
-                eq("SBER"), any(LocalDate.class), any(LocalDate.class)))
-                .thenReturn(List.of(h1, h2));
+        when(dividendRepository.findBySecurity_Ticker("SBER"))
+                .thenReturn(List.of(div2022, div2023));
 
-        when(dividendRepository.findBySecurity_TickerAndPaymentDateAfter(eq("SBER"), any(LocalDate.class)))
-                .thenReturn(List.of());
+        PriceHistory ph2022 = buildPriceHistory("SBER", LocalDate.of(2022, 6, 30), new BigDecimal("200.00"));
+        PriceHistory ph2023 = buildPriceHistory("SBER", LocalDate.of(2023, 6, 30), new BigDecimal("300.00"));
+
+        when(priceHistoryRepository.findFirstByTickerAndTradeDateLessThanEqualOrderByTradeDateDesc(
+                eq("SBER"), eq(LocalDate.of(2022, 7, 1))))
+                .thenReturn(Optional.of(ph2022));
+        when(priceHistoryRepository.findFirstByTickerAndTradeDateLessThanEqualOrderByTradeDateDesc(
+                eq("SBER"), eq(LocalDate.of(2023, 7, 1))))
+                .thenReturn(Optional.of(ph2023));
 
         ProjectionRequestDto req = new ProjectionRequestDto();
         req.setHorizonMonths(3);
@@ -133,14 +127,16 @@ class ProjectionServiceTest {
         ProjectionResultDto result = projectionService.project(userId, req);
 
         assertThat(result.getSeries()).hasSize(3);
-        // first point value must exceed startValue since CAGR is positive
+        // yield per year = 0.10 both years → average = 0.10 → positive return → value grows
         assertThat(result.getSeries().get(0).getValue())
                 .isGreaterThan(result.getStartValue());
+        // pendingTickers must be empty — both years have valid data
+        assertThat(result.getPendingHistoryTickers()).doesNotContain("SBER");
     }
 
     @Test
-    @DisplayName("project — история пуста → тикер попадает в pendingHistoryTickers")
-    void project_addsTickerToPending_whenHistoryEmpty() {
+    @DisplayName("project — нет оплаченных дивидендов → тикер попадает в pendingHistoryTickers")
+    void project_addsTickerToPending_whenNoPaidDividends() {
         Position position = Position.builder()
                 .id(UUID.randomUUID())
                 .userId(userId)
@@ -150,16 +146,11 @@ class ProjectionServiceTest {
                 .totalCost(new BigDecimal("1250.00"))
                 .build();
 
-        when(positionRepository.findByUserId(userId)).thenReturn(List.of(position));
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(position));
         when(marketDataService.getSnapshots(List.of("SBER")))
                 .thenReturn(Map.of("SBER", new SnapshotResult(new BigDecimal("250.00"), null, Instant.now(), false)));
 
-        when(priceHistoryRepository.findByTickerAndTradeDateBetweenOrderByTradeDateAsc(
-                eq("SBER"), any(LocalDate.class), any(LocalDate.class)))
-                .thenReturn(List.of());
-
-        when(dividendRepository.findBySecurity_TickerAndPaymentDateAfter(eq("SBER"), any(LocalDate.class)))
-                .thenReturn(List.of());
+        when(dividendRepository.findBySecurity_Ticker("SBER")).thenReturn(List.of());
 
         ProjectionRequestDto req = new ProjectionRequestDto();
         req.setHorizonMonths(3);
@@ -170,7 +161,38 @@ class ProjectionServiceTest {
     }
 
     @Test
-    @DisplayName("project — override для тикера → priceHistoryRepository не вызывается для этого тикера")
+    @DisplayName("project — все дивиденды без цены в истории → тикер попадает в pendingHistoryTickers")
+    void project_addsTickerToPending_whenNoPriceFoundForAnyDividend() {
+        Position position = Position.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .security(sber)
+                .quantity(new BigDecimal("5"))
+                .averagePrice(new BigDecimal("250.00"))
+                .totalCost(new BigDecimal("1250.00"))
+                .build();
+
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(position));
+        when(marketDataService.getSnapshots(List.of("SBER")))
+                .thenReturn(Map.of("SBER", new SnapshotResult(new BigDecimal("250.00"), null, Instant.now(), false)));
+
+        Dividend div = buildPaidDividend("SBER", LocalDate.of(2023, 7, 1), new BigDecimal("20.00"));
+        when(dividendRepository.findBySecurity_Ticker("SBER")).thenReturn(List.of(div));
+
+        when(priceHistoryRepository.findFirstByTickerAndTradeDateLessThanEqualOrderByTradeDateDesc(
+                eq("SBER"), any(LocalDate.class)))
+                .thenReturn(Optional.empty());
+
+        ProjectionRequestDto req = new ProjectionRequestDto();
+        req.setHorizonMonths(3);
+
+        ProjectionResultDto result = projectionService.project(userId, req);
+
+        assertThat(result.getPendingHistoryTickers()).contains("SBER");
+    }
+
+    @Test
+    @DisplayName("project — override для тикера → dividendRepository и priceHistoryRepository не вызываются для этого тикера")
     void project_usesOverride_whenProvided() {
         Position position = Position.builder()
                 .id(UUID.randomUUID())
@@ -181,12 +203,9 @@ class ProjectionServiceTest {
                 .totalCost(new BigDecimal("3000.00"))
                 .build();
 
-        when(positionRepository.findByUserId(userId)).thenReturn(List.of(position));
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(position));
         when(marketDataService.getSnapshots(List.of("SBER")))
                 .thenReturn(Map.of("SBER", new SnapshotResult(new BigDecimal("300.00"), null, Instant.now(), false)));
-
-        when(dividendRepository.findBySecurity_TickerAndPaymentDateAfter(eq("SBER"), any(LocalDate.class)))
-                .thenReturn(List.of());
 
         ProjectionRequestDto req = new ProjectionRequestDto();
         req.setHorizonMonths(3);
@@ -194,8 +213,9 @@ class ProjectionServiceTest {
 
         projectionService.project(userId, req);
 
+        verify(dividendRepository, never()).findBySecurity_Ticker(eq("SBER"));
         verify(priceHistoryRepository, never())
-                .findByTickerAndTradeDateBetweenOrderByTradeDateAsc(eq("SBER"), any(), any());
+                .findFirstByTickerAndTradeDateLessThanEqualOrderByTradeDateDesc(eq("SBER"), any());
     }
 
     @Test
@@ -210,12 +230,9 @@ class ProjectionServiceTest {
                 .totalCost(new BigDecimal("3000.00"))
                 .build();
 
-        when(positionRepository.findByUserId(userId)).thenReturn(List.of(position));
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(position));
         when(marketDataService.getSnapshots(List.of("SBER")))
                 .thenReturn(Map.of("SBER", new SnapshotResult(new BigDecimal("300.00"), null, Instant.now(), false)));
-
-        when(dividendRepository.findBySecurity_TickerAndPaymentDateAfter(eq("SBER"), any(LocalDate.class)))
-                .thenReturn(List.of());
 
         ProjectionRequestDto req = new ProjectionRequestDto();
         req.setHorizonMonths(4);
@@ -228,5 +245,35 @@ class ProjectionServiceTest {
         assertThat(result.getSeries()).hasSize(4);
         result.getSeries().forEach(point ->
                 assertThat(point.getDeposit()).isEqualByComparingTo(new BigDecimal("10000.00")));
+    }
+
+    private Dividend buildPaidDividend(String ticker, LocalDate paymentDate, BigDecimal amountPerShare) {
+        Security sec = Security.builder()
+                .ticker(ticker)
+                .name(ticker)
+                .type(SecurityType.STOCK)
+                .historyStatus(HistoryStatus.READY)
+                .build();
+        return Dividend.builder()
+                .id(UUID.randomUUID())
+                .security(sec)
+                .recordDate(paymentDate.minusDays(14))
+                .paymentDate(paymentDate)
+                .amountPerShare(amountPerShare)
+                .currency("RUB")
+                .status(DividendStatus.PAID)
+                .build();
+    }
+
+    private PriceHistory buildPriceHistory(String ticker, LocalDate tradeDate, BigDecimal close) {
+        return PriceHistory.builder()
+                .ticker(ticker)
+                .tradeDate(tradeDate)
+                .open(close)
+                .close(close)
+                .high(close)
+                .low(close)
+                .volume(10000L)
+                .build();
     }
 }

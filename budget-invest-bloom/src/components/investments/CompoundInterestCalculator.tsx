@@ -57,14 +57,11 @@ const CompoundInterestCalculator = () => {
   const [horizonMonths, setHorizonMonths] = useState(120);
   const [monthlyDeposit, setMonthlyDeposit] = useState(0);
   const [withdrawalRatePercent, setWithdrawalRatePercent] = useState(0);
-  const [lookbackYears, setLookbackYears] = useState(3);
-
   const handleCalculate = () => {
     projection.mutate({
       horizonMonths,
       monthlyDeposit,
       withdrawalRatePerYear: withdrawalRatePercent / 100,
-      lookbackYears,
       overrides: {},
     });
   };
@@ -78,7 +75,7 @@ const CompoundInterestCalculator = () => {
       {/* Form */}
       <div className="glass-card p-5">
         <h3 className="text-sm font-semibold text-dashboard-text mb-5">Параметры прогноза</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
 
           {/* Horizon */}
           <div className="space-y-1.5">
@@ -131,21 +128,6 @@ const CompoundInterestCalculator = () => {
             />
           </div>
 
-          {/* Lookback years */}
-          <div className="space-y-1.5">
-            <label className="flex items-center gap-1.5 text-[11px] font-semibold tracking-widest text-dashboard-text-muted uppercase">
-              <CalendarDays className="w-3.5 h-3.5" />
-              Период отслеживания (лет)
-            </label>
-            <input
-              type="number"
-              min={1}
-              max={10}
-              value={lookbackYears}
-              onChange={e => setLookbackYears(Math.max(1, Math.min(10, Number(e.target.value))))}
-              className="w-full bg-white/5 border border-white/10 text-dashboard-text text-sm rounded-xl px-3 py-2.5 outline-none focus:border-blue-500/50 transition-colors font-mono"
-            />
-          </div>
         </div>
 
         <div className="mt-5 flex justify-end">

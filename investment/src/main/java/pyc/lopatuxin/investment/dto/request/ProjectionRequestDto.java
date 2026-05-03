@@ -22,9 +22,6 @@ public class ProjectionRequestDto {
     @DecimalMin("0") @DecimalMax("1")
     private BigDecimal withdrawalRatePerYear = BigDecimal.ZERO;
 
-    @Min(1) @Max(20)
-    private int lookbackYears = 3;
-
     // ticker -> annual return override (e.g. 0.12 for 12%)
     private Map<String, BigDecimal> overrides = Map.of();
 
