@@ -20,4 +20,6 @@ public interface PriceHistoryRepository extends JpaRepository<PriceHistory, Pric
     List<PriceHistory> findByTickerAndTradeDateBetweenOrderByTradeDateAsc(String ticker, LocalDate from, LocalDate to);
 
     Optional<PriceHistory> findFirstByTickerAndTradeDateLessThanEqualOrderByTradeDateDesc(String ticker, LocalDate date);
+
+    List<PriceHistory> findByTickerOrderByTradeDateAsc(String ticker);
 }

@@ -9,6 +9,7 @@ import pyc.lopatuxin.investment.dto.response.ProjectionPointDto;
 import pyc.lopatuxin.investment.dto.response.ProjectionResultDto;
 import pyc.lopatuxin.investment.entity.Dividend;
 import pyc.lopatuxin.investment.entity.Position;
+import pyc.lopatuxin.investment.entity.PriceHistory;
 import pyc.lopatuxin.investment.entity.enums.DividendStatus;
 import pyc.lopatuxin.investment.repository.DividendRepository;
 import pyc.lopatuxin.investment.repository.PositionRepository;
@@ -20,6 +21,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -130,47 +132,82 @@ public class ProjectionService {
                 .filter(d -> d.getStatus() == DividendStatus.PAID)
                 .toList();
 
-        if (paidDividends.isEmpty()) {
+        BigDecimal dividendYield = BigDecimal.ZERO;
+        boolean hasDividendData = false;
+
+        if (!paidDividends.isEmpty()) {
+            Map<Integer, BigDecimal> yieldByYear = computeYieldByYear(ticker, paidDividends);
+            if (!yieldByYear.isEmpty()) {
+                hasDividendData = true;
+                BigDecimal sum = yieldByYear.values().stream()
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                dividendYield = sum.divide(BigDecimal.valueOf(yieldByYear.size()), MC);
+            }
+        }
+
+        BigDecimal priceCagr = computePriceCagr(ticker);
+        boolean hasPriceData = priceCagr.compareTo(BigDecimal.ZERO) != 0;
+
+        if (!hasDividendData && !hasPriceData) {
             pendingTickers.add(ticker);
+        }
+
+        return dividendYield.add(priceCagr);
+    }
+
+    private BigDecimal computePriceCagr(String ticker) {
+        List<PriceHistory> history =
+                priceHistoryRepository.findByTickerOrderByTradeDateAsc(ticker);
+
+        if (history.size() < 2) {
             return BigDecimal.ZERO;
         }
 
-        Map<Integer, BigDecimal> yieldByYear = computeYieldByYear(ticker, paidDividends);
-
-        if (yieldByYear.isEmpty()) {
-            pendingTickers.add(ticker);
+        LocalDate firstDate = history.get(0).getTradeDate();
+        LocalDate lastDate = history.get(history.size() - 1).getTradeDate();
+        if (ChronoUnit.DAYS.between(firstDate, lastDate) < 30) {
             return BigDecimal.ZERO;
         }
 
-        BigDecimal sum = yieldByYear.values().stream()
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        return sum.divide(BigDecimal.valueOf(yieldByYear.size()), MC);
+        BigDecimal priceStart = history.get(0).getClose();
+        BigDecimal priceEnd = history.get(history.size() - 1).getClose();
+        if (priceStart == null || priceStart.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        double years = ChronoUnit.DAYS.between(firstDate, lastDate) / 365.25;
+        double cagr = Math.pow(priceEnd.doubleValue() / priceStart.doubleValue(), 1.0 / years) - 1.0;
+        return BigDecimal.valueOf(cagr);
     }
 
     private Map<Integer, BigDecimal> computeYieldByYear(String ticker, List<Dividend> dividends) {
         Map<Integer, BigDecimal> yieldByYear = new LinkedHashMap<>();
         for (Dividend div : dividends) {
-            if (div.getPaymentDate() == null || div.getAmountPerShare() == null) {
+            if (div.getAmountPerShare() == null) {
                 continue;
             }
-            BigDecimal yieldI = computeDividendYield(ticker, div);
+            LocalDate effectiveDate = div.getPaymentDate() != null ? div.getPaymentDate() : div.getRecordDate();
+            if (effectiveDate == null) {
+                continue;
+            }
+            BigDecimal yieldI = computeDividendYield(ticker, div.getAmountPerShare(), effectiveDate);
             if (yieldI == null) {
                 continue;
             }
-            int year = div.getPaymentDate().getYear();
+            int year = effectiveDate.getYear();
             yieldByYear.merge(year, yieldI, BigDecimal::add);
         }
         return yieldByYear;
     }
 
-    private BigDecimal computeDividendYield(String ticker, Dividend div) {
+    private BigDecimal computeDividendYield(String ticker, BigDecimal amountPerShare, LocalDate effectiveDate) {
         return priceHistoryRepository
-                .findFirstByTickerAndTradeDateLessThanEqualOrderByTradeDateDesc(ticker, div.getPaymentDate())
+                .findFirstByTickerAndTradeDateLessThanEqualOrderByTradeDateDesc(ticker, effectiveDate)
                 .map(ph -> {
                     if (ph.getClose() == null || ph.getClose().compareTo(BigDecimal.ZERO) <= 0) {
                         return null;
                     }
-                    return div.getAmountPerShare().divide(ph.getClose(), MC);
+                    return amountPerShare.divide(ph.getClose(), MC);
                 })
                 .orElse(null);
     }
