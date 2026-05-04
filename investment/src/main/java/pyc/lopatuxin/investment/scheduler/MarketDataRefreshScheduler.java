@@ -35,8 +35,8 @@ public class MarketDataRefreshScheduler {
         }
     }
 
-    // daily at 12:00 MSK
-    @Scheduled(cron = "0 0 12 * * *", zone = "Europe/Moscow")
+    // daily at 20:30 MSK
+    @Scheduled(cron = "0 30 20 * * *", zone = "Europe/Moscow")
     public void refreshHistoryAndDividends() {
         List<String> tickers = positionRepository.findActiveTickers();
         if (tickers.isEmpty()) return;
