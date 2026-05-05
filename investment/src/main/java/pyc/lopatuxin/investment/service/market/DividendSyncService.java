@@ -45,14 +45,20 @@ public class DividendSyncService {
             return;
         }
         Security security = securityRepository.findById(ticker).orElse(null);
-        if (security == null) return;
+        if (security == null) {
+            return;
+        }
 
         for (MoexDividendDto dto : moexDividends) {
-            if (dto.getRegistryCloseDate() == null) continue;
+            if (dto.getRegistryCloseDate() == null) {
+                continue;
+            }
             if (dividendRepository.existsBySecurity_TickerAndRecordDate(ticker, dto.getRegistryCloseDate())) {
                 continue;
             }
-            if (dto.getValue() == null) continue;
+            if (dto.getValue() == null) {
+                continue;
+            }
             DividendStatus status = dto.getRegistryCloseDate().isBefore(LocalDate.now())
                     ? DividendStatus.PAID : DividendStatus.ANNOUNCED;
 

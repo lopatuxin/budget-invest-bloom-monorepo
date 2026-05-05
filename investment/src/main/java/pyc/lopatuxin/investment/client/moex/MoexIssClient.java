@@ -140,12 +140,18 @@ public class MoexIssClient {
         int start = 0;
         while (true) {
             String json = fetchHistoryPageJson(ticker, market, from, to, start);
-            if (json == null) break;
+            if (json == null) {
+                break;
+            }
             List<MoexCandleDto> page = parseHistoryPage(json, ticker);
             all.addAll(page);
-            if (page.isEmpty()) break;
+            if (page.isEmpty()) {
+                break;
+            }
             int[] cursor = parseHistoryCursor(json);
-            if (cursor == null || cursor[0] + cursor[2] >= cursor[1]) break;
+            if (cursor == null || cursor[0] + cursor[2] >= cursor[1]) {
+                break;
+            }
             start = cursor[0] + cursor[2];
         }
         return all;
@@ -161,11 +167,15 @@ public class MoexIssClient {
 
     @SuppressWarnings("unchecked")
     private List<MoexCandleDto> parseHistoryPage(String json, String ticker) {
-        if (json == null) return Collections.emptyList();
+        if (json == null) {
+            return Collections.emptyList();
+        }
         try {
             Map<String, Object> root = objectMapper.readValue(json, new TypeReference<>() {});
             Map<String, Object> historyBlock = (Map<String, Object>) root.get("history");
-            if (historyBlock == null) return Collections.emptyList();
+            if (historyBlock == null) {
+                return Collections.emptyList();
+            }
 
             List<String> cols = (List<String>) historyBlock.get("columns");
             List<List<Object>> data = (List<List<Object>>) historyBlock.get("data");
@@ -181,9 +191,13 @@ public class MoexIssClient {
             List<MoexCandleDto> result = new ArrayList<>();
             for (List<Object> row : data) {
                 BigDecimal close = MoexJsonMapper.decimal(row, closeIdx);
-                if (close == null || close.compareTo(BigDecimal.ZERO) == 0) continue;
+                if (close == null || close.compareTo(BigDecimal.ZERO) == 0) {
+                    continue;
+                }
                 String dateStr = MoexJsonMapper.str(row, dateIdx);
-                if (dateStr == null) continue;
+                if (dateStr == null) {
+                    continue;
+                }
                 LocalDate tradeDate = LocalDate.parse(dateStr);
                 BigDecimal open = MoexJsonMapper.decimal(row, openIdx);
                 BigDecimal high = MoexJsonMapper.decimal(row, highIdx);
@@ -200,11 +214,15 @@ public class MoexIssClient {
 
     @SuppressWarnings("unchecked")
     private int[] parseHistoryCursor(String json) {
-        if (json == null) return null;
+        if (json == null) {
+            return null;
+        }
         try {
             Map<String, Object> root = objectMapper.readValue(json, new TypeReference<>() {});
             Map<String, Object> cursorBlock = (Map<String, Object>) root.get("history.cursor");
-            if (cursorBlock == null) return null;
+            if (cursorBlock == null) {
+                return null;
+            }
 
             List<String> cols = (List<String>) cursorBlock.get("columns");
             List<List<Object>> data = (List<List<Object>>) cursorBlock.get("data");
@@ -218,7 +236,9 @@ public class MoexIssClient {
             BigDecimal index = MoexJsonMapper.decimal(row, indexIdx);
             BigDecimal total = MoexJsonMapper.decimal(row, totalIdx);
             BigDecimal pageSize = MoexJsonMapper.decimal(row, pageSizeIdx);
-            if (index == null || total == null || pageSize == null) return null;
+            if (index == null || total == null || pageSize == null) {
+                return null;
+            }
 
             return new int[]{index.intValue(), total.intValue(), pageSize.intValue()};
         } catch (Exception e) {
@@ -228,9 +248,13 @@ public class MoexIssClient {
     }
 
     private Long parseVolume(List<Object> row, int idx) {
-        if (idx < 0 || idx >= row.size()) return null;
+        if (idx < 0 || idx >= row.size()) {
+            return null;
+        }
         Object val = row.get(idx);
-        if (val == null) return null;
+        if (val == null) {
+            return null;
+        }
         try {
             return new BigDecimal(val.toString()).longValue();
         } catch (NumberFormatException e) {
@@ -258,7 +282,9 @@ public class MoexIssClient {
             Map<String, Object> root = objectMapper.readValue(json, new TypeReference<>() {});
 
             Map<String, Object> descBlock = (Map<String, Object>) root.get("description");
-            if (descBlock == null) return Optional.empty();
+            if (descBlock == null) {
+                return Optional.empty();
+            }
 
             List<String> descCols = (List<String>) descBlock.get("columns");
             List<List<Object>> descData = (List<List<Object>>) descBlock.get("data");
@@ -337,7 +363,9 @@ public class MoexIssClient {
     }
 
     private String extractPrimaryBoardId(Map<String, Object> secBlock) {
-        if (secBlock == null) return null;
+        if (secBlock == null) {
+            return null;
+        }
         List<Map<String, Object>> rows = MoexJsonMapper.parseTableFromBlock(secBlock);
         return rows.stream()
                 .filter(r -> MoexJsonMapper.boolFromMap(r, "is_primary", 1))
@@ -354,15 +382,21 @@ public class MoexIssClient {
 
     @SuppressWarnings("unchecked")
     private Map<String, MoexSnapshotDto> parseMarketData(String json) {
-        if (json == null) return Collections.emptyMap();
+        if (json == null) {
+            return Collections.emptyMap();
+        }
         try {
             Map<String, Object> root = objectMapper.readValue(json, new TypeReference<>() {});
             Map<String, Object> mdBlock = (Map<String, Object>) root.get("marketdata");
-            if (mdBlock == null) return Collections.emptyMap();
+            if (mdBlock == null) {
+                return Collections.emptyMap();
+            }
 
             List<String> cols = (List<String>) mdBlock.get("columns");
             List<List<Object>> data = (List<List<Object>>) mdBlock.get("data");
-            if (cols == null || data == null) return Collections.emptyMap();
+            if (cols == null || data == null) {
+                return Collections.emptyMap();
+            }
 
             int secidIdx = MoexJsonMapper.indexOf(cols, "SECID");
             int lastIdx = MoexJsonMapper.indexOf(cols, "LAST");
@@ -372,11 +406,15 @@ public class MoexIssClient {
             for (List<Object> row : data) {
                 String secid = MoexJsonMapper.str(row, secidIdx);
                 BigDecimal last = MoexJsonMapper.decimal(row, lastIdx);
-                if (secid == null) continue;
+                if (secid == null) {
+                    continue;
+                }
                 BigDecimal prev = MoexJsonMapper.decimal(row, prevIdx);
                 boolean lastEmpty = last == null || last.compareTo(BigDecimal.ZERO) == 0;
                 boolean prevEmpty = prev == null || prev.compareTo(BigDecimal.ZERO) == 0;
-                if (lastEmpty && prevEmpty) continue;
+                if (lastEmpty && prevEmpty) {
+                    continue;
+                }
                 result.put(secid, new MoexSnapshotDto(secid, lastEmpty ? null : last, prevEmpty ? null : prev));
             }
             return result;
@@ -387,7 +425,9 @@ public class MoexIssClient {
     }
 
     private List<MoexDividendDto> parseDividends(String json) {
-        if (json == null) return Collections.emptyList();
+        if (json == null) {
+            return Collections.emptyList();
+        }
         try {
             List<Map<String, Object>> rows = MoexJsonMapper.parseTable(objectMapper, json, "dividends");
             List<MoexDividendDto> result = new ArrayList<>();
@@ -411,15 +451,21 @@ public class MoexIssClient {
 
     @SuppressWarnings("unchecked")
     private List<MoexSecurityDto> parseBoardSecurities(String json, SecurityType securityType) {
-        if (json == null) return Collections.emptyList();
+        if (json == null) {
+            return Collections.emptyList();
+        }
         try {
             Map<String, Object> root = objectMapper.readValue(json, new TypeReference<>() {});
             Map<String, Object> secBlock = (Map<String, Object>) root.get("securities");
-            if (secBlock == null) return Collections.emptyList();
+            if (secBlock == null) {
+                return Collections.emptyList();
+            }
 
             List<String> cols = (List<String>) secBlock.get("columns");
             List<List<Object>> data = (List<List<Object>>) secBlock.get("data");
-            if (cols == null || data == null) return Collections.emptyList();
+            if (cols == null || data == null) {
+                return Collections.emptyList();
+            }
 
             int secidIdx  = MoexJsonMapper.indexOf(cols, "SECID");
             int boardIdx  = MoexJsonMapper.indexOf(cols, "BOARDID");
@@ -429,12 +475,16 @@ public class MoexIssClient {
             List<MoexSecurityDto> result = new ArrayList<>();
             for (List<Object> row : data) {
                 String status = MoexJsonMapper.str(row, statusIdx);
-                if (!"A".equals(status)) continue;
+                if (!"A".equals(status)) {
+                    continue;
+                }
 
                 String secid   = MoexJsonMapper.str(row, secidIdx);
                 String boardId = MoexJsonMapper.str(row, boardIdx);
                 String name    = MoexJsonMapper.str(row, nameIdx);
-                if (secid == null) continue;
+                if (secid == null) {
+                    continue;
+                }
 
                 result.add(new MoexSecurityDto(secid, boardId, name, securityType, null, null));
             }
@@ -446,7 +496,9 @@ public class MoexIssClient {
     }
 
     private List<MoexSecurityDto> parseSearchResults(String json) {
-        if (json == null) return Collections.emptyList();
+        if (json == null) {
+            return Collections.emptyList();
+        }
         try {
             List<Map<String, Object>> rows = MoexJsonMapper.parseTable(objectMapper, json, "securities");
             List<MoexSecurityDto> result = new ArrayList<>();

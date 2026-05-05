@@ -10,7 +10,9 @@ public final class MoexSecurityClassifier {
 
     // Maps ISS `group` field to SecurityType. Returns empty if unknown/unsupported.
     public static Optional<SecurityType> fromGroup(String group) {
-        if (group == null) return Optional.empty();
+        if (group == null) {
+            return Optional.empty();
+        }
         return switch (group) {
             case "stock_shares", "stock_pref_shares" -> Optional.of(SecurityType.STOCK);
             case "stock_etf", "stock_ppif" -> Optional.of(SecurityType.ETF);
@@ -22,7 +24,9 @@ public final class MoexSecurityClassifier {
 
     // Maps ISS `type` field (from description block) to SecurityType. Returns empty if unknown.
     public static Optional<SecurityType> fromType(String type) {
-        if (type == null) return Optional.empty();
+        if (type == null) {
+            return Optional.empty();
+        }
         return switch (type) {
             case "ofz_bond", "subfederal_bond", "municipal_bond", "public_ppif" -> Optional.of(SecurityType.OFZ);
             case "exchange_bond", "corporate_bond" -> Optional.of(SecurityType.BOND);
@@ -32,7 +36,9 @@ public final class MoexSecurityClassifier {
 
     // Returns true if the ISS `type` field represents an OFZ-like government bond.
     public static boolean isOfzType(String type) {
-        if (type == null) return false;
+        if (type == null) {
+            return false;
+        }
         return switch (type) {
             case "ofz_bond", "subfederal_bond", "municipal_bond", "public_ppif" -> true;
             default -> false;

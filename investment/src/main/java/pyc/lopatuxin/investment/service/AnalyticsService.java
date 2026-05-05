@@ -141,9 +141,13 @@ public class AnalyticsService {
         BigDecimal total = BigDecimal.ZERO;
         for (Map.Entry<String, BigDecimal> entry : quantities.entrySet()) {
             BigDecimal qty = entry.getValue();
-            if (qty.compareTo(BigDecimal.ZERO) <= 0) continue;
+            if (qty.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
             BigDecimal price = lastKnownClose.get(entry.getKey());
-            if (price == null) continue;
+            if (price == null) {
+                continue;
+            }
             total = total.add(qty.multiply(price));
         }
         return total;

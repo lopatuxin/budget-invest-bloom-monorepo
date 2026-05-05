@@ -26,9 +26,13 @@ class MoexJsonMapper {
     }
 
     static BigDecimal decimal(List<Object> row, int idx) {
-        if (idx < 0 || idx >= row.size()) return null;
+        if (idx < 0 || idx >= row.size()) {
+            return null;
+        }
         Object val = row.get(idx);
-        if (val == null) return null;
+        if (val == null) {
+            return null;
+        }
         try {
             return new BigDecimal(val.toString());
         } catch (NumberFormatException e) {
@@ -51,10 +55,14 @@ class MoexJsonMapper {
 
     @SuppressWarnings("unchecked")
     static List<Map<String, Object>> parseTableFromBlock(Map<String, Object> block) {
-        if (block == null) return Collections.emptyList();
+        if (block == null) {
+            return Collections.emptyList();
+        }
         List<String> cols = (List<String>) block.get("columns");
         List<List<Object>> rows = (List<List<Object>>) block.get("data");
-        if (cols == null || rows == null) return Collections.emptyList();
+        if (cols == null || rows == null) {
+            return Collections.emptyList();
+        }
         List<Map<String, Object>> result = new ArrayList<>(rows.size());
         for (List<Object> row : rows) {
             Map<String, Object> map = new LinkedHashMap<>();
@@ -68,14 +76,18 @@ class MoexJsonMapper {
 
     static String strFromMap(Map<String, Object> row, String col) {
         Object v = row.get(col);
-        if (v == null) return null;
+        if (v == null) {
+            return null;
+        }
         String s = v.toString();
         return s.isBlank() ? null : s;
     }
 
     static BigDecimal decimalFromMap(Map<String, Object> row, String col) {
         Object v = row.get(col);
-        if (v == null) return null;
+        if (v == null) {
+            return null;
+        }
         try {
             return new BigDecimal(v.toString());
         } catch (NumberFormatException e) {
@@ -85,7 +97,9 @@ class MoexJsonMapper {
 
     static boolean boolFromMap(Map<String, Object> row, String col, int trueValue) {
         Object v = row.get(col);
-        if (v == null) return false;
+        if (v == null) {
+            return false;
+        }
         try {
             return Integer.parseInt(v.toString()) == trueValue;
         } catch (NumberFormatException e) {

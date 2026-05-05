@@ -110,9 +110,13 @@ public class PortfolioService {
         List<Dividend> dividends = dividendRepository.findUpcomingByTickersWithSecurity(tickers, LocalDate.now());
         List<UpcomingDividendDto> result = new java.util.ArrayList<>();
         for (Dividend d : dividends) {
-            if (d.getAmountPerShare() == null) continue;
+            if (d.getAmountPerShare() == null) {
+                continue;
+            }
             BigDecimal qty = quantityByTicker.getOrDefault(d.getSecurity().getTicker(), BigDecimal.ZERO);
-            if (qty.compareTo(BigDecimal.ZERO) == 0) continue;
+            if (qty.compareTo(BigDecimal.ZERO) == 0) {
+                continue;
+            }
             BigDecimal totalAmount = d.getAmountPerShare().multiply(qty).setScale(2, RoundingMode.HALF_UP);
             result.add(UpcomingDividendDto.builder()
                     .ticker(d.getSecurity().getTicker())
@@ -134,7 +138,9 @@ public class PortfolioService {
                 .findByTickerInAndPaymentDateBetweenWithSecurity(tickers, now.minusYears(1), now);
         BigDecimal total = BigDecimal.ZERO;
         for (Dividend d : dividends) {
-            if (d.getAmountPerShare() == null) continue;
+            if (d.getAmountPerShare() == null) {
+                continue;
+            }
             String ticker = d.getSecurity().getTicker();
             BigDecimal qty = quantityByTicker.getOrDefault(ticker, BigDecimal.ZERO);
             total = total.add(d.getAmountPerShare().multiply(qty));

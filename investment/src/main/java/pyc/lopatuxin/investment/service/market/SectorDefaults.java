@@ -97,7 +97,9 @@ public final class SectorDefaults {
      * Returns the default sector for a given security type, or {@code null} if no default applies.
      */
     public static String defaultSectorFor(SecurityType type) {
-        if (type == null) return null;
+        if (type == null) {
+            return null;
+        }
         return switch (type) {
             case BOND -> CORPORATE_BONDS;
             case OFZ -> GOVERNMENT_BONDS;
