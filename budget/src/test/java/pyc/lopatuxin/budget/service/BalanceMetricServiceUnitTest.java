@@ -44,7 +44,7 @@ class BalanceMetricServiceUnitTest {
     @Test
     @DisplayName("Должен вернуть корректную метрику баланса (доходы минус расходы) за несколько месяцев")
     void shouldReturnCorrectBalanceMetricForSeveralMonths() {
-        int year = 2026;
+        int year = 2025;
         List<Object[]> incomeData = List.of(
                 new Object[]{1, new BigDecimal("100000.00")},
                 new Object[]{3, new BigDecimal("120000.00")},
@@ -100,7 +100,7 @@ class BalanceMetricServiceUnitTest {
     @Test
     @DisplayName("Должен вернуть нулевые показатели при отсутствии данных за год")
     void shouldReturnZeroValuesWhenNoDataExists() {
-        int year = 2026;
+        int year = 2025;
         when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
         when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
@@ -122,7 +122,7 @@ class BalanceMetricServiceUnitTest {
     @Test
     @DisplayName("Должен корректно обработать месяц только с доходами (расход = 0)")
     void shouldHandleMonthWithOnlyIncome() {
-        int year = 2026;
+        int year = 2025;
         List<Object[]> incomeData = List.<Object[]>of(
                 new Object[]{5, new BigDecimal("80000.00")}
         );
@@ -145,7 +145,7 @@ class BalanceMetricServiceUnitTest {
     @Test
     @DisplayName("Должен корректно обработать месяц только с расходами (доход = 0, баланс отрицательный)")
     void shouldHandleMonthWithOnlyExpense() {
-        int year = 2026;
+        int year = 2025;
         List<Object[]> expenseData = List.<Object[]>of(
                 new Object[]{3, new BigDecimal("50000.00")}
         );
@@ -168,7 +168,7 @@ class BalanceMetricServiceUnitTest {
     @Test
     @DisplayName("Должен корректно обработать разные месяцы для доходов и расходов")
     void shouldHandleDifferentMonthsForIncomeAndExpense() {
-        int year = 2026;
+        int year = 2025;
         // Доход в январе, расход в феврале — разные месяцы
         List<Object[]> incomeData = List.<Object[]>of(
                 new Object[]{1, new BigDecimal("100000.00")}
@@ -228,7 +228,7 @@ class BalanceMetricServiceUnitTest {
     @Test
     @DisplayName("Должен вернуть отрицательный changePercent при снижении баланса")
     void shouldReturnNegativeChangePercentWhenBalanceDecreased() {
-        int year = 2026;
+        int year = 2025;
         List<Object[]> incomeData = List.of(
                 new Object[]{2, new BigDecimal("200000")},
                 new Object[]{5, new BigDecimal("100000")}
@@ -251,7 +251,7 @@ class BalanceMetricServiceUnitTest {
     @Test
     @DisplayName("Должен корректно учитывать отрицательный баланс в currentValue, previousValue и yearlyAverage")
     void shouldCorrectlyAccountForNegativeBalanceInMetrics() {
-        int year = 2026;
+        int year = 2025;
         // Январь: доход 50000, расход 80000 → баланс -30000
         // Март: доход 100000, расход 40000 → баланс 60000
         // Июнь: доход 20000, расход 70000 → баланс -50000
@@ -295,7 +295,7 @@ class BalanceMetricServiceUnitTest {
     @Test
     @DisplayName("Должен вернуть положительный changePercent при росте баланса")
     void shouldReturnPositiveChangePercentWhenBalanceIncreased() {
-        int year = 2026;
+        int year = 2025;
         List<Object[]> incomeData = List.of(
                 new Object[]{3, new BigDecimal("80000")},
                 new Object[]{7, new BigDecimal("150000")}

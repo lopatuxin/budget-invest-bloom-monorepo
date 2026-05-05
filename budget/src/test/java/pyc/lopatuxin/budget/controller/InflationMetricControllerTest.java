@@ -56,7 +56,7 @@ class InflationMetricControllerTest extends AbstractIntegrationTest {
                     .userId(userId)
                     .category(category)
                     .amount(new BigDecimal("100000.00"))
-                    .date(LocalDate.of(2025, month, 15))
+                    .date(LocalDate.of(2024,month, 15))
                     .build());
         }
 
@@ -65,10 +65,10 @@ class InflationMetricControllerTest extends AbstractIntegrationTest {
                 .userId(userId)
                 .category(category)
                 .amount(new BigDecimal("120000.00"))
-                .date(LocalDate.of(2026, 1, 10))
+                .date(LocalDate.of(2025,1, 10))
                 .build());
 
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         // Январь: кумулятивная = 120000, avg = 120000/1 = 120000
         // инфляция = (120000 - 100000) / 100000 * 100 = 20.0%
@@ -77,7 +77,7 @@ class InflationMetricControllerTest extends AbstractIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message", is("Метрика инфляции успешно получена")))
-                .andExpect(jsonPath("$.body.year", is(2026)))
+                .andExpect(jsonPath("$.body.year", is(2025)))
                 .andExpect(jsonPath("$.body.monthlyData", hasSize(12)))
                 .andExpect(jsonPath("$.body.monthlyData[0].month", is(1)))
                 .andExpect(jsonPath("$.body.monthlyData[0].monthName", is("Янв")))
@@ -91,7 +91,7 @@ class InflationMetricControllerTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("Должен вернуть ответ в структуре ResponseApi (id, status, message, timestamp, body)")
     void shouldReturnResponseMatchingResponseApiContract() throws Exception {
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
@@ -112,16 +112,16 @@ class InflationMetricControllerTest extends AbstractIntegrationTest {
                 .userId(userId)
                 .category(category)
                 .amount(new BigDecimal("50000.00"))
-                .date(LocalDate.of(2026, 3, 10))
+                .date(LocalDate.of(2025,3, 10))
                 .build());
 
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.body.year", is(2026)))
+                .andExpect(jsonPath("$.body.year", is(2025)))
                 .andExpect(jsonPath("$.body.currentValue", comparesEqualTo(0)))
                 .andExpect(jsonPath("$.body.previousValue", comparesEqualTo(0)))
                 .andExpect(jsonPath("$.body.yearlyAverage", comparesEqualTo(0)))
@@ -132,13 +132,13 @@ class InflationMetricControllerTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("Должен вернуть статус 200 и нулевые показатели при полном отсутствии данных")
     void shouldReturnOkWithZeroValuesWhenNoDataAtAll() throws Exception {
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.body.year", is(2026)))
+                .andExpect(jsonPath("$.body.year", is(2025)))
                 .andExpect(jsonPath("$.body.currentValue", comparesEqualTo(0)))
                 .andExpect(jsonPath("$.body.previousValue", comparesEqualTo(0)))
                 .andExpect(jsonPath("$.body.yearlyAverage", comparesEqualTo(0)))
@@ -203,7 +203,7 @@ class InflationMetricControllerTest extends AbstractIntegrationTest {
                     .userId(otherUserId)
                     .category(otherCategory)
                     .amount(new BigDecimal("200000.00"))
-                    .date(LocalDate.of(2025, month, 10))
+                    .date(LocalDate.of(2024,month, 10))
                     .build());
         }
 
@@ -212,10 +212,10 @@ class InflationMetricControllerTest extends AbstractIntegrationTest {
                 .userId(userId)
                 .category(category)
                 .amount(new BigDecimal("100000.00"))
-                .date(LocalDate.of(2026, 1, 10))
+                .date(LocalDate.of(2025,1, 10))
                 .build());
 
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
@@ -234,7 +234,7 @@ class InflationMetricControllerTest extends AbstractIntegrationTest {
                     .userId(userId)
                     .category(category)
                     .amount(new BigDecimal("100000.00"))
-                    .date(LocalDate.of(2025, month, 15))
+                    .date(LocalDate.of(2024,month, 15))
                     .build());
         }
 
@@ -243,10 +243,10 @@ class InflationMetricControllerTest extends AbstractIntegrationTest {
                 .userId(userId)
                 .category(category)
                 .amount(new BigDecimal("80000.00"))
-                .date(LocalDate.of(2026, 1, 10))
+                .date(LocalDate.of(2025,1, 10))
                 .build());
 
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         // Январь: avg = 80000, инфляция = (80000 - 100000) / 100000 * 100 = -20.0%
         mockMvc.perform(post(BASE_URL)

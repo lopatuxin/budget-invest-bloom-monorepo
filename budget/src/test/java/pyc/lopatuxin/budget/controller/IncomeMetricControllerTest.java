@@ -47,31 +47,31 @@ class IncomeMetricControllerTest extends AbstractIntegrationTest {
                 .userId(userId)
                 .source(IncomeSource.SALARY)
                 .amount(new BigDecimal("120000.00"))
-                .date(LocalDate.of(2026, 1, 15))
+                .date(LocalDate.of(2025,1, 15))
                 .build());
 
         incomeRepository.save(Income.builder()
                 .userId(userId)
                 .source(IncomeSource.SALARY)
                 .amount(new BigDecimal("130000.00"))
-                .date(LocalDate.of(2026, 2, 15))
+                .date(LocalDate.of(2025,2, 15))
                 .build());
 
         incomeRepository.save(Income.builder()
                 .userId(userId)
                 .source(IncomeSource.SALARY)
                 .amount(new BigDecimal("150000.00"))
-                .date(LocalDate.of(2026, 3, 15))
+                .date(LocalDate.of(2025,3, 15))
                 .build());
 
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message", is("Метрика доходов успешно получена")))
-                .andExpect(jsonPath("$.body.year", is(2026)))
+                .andExpect(jsonPath("$.body.year", is(2025)))
                 .andExpect(jsonPath("$.body.currentValue", comparesEqualTo(150000.00)))
                 .andExpect(jsonPath("$.body.previousValue", comparesEqualTo(130000.00)))
                 .andExpect(jsonPath("$.body.changePercent", notNullValue()))
@@ -88,7 +88,7 @@ class IncomeMetricControllerTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("Должен вернуть ответ в структуре ResponseApi (id, status, message, timestamp, body)")
     void shouldReturnResponseMatchingResponseApiContract() throws Exception {
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
@@ -104,13 +104,13 @@ class IncomeMetricControllerTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("Должен вернуть статус 200 и нулевые показатели при отсутствии данных за указанный год")
     void shouldReturnOkWithZeroValuesWhenNoIncomeData() throws Exception {
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.body.year", is(2026)))
+                .andExpect(jsonPath("$.body.year", is(2025)))
                 .andExpect(jsonPath("$.body.currentValue", comparesEqualTo(0)))
                 .andExpect(jsonPath("$.body.previousValue", comparesEqualTo(0)))
                 .andExpect(jsonPath("$.body.yearlyAverage", comparesEqualTo(0)))
@@ -167,17 +167,17 @@ class IncomeMetricControllerTest extends AbstractIntegrationTest {
                 .userId(otherUserId)
                 .source(IncomeSource.SALARY)
                 .amount(new BigDecimal("200000.00"))
-                .date(LocalDate.of(2026, 1, 10))
+                .date(LocalDate.of(2025,1, 10))
                 .build());
 
         incomeRepository.save(Income.builder()
                 .userId(userId)
                 .source(IncomeSource.SALARY)
                 .amount(new BigDecimal("100000.00"))
-                .date(LocalDate.of(2026, 1, 15))
+                .date(LocalDate.of(2025,1, 15))
                 .build());
 
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
@@ -194,17 +194,17 @@ class IncomeMetricControllerTest extends AbstractIntegrationTest {
                 .userId(userId)
                 .source(IncomeSource.SALARY)
                 .amount(new BigDecimal("80000.00"))
-                .date(LocalDate.of(2026, 5, 1))
+                .date(LocalDate.of(2025,5, 1))
                 .build());
 
         incomeRepository.save(Income.builder()
                 .userId(userId)
                 .source(IncomeSource.SALARY)
                 .amount(new BigDecimal("20000.00"))
-                .date(LocalDate.of(2026, 5, 20))
+                .date(LocalDate.of(2025,5, 20))
                 .build());
 
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)

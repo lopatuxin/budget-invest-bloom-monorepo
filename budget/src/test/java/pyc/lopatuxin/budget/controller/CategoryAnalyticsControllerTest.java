@@ -55,7 +55,7 @@ class CategoryAnalyticsControllerTest extends AbstractIntegrationTest {
                 .category(category)
                 .amount(new BigDecimal("1500.00"))
                 .description("Покупка в магазине")
-                .date(LocalDate.of(2026, 4, 1))
+                .date(LocalDate.of(2025,4, 1))
                 .build());
 
         expenseRepository.save(Expense.builder()
@@ -63,7 +63,7 @@ class CategoryAnalyticsControllerTest extends AbstractIntegrationTest {
                 .category(category)
                 .amount(new BigDecimal("2500.00"))
                 .description("Покупка на рынке")
-                .date(LocalDate.of(2026, 4, 15))
+                .date(LocalDate.of(2025,4, 15))
                 .build());
 
         expenseRepository.save(Expense.builder()
@@ -71,10 +71,10 @@ class CategoryAnalyticsControllerTest extends AbstractIntegrationTest {
                 .category(category)
                 .amount(new BigDecimal("3000.00"))
                 .description("Покупка в январе")
-                .date(LocalDate.of(2026, 1, 10))
+                .date(LocalDate.of(2025,1, 10))
                 .build());
 
-        String requestBody = buildAnalyticsRequest(userId, "Продукты", 2026, 4);
+        String requestBody = buildAnalyticsRequest(userId, "Продукты", 2025, 4);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
@@ -112,7 +112,7 @@ class CategoryAnalyticsControllerTest extends AbstractIntegrationTest {
                 .category(category)
                 .amount(new BigDecimal("500.00"))
                 .description("Метро")
-                .date(LocalDate.of(2026, 1, 5))
+                .date(LocalDate.of(2025,1, 5))
                 .build());
 
         expenseRepository.save(Expense.builder()
@@ -120,10 +120,10 @@ class CategoryAnalyticsControllerTest extends AbstractIntegrationTest {
                 .category(category)
                 .amount(new BigDecimal("700.00"))
                 .description("Такси")
-                .date(LocalDate.of(2026, 6, 15))
+                .date(LocalDate.of(2025,6, 15))
                 .build());
 
-        String requestBody = buildAnalyticsRequestWithoutMonth(userId, "Транспорт", 2026);
+        String requestBody = buildAnalyticsRequestWithoutMonth(userId, "Транспорт", 2025);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
@@ -143,7 +143,7 @@ class CategoryAnalyticsControllerTest extends AbstractIntegrationTest {
                 .budget(new BigDecimal("5000.00"))
                 .build());
 
-        String requestBody = buildAnalyticsRequest(userId, "Развлечения", 2026, 4);
+        String requestBody = buildAnalyticsRequest(userId, "Развлечения", 2025, 4);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
@@ -157,7 +157,7 @@ class CategoryAnalyticsControllerTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("Должен вернуть 404 когда категория не найдена")
     void shouldReturn404WhenCategoryNotFound() throws Exception {
-        String requestBody = buildAnalyticsRequest(userId, "Несуществующая", 2026, 4);
+        String requestBody = buildAnalyticsRequest(userId, "Несуществующая", 2025, 4);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
@@ -176,7 +176,7 @@ class CategoryAnalyticsControllerTest extends AbstractIntegrationTest {
                 .budget(new BigDecimal("10000.00"))
                 .build());
 
-        String requestBody = buildAnalyticsRequest(userId, "Чужая категория", 2026, 4);
+        String requestBody = buildAnalyticsRequest(userId, "Чужая категория", 2025, 4);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)

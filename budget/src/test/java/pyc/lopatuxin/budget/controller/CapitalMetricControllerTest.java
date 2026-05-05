@@ -45,31 +45,31 @@ class CapitalMetricControllerTest extends AbstractIntegrationTest {
                 .userId(userId)
                 .amount(new BigDecimal("500000.00"))
                 .month(1)
-                .year(2026)
+                .year(2025)
                 .build());
 
         capitalRecordRepository.save(CapitalRecord.builder()
                 .userId(userId)
                 .amount(new BigDecimal("550000.00"))
                 .month(2)
-                .year(2026)
+                .year(2025)
                 .build());
 
         capitalRecordRepository.save(CapitalRecord.builder()
                 .userId(userId)
                 .amount(new BigDecimal("600000.00"))
                 .month(3)
-                .year(2026)
+                .year(2025)
                 .build());
 
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message", is("Метрика капитала успешно получена")))
-                .andExpect(jsonPath("$.body.year", is(2026)))
+                .andExpect(jsonPath("$.body.year", is(2025)))
                 .andExpect(jsonPath("$.body.currentValue", comparesEqualTo(600000.00)))
                 .andExpect(jsonPath("$.body.previousValue", comparesEqualTo(550000.00)))
                 .andExpect(jsonPath("$.body.changePercent", notNullValue()))
@@ -86,7 +86,7 @@ class CapitalMetricControllerTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("Должен вернуть ответ в структуре ResponseApi (id, status, message, timestamp, body)")
     void shouldReturnResponseMatchingResponseApiContract() throws Exception {
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
@@ -102,13 +102,13 @@ class CapitalMetricControllerTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("Должен вернуть статус 200 и нулевые показатели при отсутствии данных за указанный год")
     void shouldReturnOkWithZeroValuesWhenNoData() throws Exception {
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.body.year", is(2026)))
+                .andExpect(jsonPath("$.body.year", is(2025)))
                 .andExpect(jsonPath("$.body.currentValue", comparesEqualTo(0)))
                 .andExpect(jsonPath("$.body.previousValue", comparesEqualTo(0)))
                 .andExpect(jsonPath("$.body.yearlyAverage", comparesEqualTo(0)))
@@ -165,17 +165,17 @@ class CapitalMetricControllerTest extends AbstractIntegrationTest {
                 .userId(otherUserId)
                 .amount(new BigDecimal("999999.00"))
                 .month(1)
-                .year(2026)
+                .year(2025)
                 .build());
 
         capitalRecordRepository.save(CapitalRecord.builder()
                 .userId(userId)
                 .amount(new BigDecimal("100000.00"))
                 .month(1)
-                .year(2026)
+                .year(2025)
                 .build());
 
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
@@ -192,24 +192,24 @@ class CapitalMetricControllerTest extends AbstractIntegrationTest {
                 .userId(userId)
                 .amount(new BigDecimal("200000.00"))
                 .month(2)
-                .year(2026)
+                .year(2025)
                 .build());
 
         capitalRecordRepository.save(CapitalRecord.builder()
                 .userId(userId)
                 .amount(new BigDecimal("350000.00"))
                 .month(8)
-                .year(2026)
+                .year(2025)
                 .build());
 
         capitalRecordRepository.save(CapitalRecord.builder()
                 .userId(userId)
                 .amount(new BigDecimal("300000.00"))
                 .month(12)
-                .year(2026)
+                .year(2025)
                 .build());
 
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)

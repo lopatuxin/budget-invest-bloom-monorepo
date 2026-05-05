@@ -56,38 +56,38 @@ class BalanceMetricControllerTest extends AbstractIntegrationTest {
                 .userId(userId)
                 .source(IncomeSource.SALARY)
                 .amount(new BigDecimal("120000.00"))
-                .date(LocalDate.of(2026, 1, 15))
+                .date(LocalDate.of(2025,1, 15))
                 .build());
 
         incomeRepository.save(Income.builder()
                 .userId(userId)
                 .source(IncomeSource.SALARY)
                 .amount(new BigDecimal("150000.00"))
-                .date(LocalDate.of(2026, 3, 15))
+                .date(LocalDate.of(2025,3, 15))
                 .build());
 
         expenseRepository.save(Expense.builder()
                 .userId(userId)
                 .category(category)
                 .amount(new BigDecimal("60000.00"))
-                .date(LocalDate.of(2026, 1, 20))
+                .date(LocalDate.of(2025,1, 20))
                 .build());
 
         expenseRepository.save(Expense.builder()
                 .userId(userId)
                 .category(category)
                 .amount(new BigDecimal("80000.00"))
-                .date(LocalDate.of(2026, 3, 20))
+                .date(LocalDate.of(2025,3, 20))
                 .build());
 
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message", is("Метрика баланса успешно получена")))
-                .andExpect(jsonPath("$.body.year", is(2026)))
+                .andExpect(jsonPath("$.body.year", is(2025)))
                 .andExpect(jsonPath("$.body.monthlyData", hasSize(12)))
                 // Январь: 120000 - 60000 = 60000
                 .andExpect(jsonPath("$.body.monthlyData[0].month", is(1)))
@@ -109,7 +109,7 @@ class BalanceMetricControllerTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("Должен вернуть ответ в структуре ResponseApi (id, status, message, timestamp, body)")
     void shouldReturnResponseMatchingResponseApiContract() throws Exception {
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
@@ -125,13 +125,13 @@ class BalanceMetricControllerTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("Должен вернуть статус 200 и нулевые показатели при отсутствии данных за указанный год")
     void shouldReturnOkWithZeroValuesWhenNoData() throws Exception {
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.body.year", is(2026)))
+                .andExpect(jsonPath("$.body.year", is(2025)))
                 .andExpect(jsonPath("$.body.currentValue", comparesEqualTo(0)))
                 .andExpect(jsonPath("$.body.previousValue", comparesEqualTo(0)))
                 .andExpect(jsonPath("$.body.yearlyAverage", comparesEqualTo(0)))
@@ -194,31 +194,31 @@ class BalanceMetricControllerTest extends AbstractIntegrationTest {
                 .userId(otherUserId)
                 .source(IncomeSource.SALARY)
                 .amount(new BigDecimal("500000.00"))
-                .date(LocalDate.of(2026, 1, 10))
+                .date(LocalDate.of(2025,1, 10))
                 .build());
 
         expenseRepository.save(Expense.builder()
                 .userId(otherUserId)
                 .category(otherCategory)
                 .amount(new BigDecimal("100000.00"))
-                .date(LocalDate.of(2026, 1, 10))
+                .date(LocalDate.of(2025,1, 10))
                 .build());
 
         incomeRepository.save(Income.builder()
                 .userId(userId)
                 .source(IncomeSource.SALARY)
                 .amount(new BigDecimal("100000.00"))
-                .date(LocalDate.of(2026, 1, 15))
+                .date(LocalDate.of(2025,1, 15))
                 .build());
 
         expenseRepository.save(Expense.builder()
                 .userId(userId)
                 .category(category)
                 .amount(new BigDecimal("30000.00"))
-                .date(LocalDate.of(2026, 1, 15))
+                .date(LocalDate.of(2025,1, 15))
                 .build());
 
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         // Баланс userId: 100000 - 30000 = 70000 (данные otherUserId не учитываются)
         mockMvc.perform(post(BASE_URL)
@@ -236,31 +236,31 @@ class BalanceMetricControllerTest extends AbstractIntegrationTest {
                 .userId(userId)
                 .source(IncomeSource.SALARY)
                 .amount(new BigDecimal("80000.00"))
-                .date(LocalDate.of(2026, 5, 1))
+                .date(LocalDate.of(2025,5, 1))
                 .build());
 
         incomeRepository.save(Income.builder()
                 .userId(userId)
                 .source(IncomeSource.SALARY)
                 .amount(new BigDecimal("20000.00"))
-                .date(LocalDate.of(2026, 5, 20))
+                .date(LocalDate.of(2025,5, 20))
                 .build());
 
         expenseRepository.save(Expense.builder()
                 .userId(userId)
                 .category(category)
                 .amount(new BigDecimal("40000.00"))
-                .date(LocalDate.of(2026, 5, 5))
+                .date(LocalDate.of(2025,5, 5))
                 .build());
 
         expenseRepository.save(Expense.builder()
                 .userId(userId)
                 .category(category)
                 .amount(new BigDecimal("10000.00"))
-                .date(LocalDate.of(2026, 5, 25))
+                .date(LocalDate.of(2025,5, 25))
                 .build());
 
-        String requestBody = buildRequest(userId, 2026);
+        String requestBody = buildRequest(userId, 2025);
 
         // Май: (80000 + 20000) - (40000 + 10000) = 100000 - 50000 = 50000
         mockMvc.perform(post(BASE_URL)

@@ -55,7 +55,7 @@ class AbstractMetricServiceTest {
     @Test
     @DisplayName("Должен вернуть корректную метрику при данных за несколько месяцев")
     void shouldReturnCorrectMetricForSeveralMonths() {
-        int year = 2026;
+        int year = 2025;
         service.setData(List.of(
                 new Object[]{3, new BigDecimal("100000.00")},
                 new Object[]{6, new BigDecimal("150000.00")},
@@ -99,7 +99,7 @@ class AbstractMetricServiceTest {
     @Test
     @DisplayName("Должен вернуть нулевые показатели при отсутствии данных за год")
     void shouldReturnZeroValuesWhenNoDataExists() {
-        int year = 2026;
+        int year = 2025;
         service.setData(Collections.emptyList());
 
         MetricResponseDto result = service.getMetric(userId, year);
@@ -122,7 +122,7 @@ class AbstractMetricServiceTest {
     @Test
     @DisplayName("Должен корректно обработать один месяц с данными")
     void shouldHandleSingleMonthWithData() {
-        int year = 2026;
+        int year = 2025;
         service.setData(List.<Object[]>of(
                 new Object[]{5, new BigDecimal("200000.00")}
         ));
@@ -149,7 +149,7 @@ class AbstractMetricServiceTest {
     @Test
     @DisplayName("Должен корректно обработать данные за все 12 месяцев")
     void shouldHandleAllTwelveMonthsWithData() {
-        int year = 2026;
+        int year = 2025;
         service.setData(List.of(
                 new Object[]{1, new BigDecimal("100000")},
                 new Object[]{2, new BigDecimal("110000")},
@@ -191,7 +191,7 @@ class AbstractMetricServiceTest {
     @Test
     @DisplayName("Должен рассчитать среднее только по ненулевым месяцам")
     void shouldCalculateAverageOnlyForNonZeroMonths() {
-        int year = 2026;
+        int year = 2025;
         service.setData(List.of(
                 new Object[]{1, new BigDecimal("50000")},
                 new Object[]{12, new BigDecimal("70000")}
@@ -208,7 +208,7 @@ class AbstractMetricServiceTest {
     @Test
     @DisplayName("Должен определить currentValue и previousValue из непоследовательных месяцев")
     void shouldSelectCurrentAndPreviousFromNonConsecutiveMonths() {
-        int year = 2026;
+        int year = 2025;
         service.setData(List.of(
                 new Object[]{2, new BigDecimal("80000")},
                 new Object[]{10, new BigDecimal("95000")}
@@ -230,7 +230,7 @@ class AbstractMetricServiceTest {
     void shouldPopulateAllMonthNamesCorrectly() {
         service.setData(Collections.emptyList());
 
-        MetricResponseDto result = service.getMetric(userId, 2026);
+        MetricResponseDto result = service.getMetric(userId, 2025);
 
         String[] expectedNames = {"Янв", "Фев", "Мар", "Апр", "Май", "Июн",
                 "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"};
@@ -247,7 +247,7 @@ class AbstractMetricServiceTest {
     @Test
     @DisplayName("Должен корректно определить yearlyMax среди нескольких месяцев")
     void shouldDetermineYearlyMaxCorrectly() {
-        int year = 2026;
+        int year = 2025;
         service.setData(List.of(
                 new Object[]{3, new BigDecimal("50000")},
                 new Object[]{7, new BigDecimal("250000")},
@@ -264,7 +264,7 @@ class AbstractMetricServiceTest {
     @Test
     @DisplayName("Должен вернуть отрицательный changePercent при снижении значения")
     void shouldReturnNegativeChangePercentWhenValueDecreased() {
-        int year = 2026;
+        int year = 2025;
         service.setData(List.of(
                 new Object[]{3, new BigDecimal("200000")},
                 new Object[]{7, new BigDecimal("160000")}
@@ -281,7 +281,7 @@ class AbstractMetricServiceTest {
     @Test
     @DisplayName("Должен вернуть положительный changePercent при росте значения")
     void shouldReturnPositiveChangePercentWhenValueIncreased() {
-        int year = 2026;
+        int year = 2025;
         service.setData(List.of(
                 new Object[]{1, new BigDecimal("100000")},
                 new Object[]{2, new BigDecimal("150000")}

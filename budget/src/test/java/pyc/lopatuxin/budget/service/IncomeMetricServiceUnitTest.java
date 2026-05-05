@@ -40,7 +40,7 @@ class IncomeMetricServiceUnitTest {
     @Test
     @DisplayName("Должен вернуть корректную метрику при наличии данных за несколько месяцев")
     void shouldReturnCorrectMetricWhenSeveralMonthsHaveData() {
-        int year = 2026;
+        int year = 2025;
         // Март: 100000, Июнь: 150000, Сентябрь: 120000
         List<Object[]> dbData = List.of(
                 new Object[]{3, new BigDecimal("100000.00")},
@@ -86,7 +86,7 @@ class IncomeMetricServiceUnitTest {
     @Test
     @DisplayName("Должен вернуть нулевые показатели при отсутствии данных за год")
     void shouldReturnZeroValuesWhenNoDataExists() {
-        int year = 2026;
+        int year = 2025;
         when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
         MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
@@ -108,7 +108,7 @@ class IncomeMetricServiceUnitTest {
     @Test
     @DisplayName("Должен корректно обработать один месяц с данными")
     void shouldHandleSingleMonthWithData() {
-        int year = 2026;
+        int year = 2025;
         List<Object[]> dbData = List.<Object[]>of(
                 new Object[]{5, new BigDecimal("200000.00")}
         );
@@ -134,7 +134,7 @@ class IncomeMetricServiceUnitTest {
     @Test
     @DisplayName("Должен корректно обработать данные за все 12 месяцев")
     void shouldHandleAllTwelveMonthsWithData() {
-        int year = 2026;
+        int year = 2025;
         List<Object[]> dbData = List.of(
                 new Object[]{1, new BigDecimal("100000")},
                 new Object[]{2, new BigDecimal("110000")},
@@ -178,7 +178,7 @@ class IncomeMetricServiceUnitTest {
     @Test
     @DisplayName("Должен корректно рассчитать среднее только по ненулевым месяцам")
     void shouldCalculateYearlyAverageOnlyForNonZeroMonths() {
-        int year = 2026;
+        int year = 2025;
         // 2 месяца: 50000 + 70000 = 120000; average = 60000
         List<Object[]> dbData = List.of(
                 new Object[]{1, new BigDecimal("50000")},
@@ -195,7 +195,7 @@ class IncomeMetricServiceUnitTest {
     @Test
     @DisplayName("Должен корректно определить currentValue и previousValue из непоследовательных месяцев")
     void shouldSelectCurrentAndPreviousFromNonConsecutiveMonths() {
-        int year = 2026;
+        int year = 2025;
         // Данные за Февраль и Октябрь — currentValue=Октябрь, previousValue=Февраль
         List<Object[]> dbData = List.of(
                 new Object[]{2, new BigDecimal("80000")},
@@ -215,7 +215,7 @@ class IncomeMetricServiceUnitTest {
     @Test
     @DisplayName("Должен корректно заполнить названия всех 12 месяцев")
     void shouldPopulateAllMonthNamesCorrectly() {
-        int year = 2026;
+        int year = 2025;
         when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
         MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
@@ -233,7 +233,7 @@ class IncomeMetricServiceUnitTest {
     @Test
     @DisplayName("Должен корректно определить yearlyMax среди нескольких месяцев")
     void shouldDetermineYearlyMaxCorrectly() {
-        int year = 2026;
+        int year = 2025;
         List<Object[]> dbData = List.of(
                 new Object[]{3, new BigDecimal("50000")},
                 new Object[]{7, new BigDecimal("250000")},
@@ -249,7 +249,7 @@ class IncomeMetricServiceUnitTest {
     @Test
     @DisplayName("Должен вернуть отрицательный changePercent при снижении дохода")
     void shouldReturnNegativeChangePercentWhenIncomeDecreased() {
-        int year = 2026;
+        int year = 2025;
         // previousValue = Март = 200000, currentValue = Июль = 160000
         List<Object[]> dbData = List.of(
                 new Object[]{3, new BigDecimal("200000")},

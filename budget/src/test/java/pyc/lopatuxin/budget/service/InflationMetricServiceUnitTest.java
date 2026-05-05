@@ -41,7 +41,7 @@ class InflationMetricServiceUnitTest {
     @Test
     @DisplayName("Должен корректно рассчитать инфляцию при наличии расходов за текущий и предыдущий год")
     void shouldCalculateInflationWhenBothYearsHaveData() {
-        int year = 2026;
+        int year = 2025;
         // Предыдущий год: 3 месяца с данными, среднее = (100000 + 80000 + 120000) / 3 = 100000
         List<Object[]> prevYearData = List.of(
                 new Object[]{1, new BigDecimal("100000.00")},
@@ -82,7 +82,7 @@ class InflationMetricServiceUnitTest {
     @Test
     @DisplayName("Должен вернуть нулевые показатели при отсутствии расходов за предыдущий год")
     void shouldReturnZeroValuesWhenNoPreviousYearExpenses() {
-        int year = 2026;
+        int year = 2025;
         doReturn(Collections.emptyList())
                 .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
 
@@ -104,7 +104,7 @@ class InflationMetricServiceUnitTest {
     @Test
     @DisplayName("Должен вернуть нулевые показатели при отсутствии расходов за текущий год")
     void shouldReturnZeroValuesWhenNoCurrentYearExpenses() {
-        int year = 2026;
+        int year = 2025;
         List<Object[]> prevYearData = List.<Object[]>of(
                 new Object[]{1, new BigDecimal("50000.00")}
         );
@@ -128,7 +128,7 @@ class InflationMetricServiceUnitTest {
     @Test
     @DisplayName("Должен корректно рассчитать отрицательную инфляцию (дефляцию)")
     void shouldCalculateDeflationWhenCurrentYearExpensesAreLower() {
-        int year = 2026;
+        int year = 2025;
         // Предыдущий год: один месяц 100000, среднее = 100000
         List<Object[]> prevYearData = List.<Object[]>of(
                 new Object[]{1, new BigDecimal("100000.00")}
@@ -151,7 +151,7 @@ class InflationMetricServiceUnitTest {
     @Test
     @DisplayName("Должен проверить кумулятивность: инфляция учитывает только месяцы с данными для avg")
     void shouldCalculateCumulativeInflation() {
-        int year = 2026;
+        int year = 2025;
         // Предыдущий год: среднее = (60000 + 40000) / 2 = 50000
         List<Object[]> prevYearData = List.<Object[]>of(
                 new Object[]{1, new BigDecimal("60000.00")},
@@ -184,7 +184,7 @@ class InflationMetricServiceUnitTest {
     @Test
     @DisplayName("Должен пропускать месяцы с нулевой кумулятивной суммой")
     void shouldSkipMonthsWithZeroCumulativeSum() {
-        int year = 2026;
+        int year = 2025;
         // Предыдущий год: среднее = 10000
         List<Object[]> prevYearData = List.<Object[]>of(
                 new Object[]{6, new BigDecimal("10000.00")}
@@ -211,7 +211,7 @@ class InflationMetricServiceUnitTest {
     @Test
     @DisplayName("extractNonZeroAmounts должен оставлять отрицательные значения (дефляция)")
     void shouldKeepNegativeValuesInExtractNonZeroAmounts() {
-        int year = 2026;
+        int year = 2025;
         // Предыдущий год: среднее = 100000
         List<Object[]> prevYearData = List.<Object[]>of(
                 new Object[]{1, new BigDecimal("100000.00")}
@@ -266,7 +266,7 @@ class InflationMetricServiceUnitTest {
     @Test
     @DisplayName("categoryBreakdown пустой когда нет данных прошлого года")
     void categoryBreakdown_shouldBeEmptyWhenNoPreviousYearData() {
-        int year = 2026;
+        int year = 2025;
         doReturn(Collections.emptyList())
                 .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
         doReturn(Collections.emptyList())
@@ -282,7 +282,7 @@ class InflationMetricServiceUnitTest {
     @Test
     @DisplayName("categoryBreakdown с одной категорией: корректный changePercent, weightPercent=100%, contribution=changePercent")
     void categoryBreakdown_shouldCalculateCorrectlyForSingleCategory() {
-        int year = 2026;
+        int year = 2025;
         UUID catId = UUID.randomUUID();
 
         // Monthly data stubs (used by base getMetric)
@@ -319,7 +319,7 @@ class InflationMetricServiceUnitTest {
     @Test
     @DisplayName("categoryBreakdown с двумя категориями: сортировка по |contribution| убыванию")
     void categoryBreakdown_shouldBeSortedByAbsoluteContributionDescending() {
-        int year = 2026;
+        int year = 2025;
         UUID catGrow = UUID.randomUUID();  // рост расходов
         UUID catDrop = UUID.randomUUID();  // снижение расходов
 
@@ -370,7 +370,7 @@ class InflationMetricServiceUnitTest {
     @Test
     @DisplayName("categoryBreakdown: категория только в текущем году исключается из breakdown")
     void categoryBreakdown_shouldExcludeCategoryPresentOnlyInCurrentYear() {
-        int year = 2026;
+        int year = 2025;
         UUID catExisting = UUID.randomUUID();  // есть в обоих годах
         UUID catNew = UUID.randomUUID();       // только в текущем году
 
@@ -401,7 +401,7 @@ class InflationMetricServiceUnitTest {
     @Test
     @DisplayName("Должен заполнить месяцы после первого расхода при кумулятивной сумме > 0")
     void shouldPopulateMonthsAfterFirstExpense() {
-        int year = 2026;
+        int year = 2025;
         // Предыдущий год: среднее = 20000
         List<Object[]> prevYearData = List.<Object[]>of(
                 new Object[]{1, new BigDecimal("20000.00")}
@@ -434,7 +434,7 @@ class InflationMetricServiceUnitTest {
     @Test
     @DisplayName("Должен корректно рассчитать среднее предыдущего года из нескольких месяцев")
     void shouldCalculatePreviousYearAverageFromMultipleMonths() {
-        int year = 2026;
+        int year = 2025;
         // Предыдущий год: 4 месяца, среднее = (10000+20000+30000+40000)/4 = 25000
         List<Object[]> prevYearData = List.of(
                 new Object[]{2, new BigDecimal("10000.00")},

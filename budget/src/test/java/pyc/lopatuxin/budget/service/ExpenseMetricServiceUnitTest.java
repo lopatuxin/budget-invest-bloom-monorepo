@@ -40,7 +40,7 @@ class ExpenseMetricServiceUnitTest {
     @Test
     @DisplayName("Должен делегировать вызов в AbstractMetricService и вернуть корректную метрику расходов")
     void shouldDelegateToAbstractAndReturnCorrectMetric() {
-        int year = 2026;
+        int year = 2025;
         List<Object[]> dbData = List.of(
                 new Object[]{1, new BigDecimal("30000.00")},
                 new Object[]{4, new BigDecimal("45000.00")},
@@ -85,7 +85,7 @@ class ExpenseMetricServiceUnitTest {
     @Test
     @DisplayName("Должен вернуть нулевые показатели при отсутствии данных за год")
     void shouldReturnZeroValuesWhenNoDataExists() {
-        int year = 2026;
+        int year = 2025;
         when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
         MetricResponseDto result = expenseMetricService.getExpenseMetric(userId, year);
@@ -106,7 +106,7 @@ class ExpenseMetricServiceUnitTest {
     @Test
     @DisplayName("Должен корректно обработать один месяц с данными")
     void shouldHandleSingleMonthWithData() {
-        int year = 2026;
+        int year = 2025;
         List<Object[]> dbData = List.<Object[]>of(
                 new Object[]{7, new BigDecimal("55000.00")}
         );
@@ -145,7 +145,7 @@ class ExpenseMetricServiceUnitTest {
     @Test
     @DisplayName("Должен вернуть положительный changePercent при росте расходов")
     void shouldReturnPositiveChangePercentWhenExpenseIncreased() {
-        int year = 2026;
+        int year = 2025;
         List<Object[]> dbData = List.of(
                 new Object[]{2, new BigDecimal("40000")},
                 new Object[]{5, new BigDecimal("60000")}
