@@ -5,7 +5,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pyc.lopatuxin.investment.client.moex.MoexIssClient;
@@ -21,9 +20,11 @@ import pyc.lopatuxin.investment.entity.enums.SecurityType;
 import pyc.lopatuxin.investment.repository.PriceHistoryRepository;
 import pyc.lopatuxin.investment.repository.PriceSnapshotRepository;
 import pyc.lopatuxin.investment.repository.SecurityRepository;
+import pyc.lopatuxin.investment.service.market.HistoryLoaderService;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
 import pyc.lopatuxin.investment.service.market.dto.SnapshotResult;
 
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -34,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -56,8 +58,28 @@ class MarketDataServiceTest {
     @Mock
     private MoexProperties moexProperties;
 
-    @InjectMocks
+    @Mock
+    private HistoryLoaderService historyLoaderService;
+
     private MarketDataService marketDataService;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        // MarketDataService has a @Lazy self-reference for @Transactional/@Cacheable proxy calls.
+        // @InjectMocks cannot wire it; construct manually and inject self via reflection.
+        marketDataService = spy(new MarketDataService(
+                moexIssClient,
+                securityRepository,
+                priceSnapshotRepository,
+                priceHistoryRepository,
+                moexProperties,
+                historyLoaderService,
+                null   // self — set below
+        ));
+        Field selfField = MarketDataService.class.getDeclaredField("self");
+        selfField.setAccessible(true);
+        selfField.set(marketDataService, marketDataService);
+    }
 
     @Test
     @DisplayName("ensureSecurity — нет в БД, MOEX возвращает данные → Security сохранена с READY")

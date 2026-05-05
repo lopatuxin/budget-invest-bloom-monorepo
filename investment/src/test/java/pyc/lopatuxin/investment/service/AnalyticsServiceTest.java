@@ -10,19 +10,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import pyc.lopatuxin.investment.dto.response.PortfolioValuePointDto;
 import pyc.lopatuxin.investment.dto.response.PricePointDto;
 import pyc.lopatuxin.investment.dto.response.SeriesResponseDto;
+import pyc.lopatuxin.investment.entity.Position;
 import pyc.lopatuxin.investment.entity.PriceHistory;
 import pyc.lopatuxin.investment.entity.Security;
-import pyc.lopatuxin.investment.entity.Transaction;
 import pyc.lopatuxin.investment.entity.enums.HistoryStatus;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
-import pyc.lopatuxin.investment.entity.enums.TransactionType;
+import pyc.lopatuxin.investment.repository.DividendRepository;
 import pyc.lopatuxin.investment.repository.PositionRepository;
 import pyc.lopatuxin.investment.repository.PriceHistoryRepository;
-import pyc.lopatuxin.investment.repository.TransactionRepository;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -30,15 +28,11 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AnalyticsServiceTest")
 class AnalyticsServiceTest {
-
-    @Mock
-    private TransactionRepository transactionRepository;
 
     @Mock
     private PriceHistoryRepository priceHistoryRepository;
@@ -48,6 +42,9 @@ class AnalyticsServiceTest {
 
     @Mock
     private MarketDataService marketDataService;
+
+    @Mock
+    private DividendRepository dividendRepository;
 
     @InjectMocks
     private AnalyticsService analyticsService;
@@ -62,16 +59,15 @@ class AnalyticsServiceTest {
                 .ticker("SBER")
                 .name("Сбербанк")
                 .type(SecurityType.STOCK)
-                .historyStatus(HistoryStatus.PENDING)
+                .historyStatus(HistoryStatus.READY)
                 .build();
-        doNothing().when(marketDataService).ensureHistory(anyString());
     }
 
     @Test
-    @DisplayName("portfolioValueHistory — одна BUY транзакция, 5 дней истории: value = qty × close каждый день")
+    @DisplayName("portfolioValueHistory — одна позиция 10 акций, 5 дней истории: value = qty × close каждый день")
     void portfolioValueHistory_singleBuy_correctValue() {
-        Transaction buy = buildTransaction(TransactionType.BUY, "10", "250.00", Instant.ofEpochSecond(1000));
-        when(transactionRepository.findByUserId(userId)).thenReturn(List.of(buy));
+        Position position = buildPosition("SBER", "10");
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(position));
 
         LocalDate base = LocalDate.of(2024, 1, 15);
         List<PriceHistory> history = buildHistoryDays("SBER", base, 5, "270.00");
@@ -87,40 +83,36 @@ class AnalyticsServiceTest {
     }
 
     @Test
-    @DisplayName("portfolioValueHistory — BUY 10 затем SELL 5: после продажи qty = 5")
+    @DisplayName("portfolioValueHistory — позиция 5 акций (после частичной продажи): value = 5 × close")
     void portfolioValueHistory_buyThenSell_quantityDecreases() {
-        Instant buyTime = Instant.ofEpochSecond(1000);
-        Instant sellTime = Instant.ofEpochSecond(1_000_000);
-        Transaction buy = buildTransaction(TransactionType.BUY, "10", "250.00", buyTime);
-        Transaction sell = buildTransaction(TransactionType.SELL, "5", "300.00", sellTime);
-        when(transactionRepository.findByUserId(userId)).thenReturn(List.of(buy, sell));
+        // After a BUY 10 + SELL 5, TransactionService stores qty=5 in Position.
+        // AnalyticsService reads current position qty from positionRepository.
+        Position position = buildPosition("SBER", "5");
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(position));
 
-        LocalDate buyDay = LocalDate.of(2024, 1, 1);
-        LocalDate sellDay = LocalDate.ofEpochDay(sellTime.getEpochSecond() / 86400);
-        LocalDate dayAfterSell = sellDay.plusDays(1);
-
+        LocalDate day1 = LocalDate.of(2024, 1, 1);
+        LocalDate day2 = LocalDate.of(2024, 1, 2);
         List<PriceHistory> history = List.of(
-                buildPriceHistory("SBER", buyDay, "270.00"),
-                buildPriceHistory("SBER", dayAfterSell, "280.00")
+                buildPriceHistory("SBER", day1, "270.00"),
+                buildPriceHistory("SBER", day2, "280.00")
         );
         when(priceHistoryRepository.findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(any(), any(), any()))
                 .thenReturn(history);
 
-        SeriesResponseDto<PortfolioValuePointDto> result = analyticsService.portfolioValueHistory(
-                userId, buyDay, dayAfterSell);
+        SeriesResponseDto<PortfolioValuePointDto> result = analyticsService.portfolioValueHistory(userId, day1, day2);
 
         assertThat(result.getSeries()).hasSize(2);
-        // Before sell: 10 × 270 = 2700
-        assertThat(result.getSeries().get(0).getValue()).isEqualByComparingTo(new BigDecimal("2700.00"));
-        // After sell: 5 × 280 = 1400
+        // 5 × 270 = 1350
+        assertThat(result.getSeries().get(0).getValue()).isEqualByComparingTo(new BigDecimal("1350.00"));
+        // 5 × 280 = 1400
         assertThat(result.getSeries().get(1).getValue()).isEqualByComparingTo(new BigDecimal("1400.00"));
     }
 
     @Test
-    @DisplayName("portfolioValueHistory — история пустая, возвращает пустой список")
+    @DisplayName("portfolioValueHistory — позиции есть, история пустая, возвращает пустой список")
     void portfolioValueHistory_emptyHistory_returnsEmpty() {
-        Transaction buy = buildTransaction(TransactionType.BUY, "10", "250.00", Instant.ofEpochSecond(1000));
-        when(transactionRepository.findByUserId(userId)).thenReturn(List.of(buy));
+        Position position = buildPosition("SBER", "10");
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(position));
         when(priceHistoryRepository.findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(any(), any(), any()))
                 .thenReturn(List.of());
 
@@ -133,19 +125,19 @@ class AnalyticsServiceTest {
     @Test
     @DisplayName("portfolioValueHistory — forward fill: тикер без цены на день использует последнюю известную")
     void portfolioValueHistory_forwardFill() {
-        Transaction buy = buildTransaction(TransactionType.BUY, "10", "250.00", Instant.ofEpochSecond(1000));
-        when(transactionRepository.findByUserId(userId)).thenReturn(List.of(buy));
+        Position position = buildPosition("SBER", "10");
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(position));
 
         LocalDate day1 = LocalDate.of(2024, 1, 15);
         LocalDate day2 = LocalDate.of(2024, 1, 16);
-        // day2 has no price — forward fill should use day1 close
+        // day2 has no price — only day1 present in DB result
         List<PriceHistory> history = List.of(buildPriceHistory("SBER", day1, "270.00"));
         when(priceHistoryRepository.findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(any(), any(), any()))
                 .thenReturn(history);
 
         SeriesResponseDto<PortfolioValuePointDto> result = analyticsService.portfolioValueHistory(userId, day1, day2);
 
-        // Only day1 has data, so only 1 point
+        // Only day1 has data in history, so only 1 point is produced
         assertThat(result.getSeries()).hasSize(1);
         assertThat(result.getSeries().get(0).getValue()).isEqualByComparingTo(new BigDecimal("2700.00"));
     }
@@ -153,6 +145,8 @@ class AnalyticsServiceTest {
     @Test
     @DisplayName("securityPriceHistory — 3 PriceHistory маппируются в 3 PricePointDto с корректными полями")
     void securityPriceHistory_mapsToPricePointDto() {
+        when(marketDataService.getSecurityHistoryStatus("SBER")).thenReturn(HistoryStatus.READY);
+
         LocalDate base = LocalDate.of(2024, 1, 15);
         List<PriceHistory> history = buildHistoryDays("SBER", base, 3, "271.00");
         when(priceHistoryRepository.findByTickerAndTradeDateBetweenOrderByTradeDateAsc(
@@ -167,15 +161,20 @@ class AnalyticsServiceTest {
         assertThat(result.getSeries().get(0).getVolume()).isEqualTo(11000L);
     }
 
-    private Transaction buildTransaction(TransactionType type, String quantity, String price, Instant executedAt) {
-        return Transaction.builder()
+    private Position buildPosition(String ticker, String quantity) {
+        Security sec = Security.builder()
+                .ticker(ticker)
+                .name(ticker.equals("SBER") ? "Сбербанк" : ticker)
+                .type(SecurityType.STOCK)
+                .historyStatus(HistoryStatus.READY)
+                .build();
+        return Position.builder()
                 .id(UUID.randomUUID())
                 .userId(userId)
-                .security(security)
-                .type(type)
+                .security(sec)
                 .quantity(new BigDecimal(quantity))
-                .price(new BigDecimal(price))
-                .executedAt(executedAt)
+                .averagePrice(new BigDecimal("250.00"))
+                .totalCost(new BigDecimal(quantity).multiply(new BigDecimal("250.00")))
                 .build();
     }
 

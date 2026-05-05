@@ -4,7 +4,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import pyc.lopatuxin.investment.AbstractIntegrationTest;
+import pyc.lopatuxin.investment.service.market.DividendLoaderService;
 
 import java.util.UUID;
 
@@ -21,12 +23,18 @@ class TransactionControllerTest extends AbstractIntegrationTest {
 
     private static final String BASE_URL = "/api/investment/transactions";
 
+    // Suppress async dividend loading to avoid FK violations during setUp cleanup
+    @MockitoBean
+    @SuppressWarnings("unused")
+    private DividendLoaderService dividendLoaderService;
+
     private UUID userId;
 
     @BeforeEach
     void setUp() {
         transactionRepository.deleteAll();
         positionRepository.deleteAll();
+        dividendRepository.deleteAll();
         securityRepository.deleteAll();
         userId = UUID.randomUUID();
     }

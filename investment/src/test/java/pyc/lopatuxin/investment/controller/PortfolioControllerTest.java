@@ -26,12 +26,13 @@ class PortfolioControllerTest extends AbstractIntegrationTest {
     void setUp() {
         transactionRepository.deleteAll();
         positionRepository.deleteAll();
+        dividendRepository.deleteAll();
         securityRepository.deleteAll();
         userId = UUID.randomUUID();
     }
 
     @Test
-    @DisplayName("2 BUY SBER → GET positions → 1 позиция с правильным qty")
+    @DisplayName("2 BUY SBER → POST /page → 1 позиция с правильным qty")
     void shouldReturnOnePositionAfterTwoBuys() throws Exception {
         mockMvc.perform(post(TRANSACTIONS_URL)
                         .content(buildCreateRequest(userId, "SBER", "10", "250.00"))
@@ -43,14 +44,14 @@ class PortfolioControllerTest extends AbstractIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(post(PORTFOLIO_URL + "/positions")
+        mockMvc.perform(post(PORTFOLIO_URL + "/page")
                         .content(buildPositionsRequest(userId))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status", is(200)))
-                .andExpect(jsonPath("$.body", hasSize(1)))
-                .andExpect(jsonPath("$.body[0].ticker", is("SBER")))
-                .andExpect(jsonPath("$.body[0].quantity", is(15.0)));
+                .andExpect(jsonPath("$.body.positions", hasSize(1)))
+                .andExpect(jsonPath("$.body.positions[0].ticker", is("SBER")))
+                .andExpect(jsonPath("$.body.positions[0].quantity", is(15.0)));
     }
 
     @Test

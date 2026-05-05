@@ -18,9 +18,11 @@ import pyc.lopatuxin.investment.entity.enums.HistoryStatus;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
 import pyc.lopatuxin.investment.entity.enums.TransactionType;
 import pyc.lopatuxin.investment.mapper.TransactionMapper;
+import pyc.lopatuxin.investment.repository.DividendRepository;
 import pyc.lopatuxin.investment.repository.PositionRepository;
 import pyc.lopatuxin.investment.repository.SecurityRepository;
 import pyc.lopatuxin.investment.repository.TransactionRepository;
+import pyc.lopatuxin.investment.service.market.DividendSyncService;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
 
 import java.math.BigDecimal;
@@ -54,6 +56,12 @@ class TransactionServiceUnitTest {
 
     @Mock
     private MarketDataService marketDataService;
+
+    @Mock
+    private DividendSyncService dividendSyncService;
+
+    @Mock
+    private DividendRepository dividendRepository;
 
     @InjectMocks
     private TransactionService transactionService;
