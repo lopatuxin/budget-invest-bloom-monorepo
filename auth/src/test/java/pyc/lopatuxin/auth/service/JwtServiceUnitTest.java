@@ -13,10 +13,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pyc.lopatuxin.auth.config.JwtConfig;
 import pyc.lopatuxin.auth.entity.User;
+import pyc.lopatuxin.auth.entity.UserRole;
+import pyc.lopatuxin.auth.enums.RoleName;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,6 +53,12 @@ class JwtServiceUnitTest {
                 .email("test@example.com")
                 .username("testuser")
                 .build();
+
+        UserRole role = UserRole.builder()
+                .roleName(RoleName.USER)
+                .build();
+        role.setUser(testUser);
+        testUser.setRoles(java.util.List.of(role));
     }
 
     @Test
@@ -226,6 +235,12 @@ class JwtServiceUnitTest {
                 .email("another@example.com")
                 .username("anotheruser")
                 .build();
+
+        UserRole anotherRole = UserRole.builder()
+                .roleName(RoleName.USER)
+                .build();
+        anotherRole.setUser(anotherUser);
+        anotherUser.setRoles(java.util.List.of(anotherRole));
 
         String token1 = jwtService.generateAccessToken(testUser);
         String token2 = jwtService.generateAccessToken(anotherUser);

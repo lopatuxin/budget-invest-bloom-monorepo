@@ -32,3 +32,7 @@ jwt:
   secret: test-secret-key-for-testing-purposes-must-be-at-least-256-bits-long-to-work-with-HS256-algorithm
   access-token-expiration: 900000    # 15 минут в миллисекундах
   refresh-token-expiration: 86400000 # 24 часа в миллисекундах
+
+auth:
+  refresh-token:
+    pepper: dGVzdC1wZXBwZXItZm9yLXJlZnJlc2gtdG9rZW5zLTMyYnl0ZXM=

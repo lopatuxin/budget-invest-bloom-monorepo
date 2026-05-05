@@ -9,12 +9,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import pyc.lopatuxin.auth.entity.User;
+import pyc.lopatuxin.auth.entity.UserRole;
+import pyc.lopatuxin.auth.enums.RoleName;
 import pyc.lopatuxin.auth.repository.RefreshTokenRepository;
 import pyc.lopatuxin.auth.repository.UserRepository;
 import pyc.lopatuxin.auth.repository.UserRoleRepository;
 import pyc.lopatuxin.auth.service.JwtService;
 import pyc.lopatuxin.auth.service.RefreshTokenService;
 import tools.jackson.databind.json.JsonMapper;
+
+import java.util.List;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
@@ -53,12 +57,20 @@ public abstract class AbstractIntegrationTest {
     protected RefreshTokenService refreshTokenService;
 
     public User createUser() {
-        return User.builder()
+        User user = User.builder()
                 .email("test@example.com")
                 .username("test_user")
                 .passwordHash(passwordEncoder.encode(TEST_PASSWORD))
                 .isActive(true)
                 .isVerified(true)
                 .build();
+
+        UserRole role = UserRole.builder()
+                .user(user)
+                .roleName(RoleName.USER)
+                .build();
+
+        user.setRoles(java.util.List.of(role));
+        return user;
     }
 }
