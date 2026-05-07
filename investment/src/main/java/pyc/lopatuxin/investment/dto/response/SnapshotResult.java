@@ -1,4 +1,4 @@
-package pyc.lopatuxin.investment.service.market.dto;
+package pyc.lopatuxin.investment.dto.response;
 
 import java.math.BigDecimal;
 import java.time.Instant;

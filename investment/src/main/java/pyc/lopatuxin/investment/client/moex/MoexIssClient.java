@@ -9,10 +9,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
-import pyc.lopatuxin.investment.client.moex.dto.MoexCandleDto;
-import pyc.lopatuxin.investment.client.moex.dto.MoexDividendDto;
-import pyc.lopatuxin.investment.client.moex.dto.MoexSecurityDto;
-import pyc.lopatuxin.investment.client.moex.dto.MoexSnapshotDto;
+import pyc.lopatuxin.investment.dto.response.MoexCandleDto;
+import pyc.lopatuxin.investment.dto.response.MoexDividendDto;
+import pyc.lopatuxin.investment.dto.response.MoexSecurityDto;
+import pyc.lopatuxin.investment.dto.response.MoexSnapshotDto;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
 import pyc.lopatuxin.investment.service.market.SectorDefaults;
 

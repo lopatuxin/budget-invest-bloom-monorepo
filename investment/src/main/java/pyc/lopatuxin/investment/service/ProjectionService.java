@@ -15,7 +15,7 @@ import pyc.lopatuxin.investment.repository.DividendRepository;
 import pyc.lopatuxin.investment.repository.PositionRepository;
 import pyc.lopatuxin.investment.repository.PriceHistoryRepository;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
-import pyc.lopatuxin.investment.service.market.dto.SnapshotResult;
+import pyc.lopatuxin.investment.dto.response.SnapshotResult;
 
 import java.math.BigDecimal;
 import java.math.MathContext;

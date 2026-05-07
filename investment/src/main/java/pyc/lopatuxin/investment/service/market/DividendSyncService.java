@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.investment.client.moex.MoexIssClient;
 import pyc.lopatuxin.investment.client.moex.MoexUnavailableException;
-import pyc.lopatuxin.investment.client.moex.dto.MoexDividendDto;
+import pyc.lopatuxin.investment.dto.response.MoexDividendDto;
 import pyc.lopatuxin.investment.entity.Dividend;
 import pyc.lopatuxin.investment.entity.Security;
 import pyc.lopatuxin.investment.entity.enums.DividendStatus;

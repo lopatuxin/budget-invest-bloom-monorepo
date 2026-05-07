@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import pyc.lopatuxin.investment.client.moex.dto.MoexSecurityDto;
+import pyc.lopatuxin.investment.dto.response.MoexSecurityDto;
 import pyc.lopatuxin.investment.dto.common.ApiRequest;
 import pyc.lopatuxin.investment.dto.request.MarketSearchDto;
 import pyc.lopatuxin.investment.dto.request.MarketSecurityDto;
@@ -18,7 +18,7 @@ import pyc.lopatuxin.investment.dto.request.SearchCategory;
 import pyc.lopatuxin.investment.dto.response.ResponseApi;
 import pyc.lopatuxin.investment.dto.response.SnapshotResponseDto;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
-import pyc.lopatuxin.investment.service.market.dto.SnapshotResult;
+import pyc.lopatuxin.investment.dto.response.SnapshotResult;
 
 import java.util.List;
 

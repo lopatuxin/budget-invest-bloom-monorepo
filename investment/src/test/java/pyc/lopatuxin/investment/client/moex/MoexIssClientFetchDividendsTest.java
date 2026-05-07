@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
-import pyc.lopatuxin.investment.client.moex.dto.MoexDividendDto;
+import pyc.lopatuxin.investment.dto.response.MoexDividendDto;
 
 import java.io.IOException;
 import java.math.BigDecimal;

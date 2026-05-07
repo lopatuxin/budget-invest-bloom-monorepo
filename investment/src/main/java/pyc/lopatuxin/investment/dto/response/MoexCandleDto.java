@@ -1,4 +1,4 @@
-package pyc.lopatuxin.investment.client.moex.dto;
+package pyc.lopatuxin.investment.dto.response;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
