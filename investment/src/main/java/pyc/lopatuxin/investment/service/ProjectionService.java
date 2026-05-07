@@ -163,14 +163,14 @@ public class ProjectionService {
             return BigDecimal.ZERO;
         }
 
-        LocalDate firstDate = history.get(0).getTradeDate();
-        LocalDate lastDate = history.get(history.size() - 1).getTradeDate();
+        LocalDate firstDate = history.getFirst().getTradeDate();
+        LocalDate lastDate = history.getLast().getTradeDate();
         if (ChronoUnit.DAYS.between(firstDate, lastDate) < 30) {
             return BigDecimal.ZERO;
         }
 
-        BigDecimal priceStart = history.get(0).getClose();
-        BigDecimal priceEnd = history.get(history.size() - 1).getClose();
+        BigDecimal priceStart = history.getFirst().getClose();
+        BigDecimal priceEnd = history.getLast().getClose();
         if (priceStart == null || priceStart.compareTo(BigDecimal.ZERO) <= 0) {
             return BigDecimal.ZERO;
         }

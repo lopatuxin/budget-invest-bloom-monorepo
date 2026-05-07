@@ -108,7 +108,7 @@ public class AnalyticsService {
     private Map<LocalDate, Map<String, BigDecimal>> groupCloseByDate(List<PriceHistory> history) {
         Map<LocalDate, Map<String, BigDecimal>> result = new TreeMap<>();
         for (PriceHistory ph : history) {
-            result.computeIfAbsent(ph.getTradeDate(), k -> new HashMap<>())
+            result.computeIfAbsent(ph.getTradeDate(), _ -> new HashMap<>())
                     .put(ph.getTicker(), ph.getClose());
         }
         return result;
@@ -141,11 +141,8 @@ public class AnalyticsService {
         BigDecimal total = BigDecimal.ZERO;
         for (Map.Entry<String, BigDecimal> entry : quantities.entrySet()) {
             BigDecimal qty = entry.getValue();
-            if (qty.compareTo(BigDecimal.ZERO) <= 0) {
-                continue;
-            }
             BigDecimal price = lastKnownClose.get(entry.getKey());
-            if (price == null) {
+            if (qty.compareTo(BigDecimal.ZERO) <= 0 || price == null) {
                 continue;
             }
             total = total.add(qty.multiply(price));

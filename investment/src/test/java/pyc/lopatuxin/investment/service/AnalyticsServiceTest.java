@@ -161,6 +161,58 @@ class AnalyticsServiceTest {
         assertThat(result.getSeries().get(0).getVolume()).isEqualTo(11000L);
     }
 
+    @Test
+    @DisplayName("portfolioValueHistory — позиция с qty=0: точка не добавляется в серию")
+    void portfolioValueHistory_zeroQuantity_pointNotAdded() {
+        Position position = buildPosition("SBER", "0");
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(position));
+
+        LocalDate day = LocalDate.of(2024, 3, 1);
+        List<PriceHistory> history = List.of(buildPriceHistory("SBER", day, "270.00"));
+        when(priceHistoryRepository.findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(any(), any(), any()))
+                .thenReturn(history);
+
+        SeriesResponseDto<PortfolioValuePointDto> result = analyticsService.portfolioValueHistory(userId, day, day);
+
+        assertThat(result.getSeries()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("portfolioValueHistory — позиция с qty<0: точка не добавляется в серию")
+    void portfolioValueHistory_negativeQuantity_pointNotAdded() {
+        Position position = buildPosition("SBER", "-5");
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(position));
+
+        LocalDate day = LocalDate.of(2024, 3, 1);
+        List<PriceHistory> history = List.of(buildPriceHistory("SBER", day, "270.00"));
+        when(priceHistoryRepository.findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(any(), any(), any()))
+                .thenReturn(history);
+
+        SeriesResponseDto<PortfolioValuePointDto> result = analyticsService.portfolioValueHistory(userId, day, day);
+
+        assertThat(result.getSeries()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("portfolioValueHistory — два тикера, у одного нет цены в lastKnownClose: считается только тикер с ценой")
+    void portfolioValueHistory_missingPriceForOneTicker_onlyKnownTickerCounts() {
+        // SBER has price history; LKOH does not → LKOH absent from lastKnownClose → skipped in calcDayValue
+        Position posSber = buildPosition("SBER", "10");
+        Position posLkoh = buildPosition("LKOH", "2");
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(posSber, posLkoh));
+
+        LocalDate day = LocalDate.of(2024, 3, 1);
+        List<PriceHistory> history = List.of(buildPriceHistory("SBER", day, "270.00"));
+        when(priceHistoryRepository.findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(any(), any(), any()))
+                .thenReturn(history);
+
+        SeriesResponseDto<PortfolioValuePointDto> result = analyticsService.portfolioValueHistory(userId, day, day);
+
+        assertThat(result.getSeries()).hasSize(1);
+        // value = 10 × 270 = 2700 (LKOH skipped — no price in lastKnownClose)
+        assertThat(result.getSeries().get(0).getValue()).isEqualByComparingTo(new BigDecimal("2700.00"));
+    }
+
     private Position buildPosition(String ticker, String quantity) {
         Security sec = Security.builder()
                 .ticker(ticker)

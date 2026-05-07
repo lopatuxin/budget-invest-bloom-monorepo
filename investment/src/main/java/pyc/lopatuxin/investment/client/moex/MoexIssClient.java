@@ -191,11 +191,8 @@ public class MoexIssClient {
             List<MoexCandleDto> result = new ArrayList<>();
             for (List<Object> row : data) {
                 BigDecimal close = MoexJsonMapper.decimal(row, closeIdx);
-                if (close == null || close.compareTo(BigDecimal.ZERO) == 0) {
-                    continue;
-                }
                 String dateStr = MoexJsonMapper.str(row, dateIdx);
-                if (dateStr == null) {
+                if (close == null || close.compareTo(BigDecimal.ZERO) == 0 || dateStr == null) {
                     continue;
                 }
                 LocalDate tradeDate = LocalDate.parse(dateStr);
