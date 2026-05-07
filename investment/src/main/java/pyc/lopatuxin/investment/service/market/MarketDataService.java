@@ -333,7 +333,9 @@ public class MarketDataService {
                 SecurityType.BOND, SectorDefaults.CORPORATE_BONDS);
         int fixed = 0;
         for (Security security : candidates) {
-            if (!isOfzTicker(security.getTicker())) continue;
+            if (!isOfzTicker(security.getTicker())) {
+                continue;
+            }
             try {
                 Optional<MoexSecurityDto> dto = moexIssClient.fetchSecurity(security.getTicker());
                 if (dto.isPresent() && dto.get().securityType() == SecurityType.OFZ) {

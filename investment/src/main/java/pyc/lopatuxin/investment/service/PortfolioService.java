@@ -19,6 +19,7 @@ import pyc.lopatuxin.investment.dto.response.SnapshotResult;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -108,13 +109,10 @@ public class PortfolioService {
             return List.of();
         }
         List<Dividend> dividends = dividendRepository.findUpcomingByTickersWithSecurity(tickers, LocalDate.now());
-        List<UpcomingDividendDto> result = new java.util.ArrayList<>();
+        List<UpcomingDividendDto> result = new ArrayList<>();
         for (Dividend d : dividends) {
-            if (d.getAmountPerShare() == null) {
-                continue;
-            }
             BigDecimal qty = quantityByTicker.getOrDefault(d.getSecurity().getTicker(), BigDecimal.ZERO);
-            if (qty.compareTo(BigDecimal.ZERO) == 0) {
+            if (d.getAmountPerShare() == null || qty.compareTo(BigDecimal.ZERO) == 0) {
                 continue;
             }
             BigDecimal totalAmount = d.getAmountPerShare().multiply(qty).setScale(2, RoundingMode.HALF_UP);

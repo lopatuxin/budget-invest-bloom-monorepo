@@ -183,11 +183,8 @@ public class ProjectionService {
     private Map<Integer, BigDecimal> computeYieldByYear(String ticker, List<Dividend> dividends) {
         Map<Integer, BigDecimal> yieldByYear = new LinkedHashMap<>();
         for (Dividend div : dividends) {
-            if (div.getAmountPerShare() == null) {
-                continue;
-            }
             LocalDate effectiveDate = div.getPaymentDate() != null ? div.getPaymentDate() : div.getRecordDate();
-            if (effectiveDate == null) {
+            if (div.getAmountPerShare() == null || effectiveDate == null) {
                 continue;
             }
             BigDecimal yieldI = computeDividendYield(ticker, div.getAmountPerShare(), effectiveDate);

@@ -50,13 +50,8 @@ public class DividendSyncService {
         }
 
         for (MoexDividendDto dto : moexDividends) {
-            if (dto.getRegistryCloseDate() == null) {
-                continue;
-            }
-            if (dividendRepository.existsBySecurity_TickerAndRecordDate(ticker, dto.getRegistryCloseDate())) {
-                continue;
-            }
-            if (dto.getValue() == null) {
+            if (dto.getRegistryCloseDate() == null || dto.getValue() == null
+                    || dividendRepository.existsBySecurity_TickerAndRecordDate(ticker, dto.getRegistryCloseDate())) {
                 continue;
             }
             DividendStatus status = dto.getRegistryCloseDate().isBefore(LocalDate.now())
