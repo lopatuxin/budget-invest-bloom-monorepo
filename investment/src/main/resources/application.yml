@@ -1,11 +1,6 @@
 spring:
   application:
     name: investment
-  cache:
-    type: caffeine
-    cache-names: moexSnapshots,moexSecurities
-    caffeine:
-      spec: maximumSize=500,expireAfterWrite=5m
 
 moex:
   iss:
@@ -13,6 +8,7 @@ moex:
     timeout-ms: 5000
     connect-timeout-ms: 3000
     snapshot-ttl-minutes: 5
+    securities-ttl-hours: 1
 
 resilience4j:
   circuitbreaker:
