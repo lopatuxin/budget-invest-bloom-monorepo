@@ -7,6 +7,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
+import pyc.lopatuxin.investment.service.market.MoexSecurityClassifier;
 
 import java.util.Optional;
 

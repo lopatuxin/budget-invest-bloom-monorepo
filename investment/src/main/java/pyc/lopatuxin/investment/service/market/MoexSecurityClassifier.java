@@ -1,4 +1,4 @@
-package pyc.lopatuxin.investment.client.moex;
+package pyc.lopatuxin.investment.service.market;
 
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
 

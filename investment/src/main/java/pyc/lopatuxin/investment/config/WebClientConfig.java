@@ -1,45 +1,78 @@
 package pyc.lopatuxin.investment.config;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.support.RestClientAdapter;
+import org.springframework.web.service.invoker.HttpServiceProxyFactory;
+import pyc.lopatuxin.investment.client.moex.MoexIssApi;
+import pyc.lopatuxin.investment.client.moex.MoexNotFoundException;
 
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 @Configuration
 public class WebClientConfig {
 
-    @Bean
-    public ObjectMapper objectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        return mapper;
-    }
-
-    @Bean
-    public RestClient moexRestClient(MoexProperties props) {
+    @Bean(destroyMethod = "close")
+    public CloseableHttpClient moexHttpClient(MoexProperties props) {
         RequestConfig requestConfig = RequestConfig.custom()
                 .setConnectTimeout(Timeout.of(props.getConnectTimeoutMs(), TimeUnit.MILLISECONDS))
                 .setResponseTimeout(Timeout.of(props.getTimeoutMs(), TimeUnit.MILLISECONDS))
                 .build();
-        CloseableHttpClient httpClient = HttpClients.custom()
+        var pool = PoolingHttpClientConnectionManagerBuilder.create()
+                .setMaxConnTotal(props.getMaxConnections())
+                .setMaxConnPerRoute(props.getMaxConnectionsPerRoute())
+                .build();
+        return HttpClients.custom()
+                .setConnectionManager(pool)
                 .setDefaultRequestConfig(requestConfig)
                 .build();
+    }
+
+    @Bean
+    public RestClient moexRestClient(CloseableHttpClient moexHttpClient, MoexProperties props) {
         return RestClient.builder()
-                .requestFactory(new HttpComponentsClientHttpRequestFactory(httpClient))
+                .requestFactory(new HttpComponentsClientHttpRequestFactory(moexHttpClient))
                 .baseUrl(props.getBaseUrl())
                 .defaultHeader("Accept", "application/json")
+                .defaultStatusHandler(HttpStatusCode::is4xxClientError, (req, res) -> {
+                    HttpStatusCode status = res.getStatusCode();
+                    if (status == HttpStatus.NOT_FOUND) {
+                        throw new MoexNotFoundException("MOEX 404: " + req.getURI());
+                    }
+                    byte[] body;
+                    try {
+                        body = res.getBody().readAllBytes();
+                    } catch (IOException e) {
+                        throw new RuntimeException("Failed to read error response body", e);
+                    }
+                    HttpHeaders headers = res.getHeaders();
+                    Charset charset = Optional.ofNullable(headers.getContentType())
+                            .map(MediaType::getCharset)
+                            .orElse(StandardCharsets.UTF_8);
+                    throw HttpClientErrorException.create(status, res.getStatusText(), headers, body, charset);
+                })
                 .build();
+    }
+
+    @Bean
+    public MoexIssApi moexIssApi(RestClient moexRestClient) {
+        RestClientAdapter adapter = RestClientAdapter.create(moexRestClient);
+        return HttpServiceProxyFactory.builderFor(adapter).build().createClient(MoexIssApi.class);
     }
 }

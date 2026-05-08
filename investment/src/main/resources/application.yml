@@ -1,6 +1,11 @@
 spring:
   application:
     name: investment
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
+    serialization:
+      write-dates-as-timestamps: false
 
 moex:
   iss:
@@ -9,6 +14,8 @@ moex:
     connect-timeout-ms: 3000
     snapshot-ttl-minutes: 5
     securities-ttl-hours: 1
+    max-connections: 50
+    max-connections-per-route: 20
 
 resilience4j:
   circuitbreaker:
@@ -18,6 +25,8 @@ resilience4j:
         slidingWindowSize: 10
         waitDurationInOpenState: 30s
         permittedNumberOfCallsInHalfOpenState: 3
+        ignoreExceptions:
+          - pyc.lopatuxin.investment.client.moex.MoexNotFoundException
   retry:
     instances:
       moex:
@@ -27,3 +36,5 @@ resilience4j:
         exponentialBackoffMultiplier: 2
         enableRandomizedWait: true
         randomizedWaitFactor: 0.3
+        ignoreExceptions:
+          - pyc.lopatuxin.investment.client.moex.MoexNotFoundException

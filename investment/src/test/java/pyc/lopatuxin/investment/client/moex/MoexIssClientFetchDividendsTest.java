@@ -1,51 +1,31 @@
 package pyc.lopatuxin.investment.client.moex;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.MockWebServer;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.web.client.RestClient;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 import pyc.lopatuxin.investment.dto.response.MoexDividendDto;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
-@DisplayName("MoexIssClientFetchDividendsTest — юнит-тесты с MockWebServer")
-class MoexIssClientFetchDividendsTest {
+@ExtendWith(MockitoExtension.class)
+@DisplayName("MoexIssClientFetchDividendsTest — юнит-тесты с Mockito")
+class MoexIssClientFetchDividendsTest extends AbstractMoexClientTest {
 
-    private MockWebServer mockWebServer;
-    private MoexIssClient client;
-
-    @BeforeEach
-    void setUp() throws IOException {
-        mockWebServer = new MockWebServer();
-        mockWebServer.start();
-        RestClient restClient = RestClient.builder()
-                .baseUrl(mockWebServer.url("/").toString())
-                .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-                .build();
-        client = new MoexIssClient(restClient, new ObjectMapper());
-    }
-
-    @AfterEach
-    void tearDown() throws IOException {
-        mockWebServer.shutdown();
-    }
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Test
     @DisplayName("fetchDividends — MOEX вернул два дивиденда → список содержит 2 элемента с корректными полями")
-    void fetchDividends_returnsListFromMoex() {
-        // Real MOEX columns: secid, registryclosedate, value, currencyid (no dividendpaymentdate)
-        String responseBody = """
+    void fetchDividends_returnsListFromMoex() throws Exception {
+        JsonNode response = MAPPER.readTree("""
                 {
                   "dividends": {
                     "columns": ["secid","registryclosedate","value","currencyid"],
@@ -55,10 +35,8 @@ class MoexIssClientFetchDividendsTest {
                     ]
                   }
                 }
-                """;
-        mockWebServer.enqueue(new MockResponse()
-                .setBody(responseBody)
-                .addHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE));
+                """);
+        when(api.getDividends(anyString(), anyString(), anyString())).thenReturn(response);
 
         List<MoexDividendDto> result = client.fetchDividends("SBER");
 
@@ -77,18 +55,16 @@ class MoexIssClientFetchDividendsTest {
 
     @Test
     @DisplayName("fetchDividends — MOEX вернул пустой data: [] → результат пустой список")
-    void fetchDividends_returnsEmpty_whenDataArrayEmpty() {
-        String responseBody = """
+    void fetchDividends_returnsEmpty_whenDataArrayEmpty() throws Exception {
+        JsonNode response = MAPPER.readTree("""
                 {
                   "dividends": {
                     "columns": ["secid","registryclosedate","value","currencyid"],
                     "data": []
                   }
                 }
-                """;
-        mockWebServer.enqueue(new MockResponse()
-                .setBody(responseBody)
-                .addHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE));
+                """);
+        when(api.getDividends(anyString(), anyString(), anyString())).thenReturn(response);
 
         List<MoexDividendDto> result = client.fetchDividends("SBER");
 
