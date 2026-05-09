@@ -79,13 +79,13 @@ public class InvestmentEntryService {
     private InvestmentEntryResponseDto createBuyEntry(UUID userId, InvestmentEntryRequestDto dto, LocalDate date) {
         Category category = categoryService.ensureSystemCategory(userId, INVESTMENT_CATEGORY_NAME,
                 INVESTMENT_CATEGORY_EMOJI);
-        Expense expense = expenseService.createInternal(userId, category, dto.getAmount(), date, null);
+        Expense expense = expenseService.createInternal(userId, category, dto.getAmount(), date, null, true);
         return InvestmentEntryResponseDto.builder().entryId(expense.getId()).build();
     }
 
     private InvestmentEntryResponseDto createSellEntry(UUID userId, InvestmentEntryRequestDto dto, LocalDate date) {
         Income income = incomeService.createInternal(userId, IncomeSource.INVESTMENTS,
-                dto.getAmount(), date, SELL_DESCRIPTION);
+                dto.getAmount(), date, SELL_DESCRIPTION, true);
         return InvestmentEntryResponseDto.builder().entryId(income.getId()).build();
     }
 

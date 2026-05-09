@@ -43,10 +43,10 @@ public class BalanceMetricService extends AbstractMetricService {
     @Override
     protected List<Object[]> findMonthlyData(UUID userId, int year) {
         Map<Integer, BigDecimal> incomeByMonth = buildMonthlyMap(
-                incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)
+                incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)
         );
         Map<Integer, BigDecimal> expenseByMonth = buildMonthlyMap(
-                expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year)
+                expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)
         );
 
         TreeSet<Integer> allMonths = new TreeSet<>();

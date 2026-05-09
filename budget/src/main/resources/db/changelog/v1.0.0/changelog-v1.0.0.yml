@@ -12,3 +12,5 @@ databaseChangeLog:
       file: db/changelog/v1.0.0/005-import-legacy-budget.yml
   - include:
       file: db/changelog/v1.0.0/006-add-categories-system.yml
+  - include:
+      file: db/changelog/v1.0.0/007-add-transfer-flag.yml

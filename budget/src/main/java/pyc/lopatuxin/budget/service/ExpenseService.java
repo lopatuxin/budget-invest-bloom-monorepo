@@ -77,17 +77,19 @@ public class ExpenseService {
      * @param amount      expense amount
      * @param date        expense date
      * @param description optional description
+     * @param isTransfer  true if this expense represents a transfer between assets (e.g. investment buy)
      * @return created expense entity
      */
     @Transactional
     public Expense createInternal(UUID userId, Category category, BigDecimal amount,
-                                  LocalDate date, String description) {
+                                  LocalDate date, String description, boolean isTransfer) {
         Expense expense = Expense.builder()
                 .userId(userId)
                 .category(category)
                 .amount(amount)
                 .description(description)
                 .date(date)
+                .isTransfer(isTransfer)
                 .build();
 
         expense = expenseRepository.save(expense);

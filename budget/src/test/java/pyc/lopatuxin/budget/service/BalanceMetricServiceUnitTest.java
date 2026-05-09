@@ -55,8 +55,8 @@ class BalanceMetricServiceUnitTest {
                 new Object[]{3, new BigDecimal("80000.00")},
                 new Object[]{6, new BigDecimal("90000.00")}
         );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(incomeData);
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year)).thenReturn(expenseData);
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(incomeData);
+        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(expenseData);
 
         MetricResponseDto result = balanceMetricService.getBalanceMetric(userId, year);
 
@@ -93,16 +93,16 @@ class BalanceMetricServiceUnitTest {
         // changePercent = (60000 - 40000) / 40000 * 100 = +50.0%
         assertThat(result.getChangePercent()).isEqualTo("+50.0%");
 
-        verify(incomeRepository).findMonthlyIncomeByUserIdAndYear(userId, year);
-        verify(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+        verify(incomeRepository).findMonthlyNonTransferIncomeByUserIdAndYear(userId, year);
+        verify(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
     }
 
     @Test
     @DisplayName("Должен вернуть нулевые показатели при отсутствии данных за год")
     void shouldReturnZeroValuesWhenNoDataExists() {
         int year = 2025;
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
+        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
         MetricResponseDto result = balanceMetricService.getBalanceMetric(userId, year);
 
@@ -126,8 +126,8 @@ class BalanceMetricServiceUnitTest {
         List<Object[]> incomeData = List.<Object[]>of(
                 new Object[]{5, new BigDecimal("80000.00")}
         );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(incomeData);
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(incomeData);
+        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
         MetricResponseDto result = balanceMetricService.getBalanceMetric(userId, year);
 
@@ -149,8 +149,8 @@ class BalanceMetricServiceUnitTest {
         List<Object[]> expenseData = List.<Object[]>of(
                 new Object[]{3, new BigDecimal("50000.00")}
         );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year)).thenReturn(expenseData);
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
+        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(expenseData);
 
         MetricResponseDto result = balanceMetricService.getBalanceMetric(userId, year);
 
@@ -176,8 +176,8 @@ class BalanceMetricServiceUnitTest {
         List<Object[]> expenseData = List.<Object[]>of(
                 new Object[]{2, new BigDecimal("70000.00")}
         );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(incomeData);
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year)).thenReturn(expenseData);
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(incomeData);
+        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(expenseData);
 
         MetricResponseDto result = balanceMetricService.getBalanceMetric(userId, year);
 
@@ -210,13 +210,13 @@ class BalanceMetricServiceUnitTest {
     @DisplayName("Должен корректно вызывать оба репозитория с правильными параметрами")
     void shouldCallBothRepositoriesWithCorrectParams() {
         int year = 2025;
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
+        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
         balanceMetricService.getBalanceMetric(userId, year);
 
-        verify(incomeRepository).findMonthlyIncomeByUserIdAndYear(userId, year);
-        verify(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+        verify(incomeRepository).findMonthlyNonTransferIncomeByUserIdAndYear(userId, year);
+        verify(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
     }
 
     @Test
@@ -237,8 +237,8 @@ class BalanceMetricServiceUnitTest {
                 new Object[]{2, new BigDecimal("100000")},
                 new Object[]{5, new BigDecimal("60000")}
         );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(incomeData);
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year)).thenReturn(expenseData);
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(incomeData);
+        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(expenseData);
 
         MetricResponseDto result = balanceMetricService.getBalanceMetric(userId, year);
 
@@ -265,8 +265,8 @@ class BalanceMetricServiceUnitTest {
                 new Object[]{3, new BigDecimal("40000.00")},
                 new Object[]{6, new BigDecimal("70000.00")}
         );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(incomeData);
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year)).thenReturn(expenseData);
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(incomeData);
+        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(expenseData);
 
         MetricResponseDto result = balanceMetricService.getBalanceMetric(userId, year);
 
@@ -304,8 +304,8 @@ class BalanceMetricServiceUnitTest {
                 new Object[]{3, new BigDecimal("50000")},
                 new Object[]{7, new BigDecimal("50000")}
         );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(incomeData);
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year)).thenReturn(expenseData);
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(incomeData);
+        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(expenseData);
 
         MetricResponseDto result = balanceMetricService.getBalanceMetric(userId, year);
 

@@ -46,7 +46,7 @@ class ExpenseMetricServiceUnitTest {
                 new Object[]{4, new BigDecimal("45000.00")},
                 new Object[]{8, new BigDecimal("38000.00")}
         );
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year)).thenReturn(dbData);
+        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(dbData);
 
         MetricResponseDto result = expenseMetricService.getExpenseMetric(userId, year);
 
@@ -79,14 +79,14 @@ class ExpenseMetricServiceUnitTest {
         // changePercent = (38000 - 45000) / 45000 * 100 = -15.6%
         assertThat(result.getChangePercent()).isEqualTo("-15.6%");
 
-        verify(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+        verify(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
     }
 
     @Test
     @DisplayName("Должен вернуть нулевые показатели при отсутствии данных за год")
     void shouldReturnZeroValuesWhenNoDataExists() {
         int year = 2025;
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
+        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
         MetricResponseDto result = expenseMetricService.getExpenseMetric(userId, year);
 
@@ -110,7 +110,7 @@ class ExpenseMetricServiceUnitTest {
         List<Object[]> dbData = List.<Object[]>of(
                 new Object[]{7, new BigDecimal("55000.00")}
         );
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year)).thenReturn(dbData);
+        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(dbData);
 
         MetricResponseDto result = expenseMetricService.getExpenseMetric(userId, year);
 
@@ -129,11 +129,11 @@ class ExpenseMetricServiceUnitTest {
     @DisplayName("Должен корректно вызывать findMonthlyExpenseByUserIdAndYear через репозиторий")
     void shouldCallRepositoryWithCorrectParams() {
         int year = 2025;
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
+        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
         expenseMetricService.getExpenseMetric(userId, year);
 
-        verify(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+        verify(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
     }
 
     @Test
@@ -150,11 +150,35 @@ class ExpenseMetricServiceUnitTest {
                 new Object[]{2, new BigDecimal("40000")},
                 new Object[]{5, new BigDecimal("60000")}
         );
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year)).thenReturn(dbData);
+        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(dbData);
 
         MetricResponseDto result = expenseMetricService.getExpenseMetric(userId, year);
 
         // (60000 - 40000) / 40000 * 100 = +50.0%
         assertThat(result.getChangePercent()).isEqualTo("+50.0%");
+    }
+
+    @Test
+    @DisplayName("NonTransfer-метод не должен включать transfer-расходы в агрегат")
+    void shouldExcludeTransferExpensesFromMetric() {
+        // Arrange: репозиторий возвращает только non-transfer расходы.
+        // Transfer-запись (покупка акций) репозитором уже отфильтрована и в список не попадает.
+        // Тест проверяет, что сервис оперирует именно тем, что вернул NonTransfer-метод.
+        int year = 2025;
+        // Только обычный расход (Март = 20000); transfer (Январь = 50000) уже исключён репозиторием
+        List<Object[]> nonTransferOnly = List.<Object[]>of(
+                new Object[]{3, new BigDecimal("20000.00")}
+        );
+        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year))
+                .thenReturn(nonTransferOnly);
+
+        MetricResponseDto result = expenseMetricService.getExpenseMetric(userId, year);
+
+        // Только один месяц с данными, transfer-расход не учтён
+        assertThat(result.getCurrentValue()).isEqualByComparingTo(new BigDecimal("20000.00"));
+        assertThat(result.getYearlyMax()).isEqualByComparingTo(new BigDecimal("20000.00"));
+        // Январь (transfer) = 0 в агрегате
+        assertThat(result.getMonthlyData().get(0).getAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+        verify(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
     }
 }

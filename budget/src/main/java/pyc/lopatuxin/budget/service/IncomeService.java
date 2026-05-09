@@ -59,17 +59,19 @@ public class IncomeService {
      * @param amount      income amount
      * @param date        income date
      * @param description optional description
+     * @param isTransfer  true if this income represents a transfer between assets (e.g. investment sell)
      * @return created income entity
      */
     @Transactional
     public Income createInternal(UUID userId, IncomeSource source, BigDecimal amount,
-                                 LocalDate date, String description) {
+                                 LocalDate date, String description, boolean isTransfer) {
         Income income = Income.builder()
                 .userId(userId)
                 .source(source)
                 .amount(amount)
                 .description(description)
                 .date(date)
+                .isTransfer(isTransfer)
                 .build();
 
         income = incomeRepository.save(income);

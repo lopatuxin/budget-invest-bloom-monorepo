@@ -53,7 +53,7 @@ class BudgetSummaryServiceUnitTest {
     void setUp() {
         userId = UUID.randomUUID();
         // Default lenient stubs for inflation calculation — return empty lists so inflation = 0
-        lenient().when(expenseRepository.findMonthlyExpenseByUserIdAndYear(eq(userId), anyInt()))
+        lenient().when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(eq(userId), anyInt()))
                 .thenReturn(Collections.emptyList());
     }
 
@@ -89,8 +89,8 @@ class BudgetSummaryServiceUnitTest {
 
         when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
         when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
-        when(categoryRepository.findByUserId(userId)).thenReturn(List.of(category));
-        when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(List.of(category));
+        when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(List.<Object[]>of(new Object[]{categoryId, new BigDecimal("25000.00")}));
         when(categorySummaryBuilder.buildCategorySummary(eq(category), any())).thenReturn(catDto);
 
@@ -103,8 +103,8 @@ class BudgetSummaryServiceUnitTest {
         assertThat(result.getCategories().getFirst().getPercentUsed()).isEqualByComparingTo(new BigDecimal("83.33"));
 
         verify(periodAggregateService).buildPeriodAggregates(userId, month, year);
-        verify(categoryRepository).findByUserId(userId);
-        verify(expenseRepository).sumAmountByCategoryForUserAndDateBetween(userId, start, end);
+        verify(categoryRepository).findUserCategoriesByUserId(userId);
+        verify(expenseRepository).sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end);
     }
 
     @Test
@@ -123,8 +123,8 @@ class BudgetSummaryServiceUnitTest {
 
         when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
         when(periodAggregateService.buildPeriodAggregates(userId, 4, year)).thenReturn(prev);
-        when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
-        when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(Collections.emptyList());
+        when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
@@ -154,8 +154,8 @@ class BudgetSummaryServiceUnitTest {
 
         when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
         when(periodAggregateService.buildPeriodAggregates(userId, 5, year)).thenReturn(prev);
-        when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
-        when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(Collections.emptyList());
+        when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
@@ -183,13 +183,13 @@ class BudgetSummaryServiceUnitTest {
         when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
         when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
         // Override default lenient stub for the specific years needed
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year))
+        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year))
                 .thenReturn(List.of(
                         new Object[]{1, new BigDecimal("33000")},
                         new Object[]{2, new BigDecimal("33000")},
                         new Object[]{3, new BigDecimal("33000")}
                 ));
-        when(expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year - 1))
+        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1))
                 .thenReturn(List.of(
                         new Object[]{1, new BigDecimal("30000")},
                         new Object[]{2, new BigDecimal("30000")},
@@ -204,8 +204,8 @@ class BudgetSummaryServiceUnitTest {
                         new Object[]{11, new BigDecimal("30000")},
                         new Object[]{12, new BigDecimal("30000")}
                 ));
-        when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
-        when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(Collections.emptyList());
+        when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
@@ -230,8 +230,8 @@ class BudgetSummaryServiceUnitTest {
 
         when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
         when(periodAggregateService.buildPeriodAggregates(userId, 3, year)).thenReturn(prev);
-        when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
-        when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(Collections.emptyList());
+        when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
@@ -256,8 +256,8 @@ class BudgetSummaryServiceUnitTest {
 
         when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
         when(periodAggregateService.buildPeriodAggregates(userId, 3, year)).thenReturn(prev);
-        when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
-        when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(Collections.emptyList());
+        when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
@@ -281,8 +281,8 @@ class BudgetSummaryServiceUnitTest {
 
         when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
         when(periodAggregateService.buildPeriodAggregates(userId, 6, year)).thenReturn(prev);
-        when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
-        when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(Collections.emptyList());
+        when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
@@ -322,8 +322,8 @@ class BudgetSummaryServiceUnitTest {
 
         when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
         when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
-        when(categoryRepository.findByUserId(userId)).thenReturn(List.of(category));
-        when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(List.of(category));
+        when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(List.<Object[]>of(new Object[]{categoryId, new BigDecimal("25000")}));
         when(categorySummaryBuilder.buildCategorySummary(eq(category), any())).thenReturn(catDto);
 
@@ -364,8 +364,8 @@ class BudgetSummaryServiceUnitTest {
 
         when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
         when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
-        when(categoryRepository.findByUserId(userId)).thenReturn(List.of(category));
-        when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(List.of(category));
+        when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(List.<Object[]>of(new Object[]{categoryId, new BigDecimal("15000")}));
         when(categorySummaryBuilder.buildCategorySummary(eq(category), any())).thenReturn(catDto);
 
@@ -406,8 +406,8 @@ class BudgetSummaryServiceUnitTest {
 
         when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
         when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
-        when(categoryRepository.findByUserId(userId)).thenReturn(List.of(category));
-        when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(List.of(category));
+        when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(List.<Object[]>of(new Object[]{categoryId, new BigDecimal("5000")}));
         when(categorySummaryBuilder.buildCategorySummary(eq(category), any())).thenReturn(catDto);
 
@@ -434,8 +434,8 @@ class BudgetSummaryServiceUnitTest {
 
         when(periodAggregateService.buildPeriodAggregates(userId, 1, 2024)).thenReturn(current);
         when(periodAggregateService.buildPeriodAggregates(userId, 12, 2023)).thenReturn(prev);
-        when(categoryRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
-        when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(Collections.emptyList());
+        when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());
 
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
@@ -475,8 +475,8 @@ class BudgetSummaryServiceUnitTest {
 
         when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
         when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
-        when(categoryRepository.findByUserId(userId)).thenReturn(categories);
-        when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(categories);
+        when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(List.<Object[]>of(
                         new Object[]{id1, new BigDecimal("1000")},
                         new Object[]{id2, new BigDecimal("2000")},
@@ -521,8 +521,8 @@ class BudgetSummaryServiceUnitTest {
 
         when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
         when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
-        when(categoryRepository.findByUserId(userId)).thenReturn(categories);
-        when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(categories);
+        when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(List.<Object[]>of(
                         new Object[]{id1, new BigDecimal("500")},
                         new Object[]{id2, new BigDecimal("3000")},
@@ -575,8 +575,8 @@ class BudgetSummaryServiceUnitTest {
 
         when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
         when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
-        when(categoryRepository.findByUserId(userId)).thenReturn(categories);
-        when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(userId, start, end))
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(categories);
+        when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(List.<Object[]>of(
                         new Object[]{id1, new BigDecimal("8000")},
                         new Object[]{id2, new BigDecimal("2000")},
@@ -591,5 +591,49 @@ class BudgetSummaryServiceUnitTest {
         BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
 
         assertThat(result.getCategories()).hasSize(4);
+    }
+
+    @Test
+    @DisplayName("NonTransfer-методы не должны включать transfer-расходы в сводку категорий")
+    void shouldExcludeTransferExpensesFromCategorySummary() {
+        // Arrange: репозиторий возвращает только non-transfer расходы по категориям.
+        // Transfer-расход (BUY акций) уже исключён на уровне репозитория.
+        int month = 5;
+        int year = 2024;
+        LocalDate start = LocalDate.of(year, month, 1);
+        LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
+        UUID categoryId = UUID.randomUUID();
+
+        Category category = Category.builder()
+                .id(categoryId).userId(userId).name("Продукты").budget(new BigDecimal("20000")).build();
+
+        CategorySummaryDto catDto = CategorySummaryDto.builder()
+                .id(categoryId).name("Продукты")
+                .amount(new BigDecimal("15000"))
+                .budget(new BigDecimal("20000"))
+                .percentUsed(new BigDecimal("75.00"))
+                .build();
+
+        PeriodAggregates current = new PeriodAggregates(start, end,
+                new BigDecimal("80000"), new BigDecimal("15000"), new BigDecimal("65000"));
+        PeriodAggregates prev = new PeriodAggregates(
+                LocalDate.of(year, 4, 1), LocalDate.of(year, 4, 30),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+
+        when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
+        when(periodAggregateService.buildPeriodAggregates(userId, 4, year)).thenReturn(prev);
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(List.of(category));
+        // sumNonTransferAmountByCategoryForUserAndDateBetween возвращает 15000 (transfer 50000 исключён)
+        when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
+                .thenReturn(List.<Object[]>of(new Object[]{categoryId, new BigDecimal("15000")}));
+        when(categorySummaryBuilder.buildCategorySummary(eq(category), any())).thenReturn(catDto);
+
+        BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
+
+        // Категория содержит только non-transfer расход = 15000, transfer не учтён
+        assertThat(result.getCategories()).hasSize(1);
+        assertThat(result.getCategories().getFirst().getAmount())
+                .isEqualByComparingTo(new BigDecimal("15000"));
+        verify(expenseRepository).sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end);
     }
 }

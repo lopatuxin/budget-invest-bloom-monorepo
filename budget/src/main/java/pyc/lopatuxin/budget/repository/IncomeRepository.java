@@ -17,7 +17,8 @@ import java.util.UUID;
 public interface IncomeRepository extends JpaRepository<Income, UUID> {
 
     /**
-     * Возвращает суммарные доходы пользователя за указанный диапазон дат.
+     * Возвращает суммарные не-трансферные доходы пользователя за указанный диапазон дат.
+     * Записи с isTransfer=true (инвестиции и переводы между активами) исключаются.
      *
      * @param userId    идентификатор пользователя
      * @param startDate первый день периода (включительно)
@@ -30,6 +31,7 @@ public interface IncomeRepository extends JpaRepository<Income, UUID> {
             WHERE i.userId = :userId
               AND i.date >= :startDate
               AND i.date <= :endDate
+              AND i.isTransfer = false
             """)
     Optional<BigDecimal> sumAmountByUserIdAndDateBetween(
             @Param("userId") UUID userId,
@@ -62,6 +64,28 @@ public interface IncomeRepository extends JpaRepository<Income, UUID> {
             ORDER BY MONTH(i.date)
             """)
     List<Object[]> findMonthlyIncomeByUserIdAndYear(
+            @Param("userId") UUID userId,
+            @Param("year") int year
+    );
+
+    /**
+     * Возвращает помесячные суммы не-трансферных доходов пользователя за указанный год.
+     * Записи с isTransfer=true (инвестиции и переводы между активами) исключаются.
+     *
+     * @param userId идентификатор пользователя
+     * @param year   календарный год
+     * @return список пар [номер месяца (Integer), сумма (BigDecimal)]
+     */
+    @Query("""
+            SELECT MONTH(i.date), SUM(i.amount)
+            FROM Income i
+            WHERE i.userId = :userId
+              AND YEAR(i.date) = :year
+              AND i.isTransfer = false
+            GROUP BY MONTH(i.date)
+            ORDER BY MONTH(i.date)
+            """)
+    List<Object[]> findMonthlyNonTransferIncomeByUserIdAndYear(
             @Param("userId") UUID userId,
             @Param("year") int year
     );

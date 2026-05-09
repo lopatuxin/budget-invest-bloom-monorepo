@@ -34,7 +34,7 @@ public class ExpenseMetricService extends AbstractMetricService {
 
     @Override
     protected List<Object[]> findMonthlyData(UUID userId, int year) {
-        return expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year);
+        return expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
     }
 
     @Override

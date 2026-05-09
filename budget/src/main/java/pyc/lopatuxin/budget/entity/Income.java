@@ -43,6 +43,9 @@ public class Income {
     @Column(nullable = false)
     private LocalDate date;
 
+    @Builder.Default
+    private boolean isTransfer = false;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

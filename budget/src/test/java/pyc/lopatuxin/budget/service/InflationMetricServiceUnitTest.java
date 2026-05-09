@@ -48,14 +48,14 @@ class InflationMetricServiceUnitTest {
                 new Object[]{5, new BigDecimal("80000.00")},
                 new Object[]{9, new BigDecimal("120000.00")}
         );
-        doReturn(prevYearData).when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+        doReturn(prevYearData).when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
 
         // Текущий год: Январь=110000, Март=130000
         List<Object[]> currentYearData = List.<Object[]>of(
                 new Object[]{1, new BigDecimal("110000.00")},
                 new Object[]{3, new BigDecimal("130000.00")}
         );
-        doReturn(currentYearData).when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+        doReturn(currentYearData).when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
 
         MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
 
@@ -75,8 +75,8 @@ class InflationMetricServiceUnitTest {
         // инфляция = (120000 - 100000) / 100000 * 100 = 20.0%
         assertThat(result.getMonthlyData().get(2).getAmount()).isEqualByComparingTo(new BigDecimal("20.0"));
 
-        verify(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
-        verify(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+        verify(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
+        verify(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
     }
 
     @Test
@@ -84,7 +84,7 @@ class InflationMetricServiceUnitTest {
     void shouldReturnZeroValuesWhenNoPreviousYearExpenses() {
         int year = 2025;
         doReturn(Collections.emptyList())
-                .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+                .when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
 
         MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
 
@@ -108,9 +108,9 @@ class InflationMetricServiceUnitTest {
         List<Object[]> prevYearData = List.<Object[]>of(
                 new Object[]{1, new BigDecimal("50000.00")}
         );
-        doReturn(prevYearData).when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+        doReturn(prevYearData).when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
         doReturn(Collections.emptyList())
-                .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+                .when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
 
         MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
 
@@ -133,13 +133,13 @@ class InflationMetricServiceUnitTest {
         List<Object[]> prevYearData = List.<Object[]>of(
                 new Object[]{1, new BigDecimal("100000.00")}
         );
-        doReturn(prevYearData).when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+        doReturn(prevYearData).when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
 
         // Текущий год: Январь=80000 (ниже среднего предыдущего года)
         List<Object[]> currentYearData = List.<Object[]>of(
                 new Object[]{1, new BigDecimal("80000.00")}
         );
-        doReturn(currentYearData).when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+        doReturn(currentYearData).when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
 
         MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
 
@@ -157,14 +157,14 @@ class InflationMetricServiceUnitTest {
                 new Object[]{1, new BigDecimal("60000.00")},
                 new Object[]{2, new BigDecimal("40000.00")}
         );
-        doReturn(prevYearData).when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+        doReturn(prevYearData).when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
 
         // Текущий год: Январь=60000, Март=40000
         List<Object[]> currentYearData = List.<Object[]>of(
                 new Object[]{1, new BigDecimal("60000.00")},
                 new Object[]{3, new BigDecimal("40000.00")}
         );
-        doReturn(currentYearData).when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+        doReturn(currentYearData).when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
 
         MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
 
@@ -189,13 +189,13 @@ class InflationMetricServiceUnitTest {
         List<Object[]> prevYearData = List.<Object[]>of(
                 new Object[]{6, new BigDecimal("10000.00")}
         );
-        doReturn(prevYearData).when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+        doReturn(prevYearData).when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
 
         // Текущий год: только Март=15000
         List<Object[]> currentYearData = List.<Object[]>of(
                 new Object[]{3, new BigDecimal("15000.00")}
         );
-        doReturn(currentYearData).when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+        doReturn(currentYearData).when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
 
         MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
 
@@ -216,13 +216,13 @@ class InflationMetricServiceUnitTest {
         List<Object[]> prevYearData = List.<Object[]>of(
                 new Object[]{1, new BigDecimal("100000.00")}
         );
-        doReturn(prevYearData).when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+        doReturn(prevYearData).when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
 
         // Текущий год: Январь=50000 (дефляция)
         List<Object[]> currentYearData = List.<Object[]>of(
                 new Object[]{1, new BigDecimal("50000.00")}
         );
-        doReturn(currentYearData).when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+        doReturn(currentYearData).when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
 
         MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
 
@@ -233,15 +233,15 @@ class InflationMetricServiceUnitTest {
     }
 
     @Test
-    @DisplayName("Должен корректно вызывать findMonthlyExpenseByUserIdAndYear для обоих годов")
+    @DisplayName("Должен корректно вызывать findMonthlyNonTransferExpenseByUserIdAndYear для обоих годов")
     void shouldCallRepositoryWithCorrectParams() {
         int year = 2025;
         doReturn(Collections.emptyList())
-                .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+                .when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
 
         inflationMetricService.getInflationMetric(userId, year);
 
-        verify(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+        verify(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
     }
 
     @Test
@@ -255,7 +255,7 @@ class InflationMetricServiceUnitTest {
     // -----------------------------------------------------------------------
 
     /**
-     * Вспомогательный метод: строит строку Object[] в формате findCategoryStatsByUserIdAndYear.
+     * Вспомогательный метод: строит строку Object[] в формате findNonTransferCategoryStatsByUserIdAndYear.
      * Поля: [UUID categoryId, String name, String emoji, Long monthCount, BigDecimal totalAmount]
      */
     private Object[] categoryRow(UUID categoryId, String name, String emoji,
@@ -268,11 +268,11 @@ class InflationMetricServiceUnitTest {
     void categoryBreakdown_shouldBeEmptyWhenNoPreviousYearData() {
         int year = 2025;
         doReturn(Collections.emptyList())
-                .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+                .when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
         doReturn(Collections.emptyList())
-                .when(expenseRepository).findCategoryStatsByUserIdAndYear(userId, year);
+                .when(expenseRepository).findNonTransferCategoryStatsByUserIdAndYear(userId, year);
         doReturn(Collections.emptyList())
-                .when(expenseRepository).findCategoryStatsByUserIdAndYear(userId, year - 1);
+                .when(expenseRepository).findNonTransferCategoryStatsByUserIdAndYear(userId, year - 1);
 
         MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
 
@@ -287,15 +287,15 @@ class InflationMetricServiceUnitTest {
 
         // Monthly data stubs (used by base getMetric)
         doReturn(List.<Object[]>of(new Object[]{1, new BigDecimal("12000.00")}))
-                .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+                .when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
         doReturn(List.<Object[]>of(new Object[]{1, new BigDecimal("13200.00")}))
-                .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+                .when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
 
         // Category stats: current year — 1 month, 13200 total; previous — 1 month, 12000 total
         doReturn(List.<Object[]>of(categoryRow(catId, "Продукты", "🛒", 1L, new BigDecimal("13200.00"))))
-                .when(expenseRepository).findCategoryStatsByUserIdAndYear(userId, year);
+                .when(expenseRepository).findNonTransferCategoryStatsByUserIdAndYear(userId, year);
         doReturn(List.<Object[]>of(categoryRow(catId, "Продукты", "🛒", 1L, new BigDecimal("12000.00"))))
-                .when(expenseRepository).findCategoryStatsByUserIdAndYear(userId, year - 1);
+                .when(expenseRepository).findNonTransferCategoryStatsByUserIdAndYear(userId, year - 1);
 
         MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
 
@@ -325,21 +325,21 @@ class InflationMetricServiceUnitTest {
 
         // Monthly stubs
         doReturn(List.<Object[]>of(new Object[]{1, new BigDecimal("20000.00")}))
-                .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+                .when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
         doReturn(List.<Object[]>of(new Object[]{1, new BigDecimal("24000.00")}))
-                .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+                .when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
 
         // current: catGrow=18000 (1 мес), catDrop=6000 (1 мес); total=24000
         doReturn(List.of(
                 categoryRow(catGrow, "Кафе", "☕", 1L, new BigDecimal("18000.00")),
                 categoryRow(catDrop, "Транспорт", "🚌", 1L, new BigDecimal("6000.00"))
-        )).when(expenseRepository).findCategoryStatsByUserIdAndYear(userId, year);
+        )).when(expenseRepository).findNonTransferCategoryStatsByUserIdAndYear(userId, year);
 
         // previous: catGrow=10000 (1 мес), catDrop=10000 (1 мес)
         doReturn(List.of(
                 categoryRow(catGrow, "Кафе", "☕", 1L, new BigDecimal("10000.00")),
                 categoryRow(catDrop, "Транспорт", "🚌", 1L, new BigDecimal("10000.00"))
-        )).when(expenseRepository).findCategoryStatsByUserIdAndYear(userId, year - 1);
+        )).when(expenseRepository).findNonTransferCategoryStatsByUserIdAndYear(userId, year - 1);
 
         MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
 
@@ -376,20 +376,20 @@ class InflationMetricServiceUnitTest {
 
         // Monthly stubs
         doReturn(List.<Object[]>of(new Object[]{1, new BigDecimal("10000.00")}))
-                .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+                .when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
         doReturn(List.<Object[]>of(new Object[]{1, new BigDecimal("15000.00")}))
-                .when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+                .when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
 
         // current: обе категории присутствуют
         doReturn(List.of(
                 categoryRow(catExisting, "Продукты", "🛒", 1L, new BigDecimal("10000.00")),
                 categoryRow(catNew, "Новая категория", "🆕", 1L, new BigDecimal("5000.00"))
-        )).when(expenseRepository).findCategoryStatsByUserIdAndYear(userId, year);
+        )).when(expenseRepository).findNonTransferCategoryStatsByUserIdAndYear(userId, year);
 
         // previous: только catExisting
         doReturn(List.<Object[]>of(
                 categoryRow(catExisting, "Продукты", "🛒", 1L, new BigDecimal("10000.00"))
-        )).when(expenseRepository).findCategoryStatsByUserIdAndYear(userId, year - 1);
+        )).when(expenseRepository).findNonTransferCategoryStatsByUserIdAndYear(userId, year - 1);
 
         MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
 
@@ -406,13 +406,13 @@ class InflationMetricServiceUnitTest {
         List<Object[]> prevYearData = List.<Object[]>of(
                 new Object[]{1, new BigDecimal("20000.00")}
         );
-        doReturn(prevYearData).when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+        doReturn(prevYearData).when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
 
         // Текущий год: Январь=30000
         List<Object[]> currentYearData = List.<Object[]>of(
                 new Object[]{1, new BigDecimal("30000.00")}
         );
-        doReturn(currentYearData).when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+        doReturn(currentYearData).when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
 
         MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
 
@@ -432,6 +432,27 @@ class InflationMetricServiceUnitTest {
     }
 
     @Test
+    @DisplayName("NonTransfer-метод не должен включать transfer-расходы в расчёт инфляции")
+    void shouldExcludeTransferExpensesFromInflationMetric() {
+        // Arrange: оба вызова возвращают только non-transfer данные.
+        // Transfer-расход (покупка акций) уже исключён на уровне репозитория.
+        int year = 2025;
+        // Предыдущий год: 1 месяц, 10000 → среднее = 10000
+        doReturn(List.<Object[]>of(new Object[]{1, new BigDecimal("10000.00")}))
+                .when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
+        // Текущий год: только Январь = 11000 (transfer-расход 50000 исключён)
+        doReturn(List.<Object[]>of(new Object[]{1, new BigDecimal("11000.00")}))
+                .when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
+
+        MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
+
+        // Инфляция рассчитана только по non-transfer расходам: (11000-10000)/10000*100 = 10.0%
+        assertThat(result.getMonthlyData().get(0).getAmount()).isEqualByComparingTo(new BigDecimal("10.0"));
+        verify(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
+        verify(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
+    }
+
+    @Test
     @DisplayName("Должен корректно рассчитать среднее предыдущего года из нескольких месяцев")
     void shouldCalculatePreviousYearAverageFromMultipleMonths() {
         int year = 2025;
@@ -442,13 +463,13 @@ class InflationMetricServiceUnitTest {
                 new Object[]{8, new BigDecimal("30000.00")},
                 new Object[]{11, new BigDecimal("40000.00")}
         );
-        doReturn(prevYearData).when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+        doReturn(prevYearData).when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
 
         // Текущий год: Январь=25000 (точно равно среднему)
         List<Object[]> currentYearData = List.<Object[]>of(
                 new Object[]{1, new BigDecimal("25000.00")}
         );
-        doReturn(currentYearData).when(expenseRepository).findMonthlyExpenseByUserIdAndYear(userId, year);
+        doReturn(currentYearData).when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
 
         MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
 

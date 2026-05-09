@@ -48,8 +48,8 @@ public class InflationMetricService extends AbstractMetricService {
                                 BigDecimal avgCurrent, BigDecimal avgPrevious, BigDecimal changePercent) {}
 
     private List<CategoryInflationDto> buildCategoryBreakdown(UUID userId, int year) {
-        List<Object[]> currentStats = expenseRepository.findCategoryStatsByUserIdAndYear(userId, year);
-        List<Object[]> previousStats = expenseRepository.findCategoryStatsByUserIdAndYear(userId, year - 1);
+        List<Object[]> currentStats = expenseRepository.findNonTransferCategoryStatsByUserIdAndYear(userId, year);
+        List<Object[]> previousStats = expenseRepository.findNonTransferCategoryStatsByUserIdAndYear(userId, year - 1);
 
         Map<UUID, Object[]> previousMap = toPreviousMap(previousStats);
 
@@ -149,14 +149,14 @@ public class InflationMetricService extends AbstractMetricService {
     @Override
     protected List<Object[]> findMonthlyData(UUID userId, int year) {
         BigDecimal previousYearAvg = calculateAverage(
-                expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year - 1));
+                expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1));
 
         if (previousYearAvg.compareTo(BigDecimal.ZERO) == 0) {
             return List.of();
         }
 
         Map<Integer, BigDecimal> expenseByMonth = buildMonthlyMap(
-                expenseRepository.findMonthlyExpenseByUserIdAndYear(userId, year)
+                expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)
         );
 
         List<Object[]> result = new ArrayList<>();

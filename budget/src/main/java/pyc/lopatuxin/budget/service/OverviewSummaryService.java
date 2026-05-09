@@ -127,7 +127,7 @@ public class OverviewSummaryService {
 
     private List<CategorySummaryDto> buildTopCategorySummaries(UUID userId, LocalDate startDate, LocalDate endDate) {
         Map<UUID, BigDecimal> expensesByCategory = expenseRepository
-                .sumAmountByCategoryForUserAndDateBetween(userId, startDate, endDate)
+                .sumNonTransferAmountByCategoryForUserAndDateBetween(userId, startDate, endDate)
                 .stream()
                 .collect(Collectors.toMap(
                         row -> (UUID) row[0],

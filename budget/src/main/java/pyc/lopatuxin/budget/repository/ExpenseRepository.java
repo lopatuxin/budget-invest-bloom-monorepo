@@ -27,7 +27,8 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
     BigDecimal sumByUserId(@Param("userId") UUID userId);
 
     /**
-     * Возвращает суммарные расходы пользователя за указанный диапазон дат.
+     * Возвращает суммарные не-трансферные расходы пользователя за указанный диапазон дат.
+     * Записи с isTransfer=true (инвестиции и переводы между активами) исключаются.
      *
      * @param userId    идентификатор пользователя
      * @param startDate первый день периода (включительно)
@@ -40,6 +41,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
             WHERE e.userId = :userId
               AND e.date >= :startDate
               AND e.date <= :endDate
+              AND e.isTransfer = false
             """)
     Optional<BigDecimal> sumAmountByUserIdAndDateBetween(
             @Param("userId") UUID userId,
@@ -71,6 +73,31 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
     );
 
     /**
+     * Возвращает суммарные не-трансферные расходы по каждой категории для пользователя за указанный диапазон дат.
+     * Записи с isTransfer=true (инвестиции и переводы между активами) исключаются.
+     * Каждый элемент результата — массив из двух значений: [categoryId (UUID), sum (BigDecimal)].
+     *
+     * @param userId    идентификатор пользователя
+     * @param startDate первый день периода (включительно)
+     * @param endDate   последний день периода (включительно)
+     * @return список массивов [categoryId, totalAmount] сгруппированных по категории
+     */
+    @Query("""
+            SELECT e.category.id, SUM(e.amount)
+            FROM Expense e
+            WHERE e.userId = :userId
+              AND e.date >= :startDate
+              AND e.date <= :endDate
+              AND e.isTransfer = false
+            GROUP BY e.category.id
+            """)
+    List<Object[]> sumNonTransferAmountByCategoryForUserAndDateBetween(
+            @Param("userId") UUID userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    /**
      * Возвращает помесячные суммы расходов пользователя за указанный год.
      *
      * @param userId идентификатор пользователя
@@ -86,6 +113,28 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
             ORDER BY MONTH(e.date)
             """)
     List<Object[]> findMonthlyExpenseByUserIdAndYear(
+            @Param("userId") UUID userId,
+            @Param("year") int year
+    );
+
+    /**
+     * Возвращает помесячные суммы не-трансферных расходов пользователя за указанный год.
+     * Записи с isTransfer=true (инвестиции и переводы между активами) исключаются.
+     *
+     * @param userId идентификатор пользователя
+     * @param year   календарный год
+     * @return список пар [номер месяца (Integer), сумма (BigDecimal)]
+     */
+    @Query("""
+            SELECT MONTH(e.date), SUM(e.amount)
+            FROM Expense e
+            WHERE e.userId = :userId
+              AND YEAR(e.date) = :year
+              AND e.isTransfer = false
+            GROUP BY MONTH(e.date)
+            ORDER BY MONTH(e.date)
+            """)
+    List<Object[]> findMonthlyNonTransferExpenseByUserIdAndYear(
             @Param("userId") UUID userId,
             @Param("year") int year
     );
@@ -177,6 +226,28 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
             GROUP BY e.category.id, e.category.name, e.category.emoji
             """)
     List<Object[]> findCategoryStatsByUserIdAndYear(
+            @Param("userId") UUID userId,
+            @Param("year") int year
+    );
+
+    /**
+     * Returns aggregated non-transfer expense stats per category for a given user and year.
+     * Entries with isTransfer=true (investments and transfers between assets) are excluded.
+     * Each result element: [categoryId (UUID), name (String), emoji (String), monthCount (Long), totalAmount (BigDecimal)].
+     *
+     * @param userId identifier of the user
+     * @param year   calendar year
+     * @return list of arrays with category stats
+     */
+    @Query("""
+            SELECT e.category.id, e.category.name, e.category.emoji, COUNT(DISTINCT MONTH(e.date)), SUM(e.amount)
+            FROM Expense e
+            WHERE e.userId = :userId
+              AND YEAR(e.date) = :year
+              AND e.isTransfer = false
+            GROUP BY e.category.id, e.category.name, e.category.emoji
+            """)
+    List<Object[]> findNonTransferCategoryStatsByUserIdAndYear(
             @Param("userId") UUID userId,
             @Param("year") int year
     );

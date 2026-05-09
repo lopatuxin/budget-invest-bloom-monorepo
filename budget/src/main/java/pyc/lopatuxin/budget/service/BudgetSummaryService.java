@@ -76,7 +76,7 @@ public class BudgetSummaryService {
      */
     private BigDecimal calculatePersonalInflation(UUID userId, int month, int year) {
         List<Object[]> currentYearMonthly = expenseRepository
-                .findMonthlyExpenseByUserIdAndYear(userId, year);
+                .findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
         List<Object[]> currentYearUpToMonth = currentYearMonthly.stream()
                 .filter(row -> ((Number) row[0]).intValue() <= month)
                 .toList();
@@ -88,7 +88,7 @@ public class BudgetSummaryService {
         BigDecimal currentYearAvg = calculateAverageFromMonthlyRows(currentYearUpToMonth);
 
         List<Object[]> previousYearMonthly = expenseRepository
-                .findMonthlyExpenseByUserIdAndYear(userId, year - 1);
+                .findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
 
         if (previousYearMonthly.isEmpty()) {
             return BigDecimal.ZERO;
@@ -136,7 +136,7 @@ public class BudgetSummaryService {
         List<Category> categories = categoryRepository.findUserCategoriesByUserId(userId);
 
         Map<UUID, BigDecimal> expensesByCategory = expenseRepository
-                .sumAmountByCategoryForUserAndDateBetween(userId, startDate, endDate)
+                .sumNonTransferAmountByCategoryForUserAndDateBetween(userId, startDate, endDate)
                 .stream()
                 .collect(Collectors.toMap(
                         row -> (UUID) row[0],

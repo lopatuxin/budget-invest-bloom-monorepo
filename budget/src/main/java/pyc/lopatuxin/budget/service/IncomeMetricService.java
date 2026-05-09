@@ -34,7 +34,7 @@ public class IncomeMetricService extends AbstractMetricService {
 
     @Override
     protected List<Object[]> findMonthlyData(UUID userId, int year) {
-        return incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year);
+        return incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year);
     }
 
     @Override

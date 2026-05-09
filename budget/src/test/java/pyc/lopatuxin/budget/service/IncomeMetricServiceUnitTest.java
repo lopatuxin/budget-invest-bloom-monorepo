@@ -47,7 +47,7 @@ class IncomeMetricServiceUnitTest {
                 new Object[]{6, new BigDecimal("150000.00")},
                 new Object[]{9, new BigDecimal("120000.00")}
         );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
 
         MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
 
@@ -80,14 +80,14 @@ class IncomeMetricServiceUnitTest {
         // changePercent = (120000 - 150000) / 150000 * 100 = -20.0%
         assertThat(result.getChangePercent()).isEqualTo("-20.0%");
 
-        verify(incomeRepository).findMonthlyIncomeByUserIdAndYear(userId, year);
+        verify(incomeRepository).findMonthlyNonTransferIncomeByUserIdAndYear(userId, year);
     }
 
     @Test
     @DisplayName("Должен вернуть нулевые показатели при отсутствии данных за год")
     void shouldReturnZeroValuesWhenNoDataExists() {
         int year = 2025;
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
         MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
 
@@ -112,7 +112,7 @@ class IncomeMetricServiceUnitTest {
         List<Object[]> dbData = List.<Object[]>of(
                 new Object[]{5, new BigDecimal("200000.00")}
         );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
 
         MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
 
@@ -149,7 +149,7 @@ class IncomeMetricServiceUnitTest {
                 new Object[]{11, new BigDecimal("145000")},
                 new Object[]{12, new BigDecimal("160000")}
         );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
 
         MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
 
@@ -184,7 +184,7 @@ class IncomeMetricServiceUnitTest {
                 new Object[]{1, new BigDecimal("50000")},
                 new Object[]{12, new BigDecimal("70000")}
         );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
 
         MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
 
@@ -201,7 +201,7 @@ class IncomeMetricServiceUnitTest {
                 new Object[]{2, new BigDecimal("80000")},
                 new Object[]{10, new BigDecimal("95000")}
         );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
 
         MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
 
@@ -216,7 +216,7 @@ class IncomeMetricServiceUnitTest {
     @DisplayName("Должен корректно заполнить названия всех 12 месяцев")
     void shouldPopulateAllMonthNamesCorrectly() {
         int year = 2025;
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
         MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
 
@@ -239,7 +239,7 @@ class IncomeMetricServiceUnitTest {
                 new Object[]{7, new BigDecimal("250000")},
                 new Object[]{11, new BigDecimal("180000")}
         );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
 
         MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
 
@@ -255,11 +255,34 @@ class IncomeMetricServiceUnitTest {
                 new Object[]{3, new BigDecimal("200000")},
                 new Object[]{7, new BigDecimal("160000")}
         );
-        when(incomeRepository.findMonthlyIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
 
         MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
 
         // (160000 - 200000) / 200000 * 100 = -20.0%
         assertThat(result.getChangePercent()).isEqualTo("-20.0%");
+    }
+
+    @Test
+    @DisplayName("NonTransfer-метод не должен включать transfer-доходы в агрегат")
+    void shouldExcludeTransferIncomesFromMetric() {
+        // Arrange: репозиторий возвращает только non-transfer доходы.
+        // Transfer-запись (продажа акций / зачисление с брокерского счёта) уже отфильтрована.
+        int year = 2025;
+        // Только обычный доход (Апрель = 90000); transfer-доход уже исключён репозиторием
+        List<Object[]> nonTransferOnly = List.<Object[]>of(
+                new Object[]{4, new BigDecimal("90000.00")}
+        );
+        when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year))
+                .thenReturn(nonTransferOnly);
+
+        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+
+        // Только один месяц с данными; transfer-доход не учтён
+        assertThat(result.getCurrentValue()).isEqualByComparingTo(new BigDecimal("90000.00"));
+        assertThat(result.getYearlyMax()).isEqualByComparingTo(new BigDecimal("90000.00"));
+        // Январь (transfer) = 0 в агрегате
+        assertThat(result.getMonthlyData().get(0).getAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+        verify(incomeRepository).findMonthlyNonTransferIncomeByUserIdAndYear(userId, year);
     }
 }

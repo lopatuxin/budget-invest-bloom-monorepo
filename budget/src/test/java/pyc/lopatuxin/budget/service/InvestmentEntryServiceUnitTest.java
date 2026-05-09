@@ -25,6 +25,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -87,7 +88,7 @@ class InvestmentEntryServiceUnitTest {
 
         when(categoryService.ensureSystemCategory(eq(userId), eq("Инвестиции"), eq("💎")))
                 .thenReturn(systemCategory);
-        when(expenseService.createInternal(any(), any(), any(), any(), any()))
+        when(expenseService.createInternal(any(), any(), any(), any(), any(), anyBoolean()))
                 .thenReturn(savedExpense);
 
         InvestmentEntryResponseDto result = investmentEntryService.create(userId, dto);
@@ -96,7 +97,7 @@ class InvestmentEntryServiceUnitTest {
         assertThat(result.getEntryId()).isEqualTo(expenseId);
         verify(categoryService).ensureSystemCategory(userId, "Инвестиции", "💎");
         verify(expenseService).createInternal(
-                eq(userId), eq(systemCategory), eq(new BigDecimal("10000.00")), any(), eq(null));
+                eq(userId), eq(systemCategory), eq(new BigDecimal("10000.00")), any(), eq(null), eq(true));
     }
 
     @Test
@@ -117,7 +118,7 @@ class InvestmentEntryServiceUnitTest {
                 .executedAt(Instant.parse("2026-05-09T11:00:00Z"))
                 .build();
 
-        when(incomeService.createInternal(any(), any(), any(), any(), any()))
+        when(incomeService.createInternal(any(), any(), any(), any(), any(), anyBoolean()))
                 .thenReturn(savedIncome);
 
         InvestmentEntryResponseDto result = investmentEntryService.create(userId, dto);
@@ -128,13 +129,13 @@ class InvestmentEntryServiceUnitTest {
         ArgumentCaptor<IncomeSource> sourceCaptor = ArgumentCaptor.forClass(IncomeSource.class);
         ArgumentCaptor<String> descCaptor = ArgumentCaptor.forClass(String.class);
         verify(incomeService).createInternal(
-                eq(userId), sourceCaptor.capture(), eq(new BigDecimal("15000.00")), any(), descCaptor.capture());
+                eq(userId), sourceCaptor.capture(), eq(new BigDecimal("15000.00")), any(), descCaptor.capture(), eq(true));
         assertThat(sourceCaptor.getValue()).isEqualTo(IncomeSource.INVESTMENTS);
         assertThat(descCaptor.getValue()).isEqualTo("Продажа активов");
 
         // BUY-ветка не вызывается
         verify(categoryService, never()).ensureSystemCategory(any(), any(), any());
-        verify(expenseService, never()).createInternal(any(), any(), any(), any(), any());
+        verify(expenseService, never()).createInternal(any(), any(), any(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -151,7 +152,7 @@ class InvestmentEntryServiceUnitTest {
 
         when(categoryService.ensureSystemCategory(userId, "Инвестиции", "💎"))
                 .thenReturn(systemCategory);
-        when(expenseService.createInternal(any(), any(), any(), any(), any()))
+        when(expenseService.createInternal(any(), any(), any(), any(), any(), anyBoolean()))
                 .thenReturn(expense1)
                 .thenReturn(expense2);
 
