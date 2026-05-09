@@ -32,8 +32,8 @@ public class BalanceService {
     public LifetimeBalanceResponseDto getLifetimeBalance(UUID userId) {
         log.debug("Computing lifetime balance for userId={}", userId);
 
-        BigDecimal totalIncome = incomeRepository.sumByUserId(userId);
-        BigDecimal totalExpense = expenseRepository.sumByUserId(userId);
+        BigDecimal totalIncome = incomeRepository.sumNonTransferByUserId(userId);
+        BigDecimal totalExpense = expenseRepository.sumNonTransferByUserId(userId);
         BigDecimal freeCapital = totalIncome.subtract(totalExpense);
 
         return LifetimeBalanceResponseDto.builder()

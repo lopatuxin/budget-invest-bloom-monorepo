@@ -135,15 +135,38 @@ class IncomeRepositoryTransferTest extends AbstractIntegrationTest {
         assertThat(result.get()).isEqualByComparingTo(new BigDecimal("100000.00"));
     }
 
-    // ─── sumByUserId (lifetime, без фильтра isTransfer) ──────────────────────
+    // ─── sumNonTransferByUserId (lifetime, only non-transfer incomes) ────────
 
     @Test
-    @DisplayName("sumByUserId: учитывает transfer-записи (lifetime-баланс не фильтрует)")
-    void sumByUserId_shouldIncludeTransferEntries() {
+    @DisplayName("sumNonTransferByUserId: исключает transfer-записи из lifetime-суммы")
+    void sumNonTransferByUserId_shouldExcludeTransferEntries() {
         saveIncome(new BigDecimal("80000.00"), LocalDate.of(2025, 1, 5), false);
-        saveIncome(new BigDecimal("20000.00"), LocalDate.of(2025, 1, 6), true);   // transfer
+        saveIncome(new BigDecimal("20000.00"), LocalDate.of(2025, 1, 6), true);   // transfer — не учитывается
 
-        BigDecimal total = incomeRepository.sumByUserId(userId);
+        BigDecimal total = incomeRepository.sumNonTransferByUserId(userId);
+
+        assertThat(total).isEqualByComparingTo(new BigDecimal("80000.00"));
+    }
+
+    @Test
+    @DisplayName("sumNonTransferByUserId: возвращает 0 если все записи transfer")
+    void sumNonTransferByUserId_allTransfer_shouldReturnZero() {
+        saveIncome(new BigDecimal("50000.00"), LocalDate.of(2025, 2, 1), true);
+        saveIncome(new BigDecimal("30000.00"), LocalDate.of(2025, 3, 1), true);
+
+        BigDecimal total = incomeRepository.sumNonTransferByUserId(userId);
+
+        assertThat(total).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("sumNonTransferByUserId: суммирует все non-transfer доходы за всё время")
+    void sumNonTransferByUserId_multipleDates_shouldSumAllNonTransfer() {
+        saveIncome(new BigDecimal("60000.00"), LocalDate.of(2024, 6, 1),  false);
+        saveIncome(new BigDecimal("40000.00"), LocalDate.of(2025, 1, 15), false);
+        saveIncome(new BigDecimal("99999.00"), LocalDate.of(2025, 5, 10), true);   // transfer — не учитывается
+
+        BigDecimal total = incomeRepository.sumNonTransferByUserId(userId);
 
         assertThat(total).isEqualByComparingTo(new BigDecimal("100000.00"));
     }

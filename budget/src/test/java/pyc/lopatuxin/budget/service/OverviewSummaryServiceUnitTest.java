@@ -60,7 +60,7 @@ class OverviewSummaryServiceUnitTest {
                 .thenReturn(Optional.empty());
         lenient().when(capitalRecordRepository.findLatestByUserId(any(), any()))
                 .thenReturn(Collections.emptyList());
-        lenient().when(expenseRepository.sumAmountByCategoryForUserAndDateBetween(any(), any(), any()))
+        lenient().when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(any(), any(), any()))
                 .thenReturn(Collections.emptyList());
         lenient().when(categoryRepository.findAllById(any()))
                 .thenReturn(Collections.emptyList());

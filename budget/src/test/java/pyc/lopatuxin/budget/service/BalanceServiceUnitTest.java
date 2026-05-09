@@ -40,8 +40,8 @@ class BalanceServiceUnitTest {
     @Test
     @DisplayName("getLifetimeBalance: freeCapital = totalIncome - totalExpense")
     void getLifetimeBalance_shouldReturnCorrectFreeCapital() {
-        when(incomeRepository.sumByUserId(userId)).thenReturn(new BigDecimal("500000.00"));
-        when(expenseRepository.sumByUserId(userId)).thenReturn(new BigDecimal("375000.00"));
+        when(incomeRepository.sumNonTransferByUserId(userId)).thenReturn(new BigDecimal("500000.00"));
+        when(expenseRepository.sumNonTransferByUserId(userId)).thenReturn(new BigDecimal("375000.00"));
 
         LifetimeBalanceResponseDto result = balanceService.getLifetimeBalance(userId);
 
@@ -54,8 +54,8 @@ class BalanceServiceUnitTest {
     @DisplayName("getLifetimeBalance: при нулевых доходах и расходах — возвращает нули, без NPE")
     void getLifetimeBalance_shouldReturnZeroesWhenNoData() {
         // COALESCE(SUM(...), 0) в репозитории возвращает BigDecimal.ZERO при пустой таблице
-        when(incomeRepository.sumByUserId(userId)).thenReturn(BigDecimal.ZERO);
-        when(expenseRepository.sumByUserId(userId)).thenReturn(BigDecimal.ZERO);
+        when(incomeRepository.sumNonTransferByUserId(userId)).thenReturn(BigDecimal.ZERO);
+        when(expenseRepository.sumNonTransferByUserId(userId)).thenReturn(BigDecimal.ZERO);
 
         LifetimeBalanceResponseDto result = balanceService.getLifetimeBalance(userId);
 
@@ -68,10 +68,10 @@ class BalanceServiceUnitTest {
     @Test
     @DisplayName("getLifetimeBalance: фильтрует по userId — суммы другого пользователя не учитываются")
     void getLifetimeBalance_shouldFilterByUserId() {
-        // Service delegates filtering to the repository; we verify that it calls sumByUserId(userId)
+        // Service delegates filtering to the repository; we verify that it calls sumNonTransferByUserId(userId)
         // and returns exactly what that call returns — not any data for another user.
-        when(incomeRepository.sumByUserId(userId)).thenReturn(new BigDecimal("100000.00"));
-        when(expenseRepository.sumByUserId(userId)).thenReturn(new BigDecimal("40000.00"));
+        when(incomeRepository.sumNonTransferByUserId(userId)).thenReturn(new BigDecimal("100000.00"));
+        when(expenseRepository.sumNonTransferByUserId(userId)).thenReturn(new BigDecimal("40000.00"));
 
         LifetimeBalanceResponseDto result = balanceService.getLifetimeBalance(userId);
 
@@ -83,11 +83,28 @@ class BalanceServiceUnitTest {
     @Test
     @DisplayName("getLifetimeBalance: когда расходы превышают доходы — freeCapital отрицательный")
     void getLifetimeBalance_shouldReturnNegativeFreeCapitalWhenExpensesExceedIncome() {
-        when(incomeRepository.sumByUserId(userId)).thenReturn(new BigDecimal("10000.00"));
-        when(expenseRepository.sumByUserId(userId)).thenReturn(new BigDecimal("15000.00"));
+        when(incomeRepository.sumNonTransferByUserId(userId)).thenReturn(new BigDecimal("10000.00"));
+        when(expenseRepository.sumNonTransferByUserId(userId)).thenReturn(new BigDecimal("15000.00"));
 
         LifetimeBalanceResponseDto result = balanceService.getLifetimeBalance(userId);
 
         assertThat(result.getFreeCapital()).isEqualByComparingTo(new BigDecimal("-5000.00"));
+    }
+
+    @Test
+    @DisplayName("getLifetimeBalance: transfer-расходы (BUY) не влияют на чистый капитал — регрессия 'Чистый капитал = -1.15M'")
+    void getLifetimeBalance_transferExpensesShouldNotReduceFreeCapital() {
+        // Сценарий: 1 обычный доход 100k, 5 BUY по 200k (isTransfer=true), 1 обычный расход 30k.
+        // Репозиторий уже фильтрует: sumNonTransferByUserId учитывает только non-transfer.
+        // До починки (старый sumByUserId): totalExpense = 5*200k + 30k = 1030k → freeCapital = 100k - 1030k = -930k.
+        // После починки: totalExpense = 30k → freeCapital = 100k - 30k = 70k.
+        when(incomeRepository.sumNonTransferByUserId(userId)).thenReturn(new BigDecimal("100000.00"));
+        when(expenseRepository.sumNonTransferByUserId(userId)).thenReturn(new BigDecimal("30000.00"));
+
+        LifetimeBalanceResponseDto result = balanceService.getLifetimeBalance(userId);
+
+        assertThat(result.getTotalIncome()).isEqualByComparingTo(new BigDecimal("100000.00"));
+        assertThat(result.getTotalExpense()).isEqualByComparingTo(new BigDecimal("30000.00"));
+        assertThat(result.getFreeCapital()).isEqualByComparingTo(new BigDecimal("70000.00"));
     }
 }

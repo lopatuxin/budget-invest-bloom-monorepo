@@ -40,13 +40,14 @@ public interface IncomeRepository extends JpaRepository<Income, UUID> {
     );
 
     /**
-     * Возвращает суммарные доходы пользователя за всё время.
+     * Returns total non-transfer income for the user over all time.
+     * Entries with isTransfer=true (investment operations and asset transfers) are excluded.
      *
-     * @param userId идентификатор пользователя
-     * @return сумма всех доходов (0 если записей нет)
+     * @param userId identifier of the user
+     * @return sum of non-transfer incomes (0 if no records)
      */
-    @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Income i WHERE i.userId = :userId")
-    BigDecimal sumByUserId(@Param("userId") UUID userId);
+    @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Income i WHERE i.userId = :userId AND i.isTransfer = false")
+    BigDecimal sumNonTransferByUserId(@Param("userId") UUID userId);
 
     /**
      * Возвращает помесячные суммы доходов пользователя за указанный год.

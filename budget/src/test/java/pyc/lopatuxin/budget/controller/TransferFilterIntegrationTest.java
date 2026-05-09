@@ -192,12 +192,12 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.body.income", comparesEqualTo(100000.0)));
     }
 
-    // ─── BalanceService lifetime: transfer-записи ДОЛЖНЫ учитываться ──────────
+    // ─── BalanceService lifetime: transfer-записи НЕ учитываются (баг-фикс «Чистый капитал = -1.15M») ───
 
     @Test
-    @DisplayName("Lifetime balance: transfer-расходы и доходы учитываются в суммах за всё время")
-    void lifetimeBalance_shouldIncludeTransferEntries() throws Exception {
-        // Non-transfer расход 30000
+    @DisplayName("Lifetime balance: transfer-расходы не учитываются в totalExpense (баг-фикс чистого капитала)")
+    void lifetimeBalance_shouldExcludeTransferEntries() throws Exception {
+        // Non-transfer расход 30000 — учитывается
         expenseRepository.save(Expense.builder()
                 .userId(userId)
                 .category(userCategory)
@@ -206,7 +206,7 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                 .isTransfer(false)
                 .build());
 
-        // Transfer-расход (покупка активов) 50000 — должен войти в totalExpense
+        // Transfer-расход (BUY акций) 50000 — НЕ должен входить в totalExpense
         expenseRepository.save(Expense.builder()
                 .userId(userId)
                 .category(systemInvestCategory)
@@ -215,7 +215,7 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                 .isTransfer(true)
                 .build());
 
-        // Non-transfer доход 200000
+        // Non-transfer доход 200000 — учитывается
         incomeRepository.save(Income.builder()
                 .userId(userId)
                 .source(IncomeSource.SALARY)
@@ -224,7 +224,7 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                 .isTransfer(false)
                 .build());
 
-        // Transfer-доход (продажа активов) 40000 — должен войти в totalIncome
+        // Transfer-доход (SELL акций) 40000 — НЕ должен входить в totalIncome
         incomeRepository.save(Income.builder()
                 .userId(userId)
                 .source(IncomeSource.INVESTMENTS)
@@ -237,17 +237,18 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                         .content(buildLifetimeRequest(userId))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                // totalExpense = 30000 + 50000 = 80000 (включая transfer)
-                .andExpect(jsonPath("$.body.totalExpense", comparesEqualTo(80000.0)))
-                // totalIncome = 200000 + 40000 = 240000 (включая transfer)
-                .andExpect(jsonPath("$.body.totalIncome", comparesEqualTo(240000.0)))
-                // freeCapital = 240000 - 80000 = 160000
-                .andExpect(jsonPath("$.body.freeCapital", comparesEqualTo(160000.0)));
+                // totalExpense = 30000 (transfer BUY 50000 исключён)
+                .andExpect(jsonPath("$.body.totalExpense", comparesEqualTo(30000.0)))
+                // totalIncome = 200000 (transfer SELL 40000 исключён)
+                .andExpect(jsonPath("$.body.totalIncome", comparesEqualTo(200000.0)))
+                // freeCapital = 200000 - 30000 = 170000
+                .andExpect(jsonPath("$.body.freeCapital", comparesEqualTo(170000.0)));
     }
 
     @Test
-    @DisplayName("Lifetime balance: только transfer-записи — все суммируются корректно")
-    void lifetimeBalance_onlyTransferEntries_shouldSumAll() throws Exception {
+    @DisplayName("Lifetime balance: только transfer-записи — totalExpense и totalIncome равны нулю, freeCapital=0")
+    void lifetimeBalance_onlyTransferEntries_shouldReturnZeros() throws Exception {
+        // Только transfer — ни одна запись не должна учитываться в lifetime balance
         expenseRepository.save(Expense.builder()
                 .userId(userId)
                 .category(systemInvestCategory)
@@ -268,9 +269,9 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                         .content(buildLifetimeRequest(userId))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.body.totalExpense", comparesEqualTo(100000.0)))
-                .andExpect(jsonPath("$.body.totalIncome", comparesEqualTo(120000.0)))
-                .andExpect(jsonPath("$.body.freeCapital", comparesEqualTo(20000.0)));
+                .andExpect(jsonPath("$.body.totalExpense", comparesEqualTo(0)))
+                .andExpect(jsonPath("$.body.totalIncome", comparesEqualTo(0)))
+                .andExpect(jsonPath("$.body.freeCapital", comparesEqualTo(0)));
     }
 
     // ─── BalanceMetricService: помесячная разбивка исключает transfer ─────────

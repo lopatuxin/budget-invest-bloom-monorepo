@@ -80,7 +80,7 @@ public class CategoryAnalyticsService {
 
     private List<MonthlyMetricDto> buildMonthlyData(UUID userId, UUID categoryId, int year) {
         Map<Integer, BigDecimal> dataByMonth = expenseRepository
-                .findMonthlyExpenseByCategoryAndUserIdAndYear(userId, categoryId, year)
+                .findMonthlyNonTransferExpenseByCategoryAndUserIdAndYear(userId, categoryId, year)
                 .stream()
                 .collect(Collectors.toMap(
                         row -> ((Number) row[0]).intValue(),
@@ -99,7 +99,7 @@ public class CategoryAnalyticsService {
     }
 
     private List<YearlyMetricDto> buildYearlyData(UUID userId, UUID categoryId) {
-        return expenseRepository.findYearlyExpenseByCategoryAndUserId(userId, categoryId)
+        return expenseRepository.findYearlyNonTransferExpenseByCategoryAndUserId(userId, categoryId)
                 .stream()
                 .map(row -> YearlyMetricDto.builder()
                         .year(((Number) row[0]).intValue())

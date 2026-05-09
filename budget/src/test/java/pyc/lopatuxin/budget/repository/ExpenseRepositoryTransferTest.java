@@ -201,17 +201,112 @@ class ExpenseRepositoryTransferTest extends AbstractIntegrationTest {
         assertThat(result.get()).isEqualByComparingTo(new BigDecimal("8000.00"));
     }
 
-    // ─── sumByUserId (lifetime, без фильтра isTransfer) ──────────────────────
+    // ─── sumNonTransferByUserId (lifetime, only non-transfer expenses) ───────
 
     @Test
-    @DisplayName("sumByUserId: учитывает transfer-записи (lifetime-баланс не фильтрует)")
-    void sumByUserId_shouldIncludeTransferEntries() {
+    @DisplayName("sumNonTransferByUserId: исключает transfer-расходы из lifetime-суммы")
+    void sumNonTransferByUserId_shouldExcludeTransferEntries() {
         saveExpense(new BigDecimal("10000.00"), LocalDate.of(2025, 1, 5), false);
-        saveExpense(new BigDecimal("5000.00"),  LocalDate.of(2025, 1, 6), true);   // transfer
+        saveExpense(new BigDecimal("5000.00"),  LocalDate.of(2025, 1, 6), true);   // transfer — не учитывается
 
-        BigDecimal total = expenseRepository.sumByUserId(userId);
+        BigDecimal total = expenseRepository.sumNonTransferByUserId(userId);
 
-        assertThat(total).isEqualByComparingTo(new BigDecimal("15000.00"));
+        assertThat(total).isEqualByComparingTo(new BigDecimal("10000.00"));
+    }
+
+    @Test
+    @DisplayName("sumNonTransferByUserId: возвращает 0 если все расходы transfer")
+    void sumNonTransferByUserId_allTransfer_shouldReturnZero() {
+        saveExpense(new BigDecimal("200000.00"), LocalDate.of(2025, 2, 1), true);
+        saveExpense(new BigDecimal("150000.00"), LocalDate.of(2025, 3, 5), true);
+
+        BigDecimal total = expenseRepository.sumNonTransferByUserId(userId);
+
+        assertThat(total).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("sumNonTransferByUserId: суммирует все non-transfer расходы за всё время")
+    void sumNonTransferByUserId_multipleDates_shouldSumAllNonTransfer() {
+        saveExpense(new BigDecimal("25000.00"), LocalDate.of(2024, 3, 10), false);
+        saveExpense(new BigDecimal("15000.00"), LocalDate.of(2025, 1, 20), false);
+        saveExpense(new BigDecimal("999000.00"), LocalDate.of(2025, 4, 1), true);  // transfer — не учитывается
+
+        BigDecimal total = expenseRepository.sumNonTransferByUserId(userId);
+
+        assertThat(total).isEqualByComparingTo(new BigDecimal("40000.00"));
+    }
+
+    // ─── findMonthlyNonTransferExpenseByCategoryAndUserIdAndYear ─────────────
+
+    @Test
+    @DisplayName("findMonthlyNonTransferExpenseByCategoryAndUserIdAndYear: BUY с isTransfer=true не попадает в помесячную агрегацию")
+    void findMonthlyNonTransferByCategoryAndYear_shouldExcludeTransferBuy() {
+        // 1000 обычный расход в январе
+        saveExpense(new BigDecimal("1000.00"), LocalDate.of(2025, 1, 10), false);
+        // 50000 BUY (isTransfer=true) в той же категории в январе — не должен учитываться
+        saveExpense(new BigDecimal("50000.00"), LocalDate.of(2025, 1, 15), true);
+
+        List<Object[]> result = expenseRepository.findMonthlyNonTransferExpenseByCategoryAndUserIdAndYear(
+                userId, category.getId(), 2025);
+
+        assertThat(result).hasSize(1);
+        int month = ((Number) result.get(0)[0]).intValue();
+        BigDecimal amount = (BigDecimal) result.get(0)[1];
+        assertThat(month).isEqualTo(1);
+        assertThat(amount).isEqualByComparingTo(new BigDecimal("1000.00"));
+    }
+
+    @Test
+    @DisplayName("findMonthlyNonTransferExpenseByCategoryAndUserIdAndYear: возвращает пустой список если все расходы transfer")
+    void findMonthlyNonTransferByCategoryAndYear_allTransfer_shouldReturnEmpty() {
+        saveExpense(new BigDecimal("50000.00"), LocalDate.of(2025, 2, 1), true);
+        saveExpense(new BigDecimal("75000.00"), LocalDate.of(2025, 4, 1), true);
+
+        List<Object[]> result = expenseRepository.findMonthlyNonTransferExpenseByCategoryAndUserIdAndYear(
+                userId, category.getId(), 2025);
+
+        assertThat(result).isEmpty();
+    }
+
+    // ─── findYearlyNonTransferExpenseByCategoryAndUserId ─────────────────────
+
+    @Test
+    @DisplayName("findYearlyNonTransferExpenseByCategoryAndUserId: BUY с isTransfer=true не попадает в годовую агрегацию")
+    void findYearlyNonTransferByCategoryAndUserId_shouldExcludeTransferBuy() {
+        // 1000 обычный расход в 2025
+        saveExpense(new BigDecimal("1000.00"), LocalDate.of(2025, 3, 10), false);
+        // 50000 BUY (isTransfer=true) в 2025 — не должен учитываться
+        saveExpense(new BigDecimal("50000.00"), LocalDate.of(2025, 3, 20), true);
+        // 2000 обычный в 2024
+        saveExpense(new BigDecimal("2000.00"), LocalDate.of(2024, 11, 5), false);
+
+        List<Object[]> result = expenseRepository.findYearlyNonTransferExpenseByCategoryAndUserId(
+                userId, category.getId());
+
+        assertThat(result).hasSize(2);
+        // Сортировка по году
+        int year2024 = ((Number) result.get(0)[0]).intValue();
+        BigDecimal amount2024 = (BigDecimal) result.get(0)[1];
+        int year2025 = ((Number) result.get(1)[0]).intValue();
+        BigDecimal amount2025 = (BigDecimal) result.get(1)[1];
+
+        assertThat(year2024).isEqualTo(2024);
+        assertThat(amount2024).isEqualByComparingTo(new BigDecimal("2000.00"));
+        assertThat(year2025).isEqualTo(2025);
+        assertThat(amount2025).isEqualByComparingTo(new BigDecimal("1000.00"));
+    }
+
+    @Test
+    @DisplayName("findYearlyNonTransferExpenseByCategoryAndUserId: возвращает пустой список если все расходы transfer")
+    void findYearlyNonTransferByCategoryAndUserId_allTransfer_shouldReturnEmpty() {
+        saveExpense(new BigDecimal("100000.00"), LocalDate.of(2024, 5, 1), true);
+        saveExpense(new BigDecimal("200000.00"), LocalDate.of(2025, 6, 1), true);
+
+        List<Object[]> result = expenseRepository.findYearlyNonTransferExpenseByCategoryAndUserId(
+                userId, category.getId());
+
+        assertThat(result).isEmpty();
     }
 
     // ─── helpers ─────────────────────────────────────────────────────────────
