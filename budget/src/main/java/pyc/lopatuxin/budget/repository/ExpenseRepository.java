@@ -18,6 +18,15 @@ import java.util.UUID;
 public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
 
     /**
+     * Возвращает суммарные расходы пользователя за всё время.
+     *
+     * @param userId идентификатор пользователя
+     * @return сумма всех расходов (0 если записей нет)
+     */
+    @Query("SELECT COALESCE(SUM(e.amount), 0) FROM Expense e WHERE e.userId = :userId")
+    BigDecimal sumByUserId(@Param("userId") UUID userId);
+
+    /**
      * Возвращает суммарные расходы пользователя за указанный диапазон дат.
      *
      * @param userId    идентификатор пользователя

@@ -42,6 +42,9 @@ public class Category {
     @Column(length = 10)
     private String emoji;
 
+    @Builder.Default
+    private boolean system = false;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

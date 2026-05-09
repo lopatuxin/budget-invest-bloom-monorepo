@@ -177,6 +177,9 @@ services:
       SPRING_DATASOURCE_USERNAME: ${INVESTMENT_POSTGRES_USER:-investment_user}
       SPRING_DATASOURCE_PASSWORD: ${INVESTMENT_POSTGRES_PASSWORD:-dev_password}
 
+      # Budget service URL for inter-service calls (BUY/SELL → expense/income sync)
+      BUDGET_SERVICE_URL: ${BUDGET_SERVICE_URL:-http://budget-service:8083}
+
       # DevTools Configuration
       SPRING_DEVTOOLS_RESTART_ENABLED: ${DEVTOOLS_RESTART_ENABLED:-true}
       SPRING_DEVTOOLS_LIVERELOAD_ENABLED: ${DEVTOOLS_LIVERELOAD_ENABLED:-true}
@@ -191,6 +194,8 @@ services:
       - investment_gradle_cache:/root/.gradle
     depends_on:
       investment-postgres:
+        condition: service_healthy
+      budget-service:
         condition: service_healthy
     restart: unless-stopped
     networks:

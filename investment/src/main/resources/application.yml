@@ -5,6 +5,10 @@ spring:
     deserialization:
       fail-on-unknown-properties: false
 
+budget:
+  service:
+    url: ${BUDGET_SERVICE_URL:http://localhost:8083}
+
 moex:
   iss:
     base-url: https://iss.moex.com/iss

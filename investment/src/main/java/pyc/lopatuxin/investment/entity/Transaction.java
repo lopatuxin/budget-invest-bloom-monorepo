@@ -48,4 +48,6 @@ public class Transaction {
 
     @CreationTimestamp
     private Instant createdAt;
+
+    private UUID budgetEntryId;
 }

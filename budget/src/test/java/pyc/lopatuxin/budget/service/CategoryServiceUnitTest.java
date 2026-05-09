@@ -19,6 +19,7 @@ import pyc.lopatuxin.budget.repository.ExpenseRepository;
 import jakarta.persistence.EntityNotFoundException;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -316,5 +317,106 @@ class CategoryServiceUnitTest {
 
         verify(expenseRepository).deleteAllByCategoryId(categoryId);
         verify(categoryRepository).delete(category);
+    }
+
+    // --- ensureSystemCategory ---
+
+    @Test
+    @DisplayName("ensureSystemCategory: создаёт новую категорию с system=true при отсутствии")
+    void ensureSystemCategory_shouldCreateNewSystemCategory_whenAbsent() {
+        String name = "Инвестиции";
+        String emoji = "💎";
+
+        when(categoryRepository.findSystemCategoryByUserIdAndName(userId, name))
+                .thenReturn(Optional.empty());
+        when(categoryRepository.findByNameAndUserId(name, userId))
+                .thenReturn(Optional.empty());
+        when(categoryRepository.save(any(Category.class))).thenAnswer(invocation -> {
+            Category saved = invocation.getArgument(0);
+            saved.setId(UUID.randomUUID());
+            return saved;
+        });
+
+        Category result = categoryService.ensureSystemCategory(userId, name, emoji);
+
+        ArgumentCaptor<Category> captor = ArgumentCaptor.forClass(Category.class);
+        verify(categoryRepository).save(captor.capture());
+        Category saved = captor.getValue();
+
+        assertThat(saved.isSystem()).isTrue();
+        assertThat(saved.getName()).isEqualTo(name);
+        assertThat(saved.getEmoji()).isEqualTo(emoji);
+        assertThat(saved.getUserId()).isEqualTo(userId);
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("ensureSystemCategory: при повторном вызове возвращает существующую системную категорию без сохранения")
+    void ensureSystemCategory_shouldReturnExisting_whenAlreadyPresent() {
+        String name = "Инвестиции";
+        Category existing = Category.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .name(name)
+                .emoji("💎")
+                .budget(BigDecimal.ZERO)
+                .system(true)
+                .build();
+
+        when(categoryRepository.findSystemCategoryByUserIdAndName(userId, name))
+                .thenReturn(Optional.of(existing));
+
+        Category result = categoryService.ensureSystemCategory(userId, name, "💎");
+
+        assertThat(result).isSameAs(existing);
+        verify(categoryRepository, never()).save(any());
+        verify(categoryRepository, never()).findByNameAndUserId(any(), any());
+    }
+
+    @Test
+    @DisplayName("ensureSystemCategory: если пользователь уже создал user-категорию с тем же именем — бросает IllegalStateException")
+    void ensureSystemCategory_shouldThrowIllegalStateException_whenUserCategoryConflict() {
+        String name = "Инвестиции";
+        Category userCategory = Category.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .name(name)
+                .budget(BigDecimal.ZERO)
+                .system(false)
+                .build();
+
+        when(categoryRepository.findSystemCategoryByUserIdAndName(userId, name))
+                .thenReturn(Optional.empty());
+        when(categoryRepository.findByNameAndUserId(name, userId))
+                .thenReturn(Optional.of(userCategory));
+
+        assertThatThrownBy(() -> categoryService.ensureSystemCategory(userId, name, "💎"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Инвестиции");
+
+        verify(categoryRepository, never()).save(any());
+    }
+
+    // --- findUserCategoriesByUserId ---
+
+    @Test
+    @DisplayName("findUserCategoriesByUserId: не возвращает системные категории")
+    void findUserCategoriesByUserId_shouldNotReturnSystemCategories() {
+        Category userCategory = Category.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .name("Продукты")
+                .budget(new BigDecimal("10000.00"))
+                .system(false)
+                .build();
+
+        // Repository query already filters system=false, mock reflects that
+        when(categoryRepository.findUserCategoriesByUserId(userId))
+                .thenReturn(List.of(userCategory));
+
+        List<Category> result = categoryRepository.findUserCategoriesByUserId(userId);
+
+        assertThat(result).hasSize(1);
+        assertThat(result).noneMatch(Category::isSystem);
     }
 }

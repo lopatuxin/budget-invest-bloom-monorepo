@@ -7,9 +7,11 @@ import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.budget.dto.request.CreateIncomeDto;
 import pyc.lopatuxin.budget.dto.response.IncomeResponseDto;
 import pyc.lopatuxin.budget.entity.Income;
+import pyc.lopatuxin.budget.entity.enums.IncomeSource;
 import pyc.lopatuxin.budget.mapper.IncomeMapper;
 import pyc.lopatuxin.budget.repository.IncomeRepository;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -46,5 +48,32 @@ public class IncomeService {
         log.info("Создан доход {} для пользователя {}", income.getId(), userId);
 
         return incomeMapper.toDto(income);
+    }
+
+    /**
+     * Creates an income record bypassing user-facing validation.
+     * Used by internal services (e.g. investment entry recording for sell operations).
+     *
+     * @param userId      identifier of the user
+     * @param source      income source
+     * @param amount      income amount
+     * @param date        income date
+     * @param description optional description
+     * @return created income entity
+     */
+    @Transactional
+    public Income createInternal(UUID userId, IncomeSource source, BigDecimal amount,
+                                 LocalDate date, String description) {
+        Income income = Income.builder()
+                .userId(userId)
+                .source(source)
+                .amount(amount)
+                .description(description)
+                .date(date)
+                .build();
+
+        income = incomeRepository.save(income);
+        log.info("Created internal income {} for user {}", income.getId(), userId);
+        return income;
     }
 }

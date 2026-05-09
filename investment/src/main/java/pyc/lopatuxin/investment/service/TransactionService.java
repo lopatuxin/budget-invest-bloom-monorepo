@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pyc.lopatuxin.investment.client.BudgetClient;
 import pyc.lopatuxin.investment.dto.request.CreateTransactionDto;
 import pyc.lopatuxin.investment.dto.response.TransactionResponseDto;
 import pyc.lopatuxin.investment.entity.Position;
@@ -39,6 +40,7 @@ public class TransactionService {
     private final MarketDataService marketDataService;
     private final DividendSyncService dividendSyncService;
     private final DividendRepository dividendRepository;
+    private final BudgetClient budgetClient;
 
     @Transactional
     public TransactionResponseDto create(UUID userId, CreateTransactionDto dto) {
@@ -53,8 +55,14 @@ public class TransactionService {
                 .executedAt(dto.getExecutedAt())
                 .build();
         Transaction saved = transactionRepository.save(transaction);
+        transactionRepository.flush();  // ensure visibility for recalculatePosition
 
         recalculatePosition(userId, security.getTicker());
+
+        BigDecimal amount = saved.getQuantity().multiply(saved.getPrice());
+        UUID budgetEntryId = budgetClient.createInvestmentEntry(userId, saved.getType(), amount, saved.getExecutedAt());
+        saved.setBudgetEntryId(budgetEntryId);
+        transactionRepository.save(saved);
 
         log.info("Transaction created: userId={}, ticker={}, type={}", userId, security.getTicker(), dto.getType());
         return transactionMapper.toDto(saved);
@@ -80,6 +88,9 @@ public class TransactionService {
             throw new EntityNotFoundException("Transaction not found: " + id);
         }
         String ticker = tx.getSecurity().getTicker();
+        if (tx.getBudgetEntryId() != null) {
+            budgetClient.deleteInvestmentEntry(userId, tx.getBudgetEntryId(), tx.getType());
+        }
         transactionRepository.delete(tx);
         transactionRepository.flush();
         recalculatePosition(userId, ticker);

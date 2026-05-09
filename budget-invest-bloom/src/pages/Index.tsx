@@ -30,6 +30,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOverviewSummary } from '@/hooks/useOverviewSummary';
 import { useExpenseMetric } from '@/hooks/useExpenseMetric';
 import { useIncomeMetric } from '@/hooks/useIncomeMetric';
+import { useFreeCapital } from '@/hooks/useFreeCapital';
+import { useInvestmentPortfolio } from '@/hooks/useInvestmentPortfolio';
 
 const formatCurrency = (value: number) => value.toLocaleString('ru-RU') + ' \u20BD';
 
@@ -124,6 +126,13 @@ const Index = () => {
 
   const { data: expensePrevResponse, isLoading: expensePrevLoading } = useExpenseMetric(previousYear, isAuthenticated);
   const expensePrevMetric = expensePrevResponse?.body;
+
+  const { data: freeCapitalResp, isLoading: freeCapitalLoading } = useFreeCapital(isAuthenticated);
+  const { data: portfolioResp, isLoading: portfolioLoading } = useInvestmentPortfolio(isAuthenticated);
+
+  const freeCapital = freeCapitalResp?.body?.freeCapital ?? 0;
+  const portfolioValue = portfolioResp?.body?.overview?.totalValue ?? 0;
+  const netCapital = freeCapital + portfolioValue;
 
   // Time range state for bar chart and area chart (must be before conditional return)
   const [barTimeRange, setBarTimeRange] = useState<TimeRange>('6m');
@@ -253,9 +262,9 @@ const Index = () => {
   const isChartsLoading = incomeLoading || expenseLoading || incomePrevLoading || expensePrevLoading;
 
   // Animated KPI values (count-up from 0)
-  const animCapital = useCountUp(!summaryLoading && summary ? summary.capital : 0);
+  const animCapital = useCountUp(!freeCapitalLoading && !portfolioLoading ? netCapital : 0);
   const animSavingsRate = useCountUp(!summaryLoading && summary ? summary.savingsRate : 0);
-  const animPortfolio = useCountUp(2850000);
+  const animPortfolio = useCountUp(!portfolioLoading ? portfolioValue : 0);
 
   // Sparkline data for capital card: last 6 months from rolling window
   const sparklineData = allIncomeAreaData.slice(-6).map(d => d.amount);
@@ -274,8 +283,8 @@ const Index = () => {
   const kpiCards: KpiCard[] = [
     {
       label: 'ЧИСТЫЙ КАПИТАЛ',
-      value: summary ? formatCurrency(animCapital) : '--',
-      trend: summary?.trends?.capital,
+      value: (!freeCapitalLoading && !portfolioLoading) ? formatCurrency(animCapital) : '--',
+      trend: null,
       icon: Wallet,
       color: '#10B981',
       glow: 'rgba(16, 185, 129, 0.3)',
@@ -291,8 +300,8 @@ const Index = () => {
     },
     {
       label: 'ПОРТФЕЛЬ',
-      value: formatCurrency(animPortfolio), // TODO: connect to investments API
-      trend: '+15.6%', // TODO: calculate from real data
+      value: !portfolioLoading ? formatCurrency(animPortfolio) : '--',
+      trend: null,
       icon: Gem,
       color: '#3B82F6',
       glow: 'rgba(59, 130, 246, 0.3)',

@@ -133,7 +133,7 @@ public class BudgetSummaryService {
      * Returns all categories sorted by expense amount descending.
      */
     private List<CategorySummaryDto> buildAllCategorySummaries(UUID userId, LocalDate startDate, LocalDate endDate) {
-        List<Category> categories = categoryRepository.findByUserId(userId);
+        List<Category> categories = categoryRepository.findUserCategoriesByUserId(userId);
 
         Map<UUID, BigDecimal> expensesByCategory = expenseRepository
                 .sumAmountByCategoryForUserAndDateBetween(userId, startDate, endDate)

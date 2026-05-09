@@ -19,4 +19,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     @Query("SELECT t FROM Transaction t JOIN FETCH t.security WHERE t.userId = :userId AND t.security.ticker = :ticker ORDER BY t.executedAt DESC")
     List<Transaction> findByUserIdAndTickerWithSecurity(@Param("userId") UUID userId, @Param("ticker") String ticker);
+
+    List<Transaction> findAllByBudgetEntryIdIsNull();
 }

@@ -2,11 +2,12 @@ import { useQuery } from '@tanstack/react-query';
 import { apiPost } from '@/lib/api';
 import type { ApiResponse, PortfolioPageResponse } from '@/types/investment';
 
-export function useInvestmentPortfolio() {
+export function useInvestmentPortfolio(enabled = true) {
   const { data, isLoading, error } = useQuery({
     queryKey: ['investment-portfolio'],
     queryFn: () =>
       apiPost<ApiResponse<PortfolioPageResponse>>('/api/investment/portfolio/page', {}),
+    enabled,
   });
 
   return { data, isLoading, error };

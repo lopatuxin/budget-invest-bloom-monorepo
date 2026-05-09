@@ -13,6 +13,10 @@ import pyc.lopatuxin.budget.entity.Expense;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.UUID;
+
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -61,6 +65,34 @@ public class ExpenseService {
                 .description(expense.getDescription())
                 .date(expense.getDate())
                 .build();
+    }
+
+    /**
+     * Creates an expense bypassing user-facing validation.
+     * Used by internal services (e.g. investment entry recording).
+     * The category must already belong to the user — no ownership check is performed here.
+     *
+     * @param userId      identifier of the user
+     * @param category    category entity (must belong to userId)
+     * @param amount      expense amount
+     * @param date        expense date
+     * @param description optional description
+     * @return created expense entity
+     */
+    @Transactional
+    public Expense createInternal(UUID userId, Category category, BigDecimal amount,
+                                  LocalDate date, String description) {
+        Expense expense = Expense.builder()
+                .userId(userId)
+                .category(category)
+                .amount(amount)
+                .description(description)
+                .date(date)
+                .build();
+
+        expense = expenseRepository.save(expense);
+        log.info("Created internal expense {} for user {}", expense.getId(), userId);
+        return expense;
     }
 
     /**

@@ -103,3 +103,9 @@ export interface ExpenseItem {
   description: string;
   date: string;
 }
+
+export interface LifetimeBalanceResponse {
+  freeCapital: number;
+  totalIncome: number;
+  totalExpense: number;
+}

@@ -9,6 +9,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import pyc.lopatuxin.investment.client.BudgetClient;
 import pyc.lopatuxin.investment.dto.request.CreateTransactionDto;
 import pyc.lopatuxin.investment.dto.response.TransactionResponseDto;
 import pyc.lopatuxin.investment.entity.Position;
@@ -34,6 +35,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -62,6 +65,9 @@ class TransactionServiceUnitTest {
 
     @Mock
     private DividendRepository dividendRepository;
+
+    @Mock
+    private BudgetClient budgetClient;
 
     @InjectMocks
     private TransactionService transactionService;
@@ -347,5 +353,180 @@ class TransactionServiceUnitTest {
         verify(positionRepository).save(captor.capture());
         assertThat(captor.getValue().getQuantity()).isEqualByComparingTo(new BigDecimal("5"));
         assertThat(captor.getValue().getAveragePrice()).isEqualByComparingTo(new BigDecimal("200.00"));
+    }
+
+    // --- BudgetClient integration ---
+
+    @Test
+    @DisplayName("create(BUY): вызывает budgetClient.createInvestmentEntry с правильными аргументами и сохраняет budgetEntryId")
+    void create_buy_shouldCallBudgetClientAndSaveBudgetEntryId() {
+        Instant executedAt = Instant.ofEpochSecond(1000);
+        UUID budgetEntryId = UUID.randomUUID();
+
+        CreateTransactionDto dto = CreateTransactionDto.builder()
+                .ticker("SBER").type(TransactionType.BUY).securityType(SecurityType.STOCK)
+                .quantity(new BigDecimal("10")).price(new BigDecimal("250.00"))
+                .executedAt(executedAt).build();
+
+        Transaction firstSaved = Transaction.builder()
+                .id(UUID.randomUUID()).userId(userId).security(security)
+                .type(TransactionType.BUY)
+                .quantity(new BigDecimal("10")).price(new BigDecimal("250.00"))
+                .executedAt(executedAt).build();
+
+        Transaction secondSaved = Transaction.builder()
+                .id(firstSaved.getId()).userId(userId).security(security)
+                .type(TransactionType.BUY)
+                .quantity(new BigDecimal("10")).price(new BigDecimal("250.00"))
+                .executedAt(executedAt).budgetEntryId(budgetEntryId).build();
+
+        when(marketDataService.ensureSecurity("SBER", SecurityType.STOCK)).thenReturn(security);
+        when(transactionRepository.save(any(Transaction.class)))
+                .thenReturn(firstSaved)
+                .thenReturn(secondSaved);
+        when(budgetClient.createInvestmentEntry(
+                eq(userId), eq(TransactionType.BUY), eq(new BigDecimal("2500.00")), eq(executedAt)))
+                .thenReturn(budgetEntryId);
+        when(transactionRepository.findByUserIdAndSecurity_Ticker(userId, "SBER"))
+                .thenReturn(List.of(firstSaved));
+        when(positionRepository.findByUserIdAndSecurity_Ticker(userId, "SBER"))
+                .thenReturn(Optional.empty());
+        when(securityRepository.findById("SBER")).thenReturn(Optional.of(security));
+        when(dividendRepository.findBySecurity_Ticker("SBER")).thenReturn(List.of());
+        when(transactionMapper.toDto(any())).thenReturn(new TransactionResponseDto());
+
+        transactionService.create(userId, dto);
+
+        verify(budgetClient).createInvestmentEntry(userId, TransactionType.BUY, new BigDecimal("2500.00"), executedAt);
+
+        ArgumentCaptor<Transaction> txCaptor = ArgumentCaptor.forClass(Transaction.class);
+        verify(transactionRepository, org.mockito.Mockito.times(2)).save(txCaptor.capture());
+        // Second save must carry budgetEntryId
+        Transaction savedWithEntry = txCaptor.getAllValues().get(1);
+        assertThat(savedWithEntry.getBudgetEntryId()).isEqualTo(budgetEntryId);
+    }
+
+    @Test
+    @DisplayName("create(SELL): вызывает budgetClient.createInvestmentEntry с типом SELL")
+    void create_sell_shouldCallBudgetClientWithSellType() {
+        Instant t1 = Instant.ofEpochSecond(1000);
+        Instant t2 = Instant.ofEpochSecond(2000);
+        UUID budgetEntryId = UUID.randomUUID();
+
+        Transaction existingBuy = Transaction.builder()
+                .id(UUID.randomUUID()).userId(userId).security(security)
+                .type(TransactionType.BUY)
+                .quantity(new BigDecimal("10")).price(new BigDecimal("250.00"))
+                .executedAt(t1).createdAt(t1).build();
+
+        Transaction sellTx = Transaction.builder()
+                .id(UUID.randomUUID()).userId(userId).security(security)
+                .type(TransactionType.SELL)
+                .quantity(new BigDecimal("5")).price(new BigDecimal("300.00"))
+                .executedAt(t2).build();
+
+        CreateTransactionDto dto = CreateTransactionDto.builder()
+                .ticker("SBER").type(TransactionType.SELL).securityType(SecurityType.STOCK)
+                .quantity(new BigDecimal("5")).price(new BigDecimal("300.00"))
+                .executedAt(t2).build();
+
+        when(marketDataService.ensureSecurity("SBER", SecurityType.STOCK)).thenReturn(security);
+        when(transactionRepository.save(any(Transaction.class))).thenReturn(sellTx);
+        when(budgetClient.createInvestmentEntry(
+                eq(userId), eq(TransactionType.SELL), eq(new BigDecimal("1500.00")), eq(t2)))
+                .thenReturn(budgetEntryId);
+        when(transactionRepository.findByUserIdAndSecurity_Ticker(userId, "SBER"))
+                .thenReturn(List.of(existingBuy, sellTx));
+        when(positionRepository.findByUserIdAndSecurity_Ticker(userId, "SBER"))
+                .thenReturn(Optional.empty());
+        when(securityRepository.findById("SBER")).thenReturn(Optional.of(security));
+        when(dividendRepository.findBySecurity_Ticker("SBER")).thenReturn(List.of());
+        when(transactionMapper.toDto(any())).thenReturn(new TransactionResponseDto());
+
+        transactionService.create(userId, dto);
+
+        verify(budgetClient).createInvestmentEntry(userId, TransactionType.SELL, new BigDecimal("1500.00"), t2);
+    }
+
+    @Test
+    @DisplayName("create(): HTTP-исключение из BudgetClient — транзакция не сохраняется (исключение пробрасывается)")
+    void create_shouldPropagateExceptionWhenBudgetClientFails() {
+        Instant executedAt = Instant.ofEpochSecond(1000);
+
+        CreateTransactionDto dto = CreateTransactionDto.builder()
+                .ticker("SBER").type(TransactionType.BUY).securityType(SecurityType.STOCK)
+                .quantity(new BigDecimal("10")).price(new BigDecimal("250.00"))
+                .executedAt(executedAt).build();
+
+        Transaction firstSaved = Transaction.builder()
+                .id(UUID.randomUUID()).userId(userId).security(security)
+                .type(TransactionType.BUY)
+                .quantity(new BigDecimal("10")).price(new BigDecimal("250.00"))
+                .executedAt(executedAt).build();
+
+        when(marketDataService.ensureSecurity("SBER", SecurityType.STOCK)).thenReturn(security);
+        when(transactionRepository.save(any(Transaction.class))).thenReturn(firstSaved);
+        when(budgetClient.createInvestmentEntry(any(), any(), any(), any()))
+                .thenThrow(new RuntimeException("503 Service Unavailable"));
+
+        assertThatThrownBy(() -> transactionService.create(userId, dto))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("503");
+
+        // Second save (with budgetEntryId) must NOT be called
+        verify(transactionRepository, org.mockito.Mockito.times(1)).save(any());
+    }
+
+    @Test
+    @DisplayName("delete(): tx.budgetEntryId != null — вызывает budgetClient.deleteInvestmentEntry")
+    void delete_shouldCallBudgetClientWhenBudgetEntryIdPresent() {
+        UUID txId = UUID.randomUUID();
+        UUID budgetEntryId = UUID.randomUUID();
+        Instant t1 = Instant.ofEpochSecond(1000);
+
+        Transaction tx = Transaction.builder()
+                .id(txId).userId(userId).security(security)
+                .type(TransactionType.BUY)
+                .quantity(new BigDecimal("10")).price(new BigDecimal("250.00"))
+                .executedAt(t1).createdAt(t1)
+                .budgetEntryId(budgetEntryId)
+                .build();
+
+        when(transactionRepository.findById(txId)).thenReturn(Optional.of(tx));
+        when(transactionRepository.findByUserIdAndSecurity_Ticker(userId, "SBER"))
+                .thenReturn(List.of());
+        when(positionRepository.findByUserIdAndSecurity_Ticker(userId, "SBER"))
+                .thenReturn(Optional.empty());
+
+        transactionService.delete(userId, txId);
+
+        verify(budgetClient).deleteInvestmentEntry(userId, budgetEntryId, TransactionType.BUY);
+        verify(transactionRepository).delete(tx);
+    }
+
+    @Test
+    @DisplayName("delete(): tx.budgetEntryId == null — budgetClient не вызывается")
+    void delete_shouldNotCallBudgetClientWhenBudgetEntryIdIsNull() {
+        UUID txId = UUID.randomUUID();
+        Instant t1 = Instant.ofEpochSecond(1000);
+
+        Transaction tx = Transaction.builder()
+                .id(txId).userId(userId).security(security)
+                .type(TransactionType.BUY)
+                .quantity(new BigDecimal("10")).price(new BigDecimal("250.00"))
+                .executedAt(t1).createdAt(t1)
+                .budgetEntryId(null)
+                .build();
+
+        when(transactionRepository.findById(txId)).thenReturn(Optional.of(tx));
+        when(transactionRepository.findByUserIdAndSecurity_Ticker(userId, "SBER"))
+                .thenReturn(List.of());
+        when(positionRepository.findByUserIdAndSecurity_Ticker(userId, "SBER"))
+                .thenReturn(Optional.empty());
+
+        transactionService.delete(userId, txId);
+
+        verify(budgetClient, never()).deleteInvestmentEntry(any(), any(), any());
+        verify(transactionRepository).delete(tx);
     }
 }

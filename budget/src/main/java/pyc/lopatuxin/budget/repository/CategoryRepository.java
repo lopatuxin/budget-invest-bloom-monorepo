@@ -1,6 +1,8 @@
 package pyc.lopatuxin.budget.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import pyc.lopatuxin.budget.entity.Category;
 
 import java.util.List;
@@ -37,4 +39,26 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
      * @return Optional с категорией, если она найдена
      */
     Optional<Category> findByNameAndUserId(String name, UUID userId);
+
+    /**
+     * Возвращает только пользовательские (не системные) категории для указанного пользователя.
+     * Используется в пользовательских эндпоинтах — системные категории (например, «Инвестиции»)
+     * в списках и выпадашках не отображаются.
+     *
+     * @param userId идентификатор пользователя
+     * @return список пользовательских категорий
+     */
+    @Query("SELECT c FROM Category c WHERE c.userId = :userId AND c.system = false")
+    List<Category> findUserCategoriesByUserId(@Param("userId") UUID userId);
+
+    /**
+     * Ищет системную категорию пользователя по имени.
+     *
+     * @param userId идентификатор пользователя
+     * @param name   название категории
+     * @return Optional с системной категорией, если она найдена
+     */
+    @Query("SELECT c FROM Category c WHERE c.userId = :userId AND c.name = :name AND c.system = true")
+    Optional<Category> findSystemCategoryByUserIdAndName(@Param("userId") UUID userId,
+                                                         @Param("name") String name);
 }

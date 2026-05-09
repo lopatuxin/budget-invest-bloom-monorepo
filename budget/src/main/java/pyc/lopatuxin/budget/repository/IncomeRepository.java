@@ -38,6 +38,15 @@ public interface IncomeRepository extends JpaRepository<Income, UUID> {
     );
 
     /**
+     * Возвращает суммарные доходы пользователя за всё время.
+     *
+     * @param userId идентификатор пользователя
+     * @return сумма всех доходов (0 если записей нет)
+     */
+    @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Income i WHERE i.userId = :userId")
+    BigDecimal sumByUserId(@Param("userId") UUID userId);
+
+    /**
      * Возвращает помесячные суммы доходов пользователя за указанный год.
      *
      * @param userId идентификатор пользователя
