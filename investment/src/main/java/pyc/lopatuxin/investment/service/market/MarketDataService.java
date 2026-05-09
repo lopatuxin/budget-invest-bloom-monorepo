@@ -120,7 +120,9 @@ public class MarketDataService {
             MoexSnapshotDto dto = fetched.get(ticker);
             if (dto != null) {
                 PriceSnapshot snapshot = upsertSnapshot(ticker, dto);
-                return toSnapshotResult(snapshot, false);
+                if (snapshot != null) {
+                    return toSnapshotResult(snapshot, false);
+                }
             }
             return dbSnapshot.map(s -> toSnapshotResult(s, true))
                     .orElse(new SnapshotResult(null, null, null, true));
@@ -142,7 +144,11 @@ public class MarketDataService {
                 MoexSnapshotDto dto = fetched.get(ticker);
                 if (dto != null) {
                     PriceSnapshot snapshot = upsertSnapshot(ticker, dto);
-                    result.put(ticker, toSnapshotResult(snapshot, false));
+                    if (snapshot != null) {
+                        result.put(ticker, toSnapshotResult(snapshot, false));
+                    } else {
+                        result.put(ticker, resolveFromDbOrStale(ticker));
+                    }
                 } else {
                     result.put(ticker, resolveFromDbOrStale(ticker));
                 }
@@ -287,6 +293,9 @@ public class MarketDataService {
     }
 
     private PriceSnapshot upsertSnapshot(String ticker, MoexSnapshotDto dto) {
+        if (!securityRepository.existsById(ticker)) {
+            return null;
+        }
         PriceSnapshot snapshot = priceSnapshotRepository.findById(ticker)
                 .orElseGet(() -> PriceSnapshot.builder().ticker(ticker).build());
         snapshot.setLastPrice(dto.lastPrice());

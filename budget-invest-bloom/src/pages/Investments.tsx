@@ -78,8 +78,9 @@ const Investments = () => {
     ? ((overview.totalPnl / totalCost) * 100).toFixed(1)
     : null;
 
-  // Build sector aggregation from positions
-  const totalValue = overview?.totalValue ?? positions.reduce((sum, p) => sum + p.totalCost, 0);
+  // Build sector aggregation from positions (cost-based for consistent percentages)
+  const costBase = overview?.totalCost
+    ?? positions.reduce((sum, p) => sum + p.totalCost, 0);
 
   const sectorMap = positions.reduce<Record<string, number>>((acc, p) => {
     const name = p.sector ?? 'Без сектора';
@@ -90,7 +91,7 @@ const Investments = () => {
   const sectors = Object.entries(sectorMap).map(([name, value], index) => ({
     name,
     value,
-    percentage: totalValue > 0 ? Math.round((value / totalValue) * 100) : 0,
+    percentage: costBase > 0 ? Math.round((value / costBase) * 100) : 0,
     color: DONUT_COLORS[index % DONUT_COLORS.length],
   }));
 
@@ -286,7 +287,7 @@ const Investments = () => {
                 const typeSectors = positionsByTypeAndSector[type];
                 const typeTotal = totalCostByType[type] ?? 0;
                 const typeAssetCount = Object.values(typeSectors).reduce((sum, arr) => sum + arr.length, 0);
-                const typePercentage = totalValue > 0 ? ((typeTotal / totalValue) * 100).toFixed(1) : '0.0';
+                const typePercentage = costBase > 0 ? ((typeTotal / costBase) * 100).toFixed(1) : '0.0';
 
                 return (
                   <div
@@ -314,8 +315,8 @@ const Investments = () => {
                     <div className="space-y-4 pl-0">
                       {Object.entries(typeSectors).map(([sectorName, sectorPositions], sectorIdx) => {
                         const sectorValue = sectorPositions.reduce((sum, p) => sum + p.totalCost, 0);
-                        const sectorPercentage = totalValue > 0
-                          ? ((sectorValue / totalValue) * 100).toFixed(1)
+                        const sectorPercentage = costBase > 0
+                          ? ((sectorValue / costBase) * 100).toFixed(1)
                           : '0.0';
 
                         return (

@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.support.RestClientAdapter;
@@ -22,6 +23,7 @@ import pyc.lopatuxin.investment.client.moex.MoexNotFoundException;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -50,6 +52,16 @@ public class WebClientConfig {
                 .requestFactory(new HttpComponentsClientHttpRequestFactory(moexHttpClient))
                 .baseUrl(props.getBaseUrl())
                 .defaultHeader("Accept", "application/json")
+                .messageConverters(converters -> {
+                    var jackson = new MappingJackson2HttpMessageConverter();
+                    jackson.setSupportedMediaTypes(List.of(
+                            MediaType.APPLICATION_JSON,
+                            MediaType.TEXT_HTML,
+                            new MediaType("application", "*+json")
+                    ));
+                    converters.removeIf(c -> c instanceof MappingJackson2HttpMessageConverter);
+                    converters.add(jackson);
+                })
                 .defaultStatusHandler(HttpStatusCode::is4xxClientError, (req, res) -> {
                     HttpStatusCode status = res.getStatusCode();
                     if (status == HttpStatus.NOT_FOUND) {
