@@ -132,7 +132,6 @@ const Index = () => {
 
   const freeCapital = freeCapitalResp?.body?.freeCapital ?? 0;
   const portfolioValue = portfolioResp?.body?.overview?.totalValue ?? 0;
-  const netCapital = freeCapital + portfolioValue;
 
   // Time range state for bar chart and area chart (must be before conditional return)
   const [barTimeRange, setBarTimeRange] = useState<TimeRange>('6m');
@@ -262,7 +261,7 @@ const Index = () => {
   const isChartsLoading = incomeLoading || expenseLoading || incomePrevLoading || expensePrevLoading;
 
   // Animated KPI values (count-up from 0)
-  const animCapital = useCountUp(!freeCapitalLoading && !portfolioLoading ? netCapital : 0);
+  const animCapital = useCountUp(!freeCapitalLoading ? freeCapital : 0);
   const animSavingsRate = useCountUp(!summaryLoading && summary ? summary.savingsRate : 0);
   const animPortfolio = useCountUp(!portfolioLoading ? portfolioValue : 0);
 
@@ -283,7 +282,7 @@ const Index = () => {
   const kpiCards: KpiCard[] = [
     {
       label: 'ЧИСТЫЙ КАПИТАЛ',
-      value: (!freeCapitalLoading && !portfolioLoading) ? formatCurrency(animCapital) : '--',
+      value: !freeCapitalLoading ? formatCurrency(animCapital) : '--',
       trend: null,
       icon: Wallet,
       color: '#10B981',
