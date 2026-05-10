@@ -361,7 +361,9 @@ class CategoryControllerTest extends AbstractIntegrationTest {
                             .contentType(MediaType.APPLICATION_JSON))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.status", is(409)))
-                    .andExpect(jsonPath("$.message", is("Невозможно удалить категорию: есть связанные расходы (1)")));
+                    .andExpect(jsonPath("$.message", is("Невозможно удалить категорию: есть связанные расходы (1)")))
+                    .andExpect(jsonPath("$.body.code", is("CATEGORY_HAS_EXPENSES")))
+                    .andExpect(jsonPath("$.body.expenseCount", is(1)));
         }
 
         @Test

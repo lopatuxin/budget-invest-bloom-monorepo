@@ -41,13 +41,8 @@ export interface TrendsData {
   inflation: string;
 }
 
-export interface ApiResponse<T> {
-  id: string;
-  status: number;
-  message: string;
-  timestamp: string;
-  body: T;
-}
+// Re-exported from common for backward compatibility
+export type { ApiResponse } from './common';
 
 export interface MonthlyMetric {
   month: number;
@@ -108,4 +103,9 @@ export interface LifetimeBalanceResponse {
   freeCapital: number;
   totalIncome: number;
   totalExpense: number;
+}
+
+export interface CategoryHasExpensesErrorBody {
+  code: 'CATEGORY_HAS_EXPENSES';
+  expenseCount: number;
 }

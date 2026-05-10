@@ -5,27 +5,48 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { LogIn, Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { apiPost, ApiError } from '@/lib/api';
+
+interface LoginResponse {
+  body: {
+    accessToken: string;
+    user: {
+      userId: string;
+      email: string;
+      firstName?: string;
+      lastName?: string;
+      name?: string;
+      isActive: boolean;
+      isVerified: boolean;
+      roles: string[];
+      lastLoginAt: string;
+    };
+  };
+}
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    rememberMe: false
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [lastAttempt, setLastAttempt] = useState(0);
   const { toast } = useToast();
   const { setAuthData } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    // Debounce: block repeated submits within 1 second
+    if (Date.now() - lastAttempt < 1000) return;
+
     setIsLoading(true);
 
-    // Простая валидация
+    // Basic validation
     if (!formData.email || !formData.password) {
       toast({
         title: "Ошибка",
@@ -37,104 +58,101 @@ const Login = () => {
     }
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/api/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          data: {
-            email: formData.email,
-            password: formData.password,
-          }
-        }),
-      });
+      const data = await apiPost<LoginResponse>('/auth/api/login', {
+        email: formData.email,
+        password: formData.password,
+      }, { requiresAuth: false });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-
-        // Обработка различных типов ошибок согласно контракту
-        switch (errorData.error) {
-          case 'INVALID_CREDENTIALS':
-            toast({
-              title: "Ошибка входа",
-              description: "Неверный email или пароль",
-              variant: "destructive",
-            });
-            break;
-
-          case 'ACCOUNT_LOCKED':
-            toast({
-              title: "Аккаунт заблокирован",
-              description: errorData.message || "Аккаунт временно заблокирован из-за множественных неудачных попыток входа",
-              variant: "destructive",
-            });
-            break;
-
-          case 'ACCOUNT_INACTIVE':
-            toast({
-              title: "Аккаунт неактивен",
-              description: errorData.message || "Аккаунт деактивирован. Обратитесь в службу поддержки",
-              variant: "destructive",
-            });
-            break;
-
-          case 'RATE_LIMIT_EXCEEDED':
-            toast({
-              title: "Слишком много попыток",
-              description: errorData.message || "Слишком много попыток входа. Попробуйте через несколько минут",
-              variant: "destructive",
-            });
-            break;
-
-          case 'MISSING_REQUIRED_FIELDS':
-            toast({
-              title: "Ошибка",
-              description: errorData.message || "Отсутствуют обязательные поля",
-              variant: "destructive",
-            });
-            break;
-
-          default:
-            toast({
-              title: "Ошибка",
-              description: errorData.message || "Не удалось войти в систему",
-              variant: "destructive",
-            });
-        }
+      // Validate response structure before using it
+      if (
+        typeof data?.body?.accessToken !== 'string' ||
+        !data.body.accessToken ||
+        typeof data?.body?.user !== 'object' ||
+        !data.body.user?.userId ||
+        !data.body.user?.email
+      ) {
+        toast({
+          title: "Ошибка",
+          description: "Не удалось войти, попробуйте позже",
+          variant: "destructive",
+        });
         return;
       }
 
-      const data = await response.json();
-
-      // Извлекаем данные из body, так как бэк оборачивает ответ
-      const { accessToken, user } = data.body;
-
-      // Сохраняем токен и данные пользователя через AuthContext
-      // refreshToken приходит в HttpOnly Cookie автоматически
-      setAuthData(accessToken, user);
+      // Save token and user data via AuthContext
+      // refreshToken arrives in HttpOnly Cookie automatically
+      setAuthData(data.body.accessToken, data.body.user);
 
       toast({
         title: "Успешный вход!",
         description: "Добро пожаловать в FinanceApp",
       });
 
-      // Делаем редирект на главную страницу
       navigate('/');
     } catch (error) {
-      console.error('Login error:', error);
-      toast({
-        title: "Ошибка",
-        description: "Не удалось подключиться к серверу. Попробуйте снова.",
-        variant: "destructive",
-      });
+      setLastAttempt(Date.now());
+
+      // apiPost throws ApiError which carries the server error code and HTTP status
+      const errorObj = error instanceof ApiError ? error : (error as Error);
+      const errorCode = error instanceof ApiError ? error.code : undefined;
+      const errorStatus = error instanceof ApiError ? error.status : undefined;
+
+      switch (errorCode) {
+        case 'INVALID_CREDENTIALS':
+          toast({
+            title: "Ошибка входа",
+            description: "Неверный email или пароль",
+            variant: "destructive",
+          });
+          break;
+
+        case 'ACCOUNT_LOCKED':
+          toast({
+            title: "Аккаунт заблокирован",
+            description: "Аккаунт временно заблокирован из-за множественных неудачных попыток входа",
+            variant: "destructive",
+          });
+          break;
+
+        case 'ACCOUNT_INACTIVE':
+          toast({
+            title: "Аккаунт неактивен",
+            description: "Аккаунт деактивирован. Обратитесь в службу поддержки",
+            variant: "destructive",
+          });
+          break;
+
+        case 'RATE_LIMIT_EXCEEDED':
+          toast({
+            title: "Слишком много попыток",
+            description: "Слишком много попыток входа. Попробуйте через несколько минут",
+            variant: "destructive",
+          });
+          break;
+
+        case 'MISSING_REQUIRED_FIELDS':
+          toast({
+            title: "Ошибка",
+            description: "Отсутствуют обязательные поля",
+            variant: "destructive",
+          });
+          break;
+
+        default:
+          toast({
+            title: "Ошибка",
+            description: errorObj.message || "Не удалось войти в систему",
+            variant: "destructive",
+          });
+      }
+
+      console.warn('login failed', errorCode || errorStatus || 'unknown');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleInputChange = (field: string, value: string | boolean) => {
+  const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -163,6 +181,7 @@ const Login = () => {
                   className="pl-10 text-dashboard-text placeholder:text-dashboard-text-muted focus:border-emerald-500/50 transition-colors"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
+                  maxLength={254}
                   required
                 />
               </div>
@@ -179,6 +198,7 @@ const Login = () => {
                   className="pl-10 pr-10 text-dashboard-text placeholder:text-dashboard-text-muted focus:border-emerald-500/50 transition-colors"
                   value={formData.password}
                   onChange={(e) => handleInputChange('password', e.target.value)}
+                  maxLength={128}
                   required
                 />
                 <Button
@@ -195,18 +215,6 @@ const Login = () => {
                   )}
                 </Button>
               </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="rememberMe"
-                checked={formData.rememberMe}
-                onCheckedChange={(checked) => handleInputChange('rememberMe', checked as boolean)}
-                className="border-dashboard-text-muted/40 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
-              />
-              <Label htmlFor="rememberMe" className="text-sm font-normal text-dashboard-text-muted cursor-pointer">
-                Запомнить меня
-              </Label>
             </div>
 
             <Button

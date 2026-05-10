@@ -24,7 +24,7 @@ const SavingsRateGauge = ({ value }: SavingsRateGaugeProps) => {
   return (
     <div
       className="w-full mt-3 relative"
-      aria-label={`Норма сбережений: ${value}%`}
+      aria-label={`Норма сбережений: ${clamped}%`}
     >
       {/* Arrow indicator above gauge track */}
       <div

@@ -1,3 +1,5 @@
+// TODO G: migrate to useQuery(enabled: false) + refetch when AddAssetDialog's
+// handleSelectSuggestion is refactored to decouple price-fetch from security selection.
 import { useMutation } from '@tanstack/react-query';
 import { apiPost } from '@/lib/api';
 import type { ApiResponse } from '@/types/investment';

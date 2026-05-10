@@ -1,4 +1,7 @@
+// TODO security: переехать с localStorage на HttpOnly cookies для accessToken
+// (требует поддержки на стороне auth-сервиса). Сейчас токен уязвим к XSS.
 import {createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback} from 'react';
+import {useNavigate} from 'react-router-dom';
 import {apiLogout} from '@/lib/api';
 
 interface User {
@@ -15,6 +18,7 @@ interface User {
 
 interface AuthContextType {
     isAuthenticated: boolean;
+    isInitialized: boolean;
     user: User | null;
     accessToken: string | null;
     logout: () => Promise<void>;
@@ -38,10 +42,12 @@ interface AuthProviderProps {
 
 export const AuthProvider = ({children}: AuthProviderProps) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(false);
     const [user, setUser] = useState<User | null>(null);
     const [accessToken, setAccessToken] = useState<string | null>(null);
+    const navigate = useNavigate();
 
-    // Проверяем наличие токенов при инициализации
+    // Check for tokens on initialization
     useEffect(() => {
         const token = localStorage.getItem('accessToken');
         const userData = localStorage.getItem('user');
@@ -53,12 +59,29 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
                 setIsAuthenticated(true);
             } catch (error) {
                 console.error('Failed to parse user data from localStorage:', error);
-                // Очищаем некорректные данные
+                // Clear invalid data
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('user');
             }
         }
+
+        setIsInitialized(true);
     }, []);
+
+    // Listen for session expiry event dispatched by api.ts
+    useEffect(() => {
+        const handleAuthExpired = () => {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('user');
+            setIsAuthenticated(false);
+            setUser(null);
+            setAccessToken(null);
+            navigate('/login');
+        };
+
+        window.addEventListener('auth:expired', handleAuthExpired);
+        return () => window.removeEventListener('auth:expired', handleAuthExpired);
+    }, [navigate]);
 
     const setAuthData = useCallback((newAccessToken: string, userData: User) => {
         localStorage.setItem('accessToken', newAccessToken);
@@ -71,36 +94,30 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
 
     const logout = useCallback(async () => {
         try {
-            // Пытаемся выйти из текущей сессии (требует cookie)
+            // Try to log out from the current session (requires cookie)
             await apiLogout(false);
         } catch (error) {
-            // Если не удалось (нет cookie), выходим со всех устройств
-            console.warn('Logout from current session failed, trying logoutFromAll', error);
-            try {
-                await apiLogout(true);
-            } catch (logoutError) {
-                // Даже если API logout не удался, очищаем локальные данные
-                console.error('Logout API failed:', logoutError);
-            }
+            // If logout failed (e.g. network error) — just clear local state, do not
+            // fall back to logoutFromAll as that would sign the user out of every device.
+            console.warn('Logout API call failed, clearing local state only', error);
         }
 
-        // Очищаем локальные данные
-        // refreshToken автоматически удаляется бекендом через Set-Cookie
+        // Clear local data
+        // refreshToken is removed by the backend via Set-Cookie
         localStorage.removeItem('accessToken');
         localStorage.removeItem('user');
-        localStorage.removeItem('refreshToken'); // На случай если есть старый токен
+        localStorage.removeItem('refreshToken'); // In case an old token is stored
 
         setIsAuthenticated(false);
         setUser(null);
         setAccessToken(null);
 
-        // Перенаправляем на страницу логина
-        globalThis.location.href = '/login';
-    }, []);
+        navigate('/login');
+    }, [navigate]);
 
     const value = useMemo(
-        () => ({isAuthenticated, user, accessToken, logout, setAuthData}),
-        [isAuthenticated, user, accessToken, logout, setAuthData]
+        () => ({isAuthenticated, isInitialized, user, accessToken, logout, setAuthData}),
+        [isAuthenticated, isInitialized, user, accessToken, logout, setAuthData]
     );
 
     return (

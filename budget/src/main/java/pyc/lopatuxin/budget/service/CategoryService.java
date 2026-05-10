@@ -10,6 +10,7 @@ import pyc.lopatuxin.budget.dto.request.DeleteCategoryRequestDto;
 import pyc.lopatuxin.budget.dto.request.UpdateCategoryRequestDto;
 import pyc.lopatuxin.budget.dto.response.CategoryResponseDto;
 import pyc.lopatuxin.budget.entity.Category;
+import pyc.lopatuxin.budget.exception.CategoryHasExpensesException;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
 
@@ -153,8 +154,7 @@ public class CategoryService {
         boolean force = Boolean.TRUE.equals(dto.getForce());
 
         if (expenseCount > 0 && !force) {
-            throw new IllegalStateException(
-                    "Невозможно удалить категорию: есть связанные расходы (" + expenseCount + ")");
+            throw new CategoryHasExpensesException((int) expenseCount);
         }
 
         if (expenseCount > 0) {

@@ -13,22 +13,44 @@ import {
 import App from './App.tsx'
 import './index.css'
 
-// Инициализация Sentry с Performance Monitoring
+/** Auth endpoints whose bodies and URLs must be scrubbed from Sentry events */
+const SENTRY_AUTH_PATHS = [
+  '/auth/api/login',
+  '/auth/api/register',
+  '/auth/api/refresh',
+  '/auth/api/forgot-password',
+];
+
+function isAuthUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  return SENTRY_AUTH_PATHS.some((p) => url.includes(p));
+}
+
+/** Strip query string, keep only path */
+function pathOnly(url: string): string {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return url.split('?')[0];
+  }
+}
+
+// Sentry initialization with Performance Monitoring
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
 
-  // Интеграции
   integrations: [
-    // Browser Tracing для отслеживания производительности
+    // Browser Tracing for performance monitoring
     Sentry.browserTracingIntegration(),
 
-    // Replay для записи сессий с ошибками
+    // Replay for recording sessions with errors
     Sentry.replayIntegration({
       maskAllText: true,
       blockAllMedia: true,
+      maskAllInputs: true,
     }),
 
-    // React Router интеграция
+    // React Router integration
     Sentry.reactRouterV6BrowserTracingIntegration({
       useEffect: React.useEffect,
       useLocation,
@@ -38,12 +60,14 @@ Sentry.init({
     }),
   ],
 
-  // Performance Monitoring
-  tracesSampleRate: import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE
-    ? Number.parseFloat(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE)
-    : 1, // 100% в разработке, в проде лучше 0.1-0.3
+  // In production sample 10% of traces; sample everything in development
+  tracesSampleRate: import.meta.env.PROD
+    ? (import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE
+        ? Number.parseFloat(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE)
+        : 0.1)
+    : 1,
 
-  // Указываем origins для которых добавляем trace headers
+  // Origins for which trace headers are added
   tracePropagationTargets: [
     'localhost',
     /^\//,
@@ -51,23 +75,49 @@ Sentry.init({
   ],
 
   // Session Replay
-  replaysSessionSampleRate: 0.1, // 10% обычных сессий
-  replaysOnErrorSampleRate: 1, // 100% сессий с ошибками
+  replaysSessionSampleRate: 0.1, // 10% of regular sessions
+  replaysOnErrorSampleRate: 1,   // 100% of sessions with errors
 
-  // Окружение
   environment: import.meta.env.MODE,
 
-  // Включаем только в production или если явно указан DSN
+  // Enable only in production or when a DSN is explicitly provided
   enabled: import.meta.env.VITE_SENTRY_DSN !== undefined,
 
-  // Дополнительная настройка
   beforeSend(event) {
-    // Фильтруем чувствительные данные
+    // Remove Authorization header
     if (event.request?.headers) {
       delete event.request.headers['Authorization'];
     }
 
-    // Можно добавить дополнительную логику фильтрации
+    // Remove cookies entirely
+    if (event.request) {
+      delete event.request.cookies;
+    }
+
+    // Scrub body and URL for auth endpoints
+    if (event.request && isAuthUrl(event.request.url)) {
+      event.request.data = null;
+    }
+
+    // Scrub auth-related breadcrumbs
+    if (event.breadcrumbs?.values) {
+      event.breadcrumbs.values = event.breadcrumbs.values.map((bc) => {
+        const bcUrl: string | undefined =
+          (bc.data as Record<string, string> | undefined)?.url;
+        if (isAuthUrl(bcUrl)) {
+          return {
+            ...bc,
+            data: {
+              ...bc.data,
+              body: undefined,
+              url: bcUrl ? pathOnly(bcUrl) : undefined,
+            },
+          };
+        }
+        return bc;
+      });
+    }
+
     return event;
   },
 });

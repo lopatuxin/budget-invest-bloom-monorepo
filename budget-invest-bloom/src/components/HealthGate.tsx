@@ -6,7 +6,8 @@ interface HealthGateProps {
   children: ReactNode;
 }
 
-const POLL_INTERVAL_MS = 2000;
+const INITIAL_POLL_INTERVAL_MS = 2000;
+const MAX_POLL_INTERVAL_MS = 30_000;
 
 /**
  * HealthGate polls the backend gateway's /actuator/health endpoint on mount
@@ -17,6 +18,9 @@ const POLL_INTERVAL_MS = 2000;
  *
  * Uses raw fetch (not the apiRequest helper) to avoid auth-related side effects
  * like auto-redirect to /login on 401.
+ *
+ * Uses exponential backoff on failures: interval doubles on each failure, capped at 30s.
+ * Resets to the initial interval on success.
  */
 const HealthGate = ({ children }: HealthGateProps) => {
   const [isHealthy, setIsHealthy] = useState(false);
@@ -61,9 +65,12 @@ const HealthGate = ({ children }: HealthGateProps) => {
       });
 
     const poll = async () => {
+      let interval = INITIAL_POLL_INTERVAL_MS;
+
       while (!signal.aborted) {
         const healthy = await checkHealth();
         if (signal.aborted) return;
+
         if (healthy) {
           const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
           // Only log a breadcrumb if we actually had to wait (>1s)
@@ -77,7 +84,10 @@ const HealthGate = ({ children }: HealthGateProps) => {
           setIsHealthy(true);
           return;
         }
-        await delay(POLL_INTERVAL_MS);
+
+        // Exponential backoff: double interval on each failure, cap at MAX_POLL_INTERVAL_MS
+        await delay(interval);
+        interval = Math.min(interval * 2, MAX_POLL_INTERVAL_MS);
       }
     };
 

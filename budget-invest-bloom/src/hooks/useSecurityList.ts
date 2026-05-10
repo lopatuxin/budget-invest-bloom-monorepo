@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '@/lib/api';
+import { qk } from '@/lib/queryKeys';
 import type { ApiResponse, MoexSecuritySearchItem } from '@/types/investment';
 import type { SearchCategory } from '@/hooks/useSecuritySearch';
 
 export function useSecurityList(category: SearchCategory, enabled: boolean) {
   return useQuery({
-    queryKey: ['moex-list', category],
+    queryKey: [...qk.investment.securityList(), category],
     queryFn: () =>
       apiGet<ApiResponse<MoexSecuritySearchItem[]>>(
         `/api/investment/market/securities?category=${category}`,

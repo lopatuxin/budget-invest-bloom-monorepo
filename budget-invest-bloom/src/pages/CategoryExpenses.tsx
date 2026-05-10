@@ -6,8 +6,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Calendar, TrendingDown, Settings, Trash2, Wallet, BarChart3 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { ApiError } from '@/lib/api';
+import type { CategoryHasExpensesErrorBody } from '@/types/budget';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import { useCategoryAnalytics } from '@/hooks/useCategoryAnalytics';
@@ -15,6 +17,7 @@ import { useUpdateCategory } from '@/hooks/useUpdateCategory';
 import { useDeleteCategory } from '@/hooks/useDeleteCategory';
 import { useDeleteExpense } from '@/hooks/useDeleteExpense';
 import { CategoryEmojiPicker } from '@/components/CategoryEmojiPicker';
+import { formatCurrency, getYearOptions, MONTHS } from '@/lib/dateOptions';
 
 const CategoryExpenses = () => {
   const { category } = useParams<{ category: string }>();
@@ -45,41 +48,20 @@ const CategoryExpenses = () => {
 
   const analyticsData = analyticsResponse?.body;
 
-  useEffect(() => {
-    if (analyticsData) {
-      setEditCategoryName(analyticsData.categoryName || category || '');
-      setEditCategoryLimit(analyticsData.budget?.toString() || '0');
-      setEditCategoryEmoji(analyticsData.emoji ?? '');
-    }
-  }, [analyticsData]);
+  // Edit fields are initialized in onOpenChange when the dialog opens — no useEffect needed here.
+  // Removing the useEffect that was overwriting user input on every analyticsData change.
 
-  const months = [
-    { value: '1', label: 'Январь' },
-    { value: '2', label: 'Февраль' },
-    { value: '3', label: 'Март' },
-    { value: '4', label: 'Апрель' },
-    { value: '5', label: 'Май' },
-    { value: '6', label: 'Июнь' },
-    { value: '7', label: 'Июль' },
-    { value: '8', label: 'Август' },
-    { value: '9', label: 'Сентябрь' },
-    { value: '10', label: 'Октябрь' },
-    { value: '11', label: 'Ноябрь' },
-    { value: '12', label: 'Декабрь' },
-  ];
+  const years = getYearOptions();
 
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: currentYear - 2020 + 2 }, (_, i) => String(2020 + i));
+  const monthlyData = useMemo(
+    () => (analyticsData?.monthlyData || []).map(m => ({ month: m.monthName, amount: m.amount })),
+    [analyticsData]
+  );
 
-  const monthlyData = (analyticsData?.monthlyData || []).map(m => ({
-    month: m.monthName,
-    amount: m.amount,
-  }));
-
-  const yearlyData = (analyticsData?.yearlyData || []).map(y => ({
-    year: String(y.year),
-    amount: y.amount,
-  }));
+  const yearlyData = useMemo(
+    () => (analyticsData?.yearlyData || []).map(y => ({ year: String(y.year), amount: y.amount })),
+    [analyticsData]
+  );
 
   const expenses = analyticsData?.expenses || [];
   const totalMonthExpenses = analyticsData?.totalExpenses || 0;
@@ -130,15 +112,20 @@ const CategoryExpenses = () => {
           toast({ title: 'Категория удалена' });
         },
         onError: (error: unknown) => {
-          const message = error instanceof Error ? error.message : '';
-          // Backend signals "has expenses" via 409 with count in parens
-          const cascadeMatch = !force ? message.match(/есть связанные расходы \((\d+)\)/) : null;
-          if (cascadeMatch) {
-            const count = Number(cascadeMatch[1]);
+          if (
+            !force &&
+            error instanceof ApiError &&
+            error.status === 409 &&
+            typeof error.details === 'object' &&
+            error.details !== null &&
+            (error.details as CategoryHasExpensesErrorBody).code === 'CATEGORY_HAS_EXPENSES'
+          ) {
+            const { expenseCount } = error.details as CategoryHasExpensesErrorBody;
             setIsDeleteCategoryDialogOpen(false);
-            setCascadeConfirmState({ open: true, expenseCount: count });
+            setCascadeConfirmState({ open: true, expenseCount });
             return;
           }
+          const message = error instanceof Error ? error.message : '';
           toast({
             title: 'Ошибка',
             description: message || 'Не удалось удалить категорию',
@@ -329,7 +316,7 @@ const CategoryExpenses = () => {
           >
             <div className="space-y-2">
               <p className="text-[11px] uppercase tracking-widest text-dashboard-text-muted">Общая сумма за год</p>
-              <p className="text-2xl font-bold font-mono text-dashboard-text">{(analyticsData?.totalYear ?? 0).toLocaleString()}</p>
+              <p className="text-2xl font-bold font-mono text-dashboard-text">{formatCurrency(analyticsData?.totalYear ?? 0)}</p>
             </div>
             <div
               className="w-11 h-11 rounded-xl flex items-center justify-center"
@@ -346,7 +333,7 @@ const CategoryExpenses = () => {
           >
             <div className="space-y-2">
               <p className="text-[11px] uppercase tracking-widest text-dashboard-text-muted">Среднее за год</p>
-              <p className="text-2xl font-bold font-mono text-dashboard-text">{(analyticsData?.averageYear ?? 0).toLocaleString()}</p>
+              <p className="text-2xl font-bold font-mono text-dashboard-text">{formatCurrency(analyticsData?.averageYear ?? 0)}</p>
             </div>
             <div
               className="w-11 h-11 rounded-xl flex items-center justify-center"
@@ -400,7 +387,7 @@ const CategoryExpenses = () => {
                     borderRadius: '0.75rem',
                     color: '#d6e3fa'
                   }}
-                  formatter={(value) => [`${Number(value).toLocaleString()}`, 'Сумма']}
+                  formatter={(value) => [formatCurrency(Number(value)), 'Сумма']}
                 />
                 <Line
                   type="monotone"
@@ -422,7 +409,7 @@ const CategoryExpenses = () => {
                 <Calendar className="w-5 h-5" />
                 Отчет по дням
                 <span className="text-sm font-normal text-dashboard-text-muted ml-2 font-mono">
-                  (Общая сумма: {totalMonthExpenses.toLocaleString()})
+                  (Общая сумма: {formatCurrency(totalMonthExpenses)})
                 </span>
               </CardTitle>
               <div className="flex gap-3">
@@ -431,7 +418,7 @@ const CategoryExpenses = () => {
                     <SelectValue placeholder="Месяц" />
                   </SelectTrigger>
                   <SelectContent className="bg-[#0B1929] border-white/10">
-                    {months.map((month) => (
+                    {MONTHS.map((month) => (
                       <SelectItem key={month.value} value={month.value}>
                         {month.label}
                       </SelectItem>
@@ -472,13 +459,13 @@ const CategoryExpenses = () => {
                         {expense.description}
                       </div>
                       <div className="text-sm text-dashboard-text-muted">
-                        {expense.date}
+                        {new Date(expense.date).toLocaleDateString('ru-RU')}
                       </div>
                     </div>
                   </div>
                   <div className="relative z-10 flex items-center gap-3">
                     <div className="font-semibold text-lg text-dashboard-text font-mono">
-                      {expense.amount.toLocaleString()}
+                      {formatCurrency(expense.amount)}
                     </div>
                     <Button
                       variant="ghost"

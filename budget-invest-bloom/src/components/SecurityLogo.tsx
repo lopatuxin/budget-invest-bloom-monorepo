@@ -39,6 +39,7 @@ export function SecurityLogo({ ticker, size = 24, securityType }: SecurityLogoPr
         src={url}
         alt={ticker}
         style={style}
+        loading="lazy"
         className="rounded-full object-contain bg-white/5"
         onError={() => setFailed(true)}
       />

@@ -6,49 +6,173 @@ import { Label } from '@/components/ui/label';
 import { Plus, Minus, DollarSign, TrendingUp, TrendingDown, Loader2, ShoppingCart } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
 import { CategoryEmojiPicker } from '@/components/CategoryEmojiPicker';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
 import { useBudgetSummary } from '@/hooks/useBudgetSummary';
-import { apiPost } from '@/lib/api';
+import { useCreateExpense } from '@/hooks/useCreateExpense';
+import { useCreateIncome } from '@/hooks/useCreateIncome';
+import { useCreateCategory } from '@/hooks/useCreateCategory';
+import { formatCurrency, getYearOptions, MONTHS } from '@/lib/dateOptions';
+import { DONUT_COLORS } from '@/lib/chartColors';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useCountUp } from '@/hooks/useCountUp';
 
-const formatCurrency = (value: number) => value.toLocaleString('ru-RU') + ' \u20BD';
-
-// Animated count-up hook with easeOutCubic easing
-const useCountUp = (target: number, duration = 800) => {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    if (target === 0) { setValue(0); return; }
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setValue(target); return; }
-    let rafId: number;
-    const start = performance.now();
-    const step = (now: number) => {
-      const progress = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setValue(Math.round(target * eased));
-      if (progress < 1) rafId = requestAnimationFrame(step);
-    };
-    rafId = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(rafId);
-  }, [target, duration]);
-  return value;
-};
-
-const DONUT_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#14B8A6'];
 const DANGER_COLOR = '#EF4444';
+const INCOME_SOURCES = [
+  { value: 'SALARY',      label: 'Зарплата' },
+  { value: 'FREELANCE',   label: 'Фриланс' },
+  { value: 'INVESTMENTS', label: 'Инвестиции' },
+  { value: 'GIFTS',       label: 'Подарки' },
+  { value: 'OTHER',       label: 'Прочее' },
+];
 
-
-const Skeleton = ({ className = '' }: { className?: string }) => (
-  <div className={`animate-pulse bg-white/10 rounded-xl ${className}`} />
-);
 
 type DialogType = 'expense' | 'income' | 'category' | null;
+
+type Category = {
+  id: string;
+  name: string;
+  amount: number;
+  budget: number;
+  emoji: string;
+};
+
+interface CategoriesSectionProps {
+  isLoading: boolean;
+  categories: Category[];
+  selectedMonth: string;
+  selectedYear: string;
+  onMonthChange: (v: string) => void;
+  onYearChange: (v: string) => void;
+  onCategoryClick: (name: string) => void;
+  onCreateCategory: () => void;
+}
+
+const CategoriesSection = memo(({
+  isLoading,
+  categories,
+  selectedMonth,
+  selectedYear,
+  onMonthChange,
+  onYearChange,
+  onCategoryClick,
+  onCreateCategory,
+}: CategoriesSectionProps) => {
+  const getProgressPercentage = (amount: number, budget: number) => {
+    if (budget === 0) return 0;
+    return Math.min((amount / budget) * 100, 100);
+  };
+
+  const CARD_LIMIT = 8;
+  const firstCards = categories.slice(0, CARD_LIMIT);
+  const secondCards = categories.slice(CARD_LIMIT);
+
+  const renderCategoryRow = (cat: Category, i: number) => (
+    <button
+      key={cat.id || cat.name}
+      onClick={() => onCategoryClick(cat.name)}
+      className="w-full flex items-center gap-4 px-4 py-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] transition-all duration-200 text-left group"
+    >
+      <div
+        className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"
+        style={{ backgroundColor: `${DONUT_COLORS[i % DONUT_COLORS.length]}20` }}
+      >
+        {cat.emoji}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-dashboard-text truncate">{cat.name}</p>
+        {cat.budget > 0 && (
+          <div className="w-full bg-white/5 rounded-full h-1.5 mt-1.5">
+            <div
+              className="h-1.5 rounded-full animate-progress-grow"
+              style={{
+                width: `${Math.min(getProgressPercentage(cat.amount, cat.budget), 100)}%`,
+                backgroundColor: cat.amount > cat.budget ? DANGER_COLOR : DONUT_COLORS[i % DONUT_COLORS.length],
+                animationDelay: `${400 + i * 80}ms`,
+              }}
+            />
+          </div>
+        )}
+      </div>
+      <div className="text-right shrink-0">
+        <p className="text-sm font-semibold text-dashboard-text font-mono">{formatCurrency(cat.amount)}</p>
+        {cat.budget > 0 && (
+          <p className="text-xs text-dashboard-text-muted font-mono">из {formatCurrency(cat.budget)}</p>
+        )}
+      </div>
+    </button>
+  );
+
+  if (isLoading) {
+    return <Skeleton className="h-[400px] lg:w-1/2" />;
+  }
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-4 lg:items-stretch">
+      {/* First card - always shown, half-width only when second card exists */}
+      <div className={`glass-card p-5 animate-fade-slide-up ${secondCards.length > 0 ? 'lg:flex-1' : 'lg:w-1/2'}`} style={{ animationDelay: '300ms' }}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-dashboard-text">Категории расходов</h3>
+        </div>
+        <div className="flex gap-3 mb-4">
+          <Select value={selectedMonth} onValueChange={onMonthChange}>
+            <SelectTrigger className="w-[140px] bg-white/5 border-white/10 text-dashboard-text hover:bg-white/[0.08] transition-colors">
+              <SelectValue placeholder="Месяц" />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTHS.map((month) => (
+                <SelectItem key={month.value} value={month.value}>
+                  {month.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={selectedYear} onValueChange={onYearChange}>
+            <SelectTrigger className="w-[100px] bg-white/5 border-white/10 text-dashboard-text hover:bg-white/[0.08] transition-colors">
+              <SelectValue placeholder="Год" />
+            </SelectTrigger>
+            <SelectContent>
+              {getYearOptions().map((year) => (
+                <SelectItem key={year} value={year}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {categories.length === 0 ? (
+          <EmptyState
+            icon={<ShoppingCart className="w-10 h-10" />}
+            title="Нет категорий"
+            description="Создайте первую категорию для учёта расходов"
+            actionLabel="Создать категорию"
+            onAction={onCreateCategory}
+          />
+        ) : (
+          <div className="space-y-2">
+            {firstCards.map((cat, i) => renderCategoryRow(cat, i))}
+          </div>
+        )}
+      </div>
+      {/* Second card - shown only when there are overflow categories */}
+      {secondCards.length > 0 && (
+        <div className="glass-card p-5 lg:flex-1 animate-fade-slide-up" style={{ animationDelay: '360ms' }}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-dashboard-text">Остальные категории</h3>
+          </div>
+          <div className="space-y-2">
+            {secondCards.map((cat, i) => renderCategoryRow(cat, CARD_LIMIT + i))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
 
 const Budget = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(String(now.getMonth() + 1));
@@ -71,6 +195,9 @@ const Budget = () => {
   });
 
   const { data: summaryData, isLoading, error } = useBudgetSummary(selectedMonth, selectedYear);
+  const createExpense = useCreateExpense();
+  const createIncome = useCreateIncome();
+  const createCategory = useCreateCategory();
 
   useEffect(() => {
     if (error) {
@@ -82,14 +209,14 @@ const Budget = () => {
     }
   }, [error, toast]);
 
-  // Open dialog from query param (read once on mount / navigation)
-  const actionParam = searchParams.get('action');
+  // Open dialog from query param — read searchParams inside the effect to avoid double-trigger
   useEffect(() => {
+    const actionParam = searchParams.get('action');
     if (actionParam === 'expense' || actionParam === 'income' || actionParam === 'category') {
       setOpenDialog(actionParam);
       setSearchParams({}, { replace: true });
     }
-  }, [actionParam, setSearchParams]);
+  }, [searchParams, setSearchParams]);
 
   const summary = summaryData?.body;
   const income = summary?.income ?? 0;
@@ -106,153 +233,49 @@ const Budget = () => {
     return { value: trend, isPositive: num >= 0 };
   };
 
-  const months = [
-    { value: '1', label: 'Январь' },
-    { value: '2', label: 'Февраль' },
-    { value: '3', label: 'Март' },
-    { value: '4', label: 'Апрель' },
-    { value: '5', label: 'Май' },
-    { value: '6', label: 'Июнь' },
-    { value: '7', label: 'Июль' },
-    { value: '8', label: 'Август' },
-    { value: '9', label: 'Сентябрь' },
-    { value: '10', label: 'Октябрь' },
-    { value: '11', label: 'Ноябрь' },
-    { value: '12', label: 'Декабрь' },
-  ];
 
-  const years = Array.from(
-    { length: new Date().getFullYear() - 2022 + 1 },
-    (_, i) => String(2022 + i)
-  );
-
-  const getProgressPercentage = (amount: number, budget: number) => {
-    if (budget === 0) return 0;
-    return Math.min((amount / budget) * 100, 100);
-  };
-
-  const incomeSources = [
-    { value: 'SALARY',      label: 'Зарплата' },
-    { value: 'FREELANCE',   label: 'Фриланс' },
-    { value: 'INVESTMENTS', label: 'Инвестиции' },
-    { value: 'GIFTS',       label: 'Подарки' },
-    { value: 'OTHER',       label: 'Прочее' },
-  ];
-
-  const [isExpenseSubmitting, setIsExpenseSubmitting] = useState(false);
-  const [isIncomeSubmitting, setIsIncomeSubmitting] = useState(false);
-  const [isCategorySubmitting, setIsCategorySubmitting] = useState(false);
-
-  const handleAddExpense = async () => {
+  const handleAddExpense = () => {
     if (!expenseForm.amount || !expenseForm.category) {
-      toast({
-        title: "Ошибка",
-        description: "Заполните обязательные поля",
-        variant: "destructive"
-      });
+      toast({ title: "Ошибка", description: "Заполните обязательные поля", variant: "destructive" });
       return;
     }
-
-    setIsExpenseSubmitting(true);
-    try {
-      await apiPost('/api/budget/expenses', {
-        categoryId: expenseForm.category,
-        amount: parseFloat(expenseForm.amount),
-        description: expenseForm.description || null,
-      });
-
-      toast({
-        title: "Расход добавлен",
-        description: `Добавлен расход ${expenseForm.amount}\u20BD`,
-      });
-
-      setExpenseForm({ amount: '', category: '', description: '' });
-      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['overview-summary'] });
-      resetDialog();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Не удалось добавить расход";
-      toast({
-        title: "Ошибка",
-        description: message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsExpenseSubmitting(false);
+    const parsedAmount = parseFloat(expenseForm.amount);
+    if (isNaN(parsedAmount) || parsedAmount < 0) {
+      toast({ title: "Ошибка", description: "Введите корректную сумму", variant: "destructive" });
+      return;
     }
+    createExpense.mutate(
+      { categoryId: expenseForm.category, amount: parsedAmount, description: expenseForm.description || null },
+      { onSuccess: () => { setExpenseForm({ amount: '', category: '', description: ''  }); resetDialog(); } }
+    );
   };
 
-  const handleAddIncome = async () => {
+  const handleAddIncome = () => {
     if (!incomeForm.amount || !incomeForm.source) {
       toast({ title: "Ошибка", description: "Заполните обязательные поля", variant: "destructive" });
       return;
     }
-
     const parsedAmount = parseFloat(incomeForm.amount);
-    if (isNaN(parsedAmount)) {
+    if (isNaN(parsedAmount) || parsedAmount < 0) {
       toast({ title: "Ошибка", description: "Введите корректную сумму", variant: "destructive" });
       return;
     }
-
-    setIsIncomeSubmitting(true);
-    try {
-      await apiPost('/api/budget/incomes', {
-        amount: parsedAmount,
-        source: incomeForm.source,
-        description: incomeForm.description || null,
-      });
-      toast({ title: "Доход добавлен", description: `Добавлен доход ${incomeForm.amount}\u20BD` });
-      setIncomeForm({ amount: '', source: '', description: '' });
-      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['overview-summary'] });
-      resetDialog();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Не удалось добавить доход";
-      toast({ title: "Ошибка", description: message, variant: "destructive" });
-    } finally {
-      setIsIncomeSubmitting(false);
-    }
+    createIncome.mutate(
+      { amount: parsedAmount, source: incomeForm.source, description: incomeForm.description || null },
+      { onSuccess: () => { setIncomeForm({ amount: '', source: '', description: ''  }); resetDialog(); } }
+    );
   };
 
-  const handleAddCategory = async () => {
+  const handleAddCategory = () => {
     if (!categoryForm.name) {
-      toast({
-        title: "Ошибка",
-        description: "Заполните обязательные поля",
-        variant: "destructive"
-      });
+      toast({ title: "Ошибка", description: "Заполните обязательные поля", variant: "destructive" });
       return;
     }
-
     const budgetValue = categoryForm.budget ? Number(categoryForm.budget) : null;
-
-    setIsCategorySubmitting(true);
-    try {
-      await apiPost('/api/budget/categories', {
-        name: categoryForm.name,
-        budget: budgetValue,
-        emoji: categoryForm.emoji.trim() || undefined,
-      });
-
-      toast({
-        title: "Категория добавлена",
-        description: `Добавлена категория "${categoryForm.name}"${budgetValue ? ` с бюджетом ${categoryForm.budget}\u20BD` : ''}`,
-      });
-
-      setCategoryForm({ name: '', budget: '', emoji: '' });
-      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['overview-summary'] });
-      resetDialog();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Не удалось добавить категорию";
-      toast({
-        title: "Ошибка",
-        description: message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsCategorySubmitting(false);
-    }
+    createCategory.mutate(
+      { name: categoryForm.name, budget: budgetValue, emoji: categoryForm.emoji.trim() || undefined },
+      { onSuccess: () => { setCategoryForm({ name: '', budget: '', emoji: ''  }); resetDialog(); } }
+    );
   };
 
   const resetDialog = () => {
@@ -262,18 +285,19 @@ const Budget = () => {
     setIncomeForm({ amount: '', source: '', description: '' });
   };
 
-  // Animated KPI values (count-up from 0)
+  // Animated KPI values — count-up from previous value (no flash to 0 on re-fetch)
   const animIncome = useCountUp(!isLoading && summary ? income : 0);
   const animExpenses = useCountUp(!isLoading && summary ? expenses : 0);
   const animBalance = useCountUp(!isLoading && summary ? balance : 0);
   const animInflation = useCountUp(!isLoading && summary ? personalInflation : 0);
 
-  const kpiCards = [
+  // Memoized to avoid rebuilding the array on every animation tick
+  const kpiCards = useMemo(() => [
     { label: 'ДОХОДЫ', value: formatCurrency(animIncome), trend: trends?.income, icon: Plus, color: '#10B981', glow: 'rgba(16, 185, 129, 0.3)', path: '/budget/metric/income' },
     { label: 'РАСХОДЫ', value: formatCurrency(animExpenses), trend: trends?.expenses, icon: Minus, color: '#F59E0B', glow: 'rgba(245, 158, 11, 0.3)', path: '/budget/metric/expenses' },
     { label: 'СВОБОДНЫЕ СРЕДСТВА', value: formatCurrency(animBalance), trend: trends?.balance, icon: DollarSign, color: '#3B82F6', glow: 'rgba(59, 130, 246, 0.3)', path: '/budget/metric/balance' },
     { label: 'ЛИЧНАЯ ИНФЛЯЦИЯ', value: `${animInflation}%`, trend: trends?.inflation, icon: TrendingUp, color: '#EC4899', glow: 'rgba(236, 72, 153, 0.3)', path: '/budget/metric/inflation' },
-  ];
+  ], [animIncome, animExpenses, animBalance, animInflation, trends]);
 
   return (
     <div className="space-y-6 pb-6">
@@ -319,112 +343,17 @@ const Budget = () => {
             })}
       </div>
 
-      {/* Categories Section */}
-      {(() => {
-        const CARD_LIMIT = 8;
-        const firstCards = categories.slice(0, CARD_LIMIT);
-        const secondCards = categories.slice(CARD_LIMIT);
-
-        // Reusable category row renderer
-        const renderCategoryRow = (cat: typeof categories[0], i: number) => (
-          <button
-            key={cat.id || cat.name}
-            onClick={() => navigate(`/budget/category/${encodeURIComponent(cat.name)}`)}
-            className="w-full flex items-center gap-4 px-4 py-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] transition-all duration-200 text-left group"
-          >
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"
-              style={{ backgroundColor: `${DONUT_COLORS[i % DONUT_COLORS.length]}20` }}
-            >
-              {cat.emoji}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-dashboard-text truncate">{cat.name}</p>
-              {cat.budget > 0 && (
-                <div className="w-full bg-white/5 rounded-full h-1.5 mt-1.5">
-                  <div
-                    className="h-1.5 rounded-full animate-progress-grow"
-                    style={{
-                      width: `${Math.min(getProgressPercentage(cat.amount, cat.budget), 100)}%`,
-                      backgroundColor: cat.amount > cat.budget ? DANGER_COLOR : DONUT_COLORS[i % DONUT_COLORS.length],
-                      animationDelay: `${400 + i * 80}ms`,
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-            <div className="text-right shrink-0">
-              <p className="text-sm font-semibold text-dashboard-text font-mono">{formatCurrency(cat.amount)}</p>
-              {cat.budget > 0 && (
-                <p className="text-xs text-dashboard-text-muted font-mono">из {formatCurrency(cat.budget)}</p>
-              )}
-            </div>
-          </button>
-        );
-
-        return isLoading ? (
-          <Skeleton className="h-[400px] lg:w-1/2" />
-        ) : (
-          <div className="flex flex-col lg:flex-row gap-4 lg:items-stretch">
-            {/* First card - always shown, half-width only when second card exists */}
-            <div className={`glass-card p-5 animate-fade-slide-up ${secondCards.length > 0 ? 'lg:flex-1' : 'lg:w-1/2'}`} style={{ animationDelay: '300ms' }}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-dashboard-text">Категории расходов</h3>
-              </div>
-              <div className="flex gap-3 mb-4">
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger className="w-[140px] bg-white/5 border-white/10 text-dashboard-text hover:bg-white/[0.08] transition-colors">
-                    <SelectValue placeholder="Месяц" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {months.map((month) => (
-                      <SelectItem key={month.value} value={month.value}>
-                        {month.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger className="w-[100px] bg-white/5 border-white/10 text-dashboard-text hover:bg-white/[0.08] transition-colors">
-                    <SelectValue placeholder="Год" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {years.map((year) => (
-                      <SelectItem key={year} value={year}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {categories.length === 0 ? (
-                <EmptyState
-                  icon={<ShoppingCart className="w-10 h-10" />}
-                  title="Нет категорий"
-                  description="Создайте первую категорию для учёта расходов"
-                  actionLabel="Создать категорию"
-                  onAction={() => setOpenDialog('category')}
-                />
-              ) : (
-                <div className="space-y-2">
-                  {firstCards.map((cat, i) => renderCategoryRow(cat, i))}
-                </div>
-              )}
-            </div>
-            {/* Second card - shown only when there are overflow categories */}
-            {secondCards.length > 0 && (
-              <div className="glass-card p-5 lg:flex-1 animate-fade-slide-up" style={{ animationDelay: '360ms' }}>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold text-dashboard-text">Остальные категории</h3>
-                </div>
-                <div className="space-y-2">
-                  {secondCards.map((cat, i) => renderCategoryRow(cat, CARD_LIMIT + i))}
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      {/* Categories Section — isolated in React.memo to avoid re-render on every count-up tick */}
+      <CategoriesSection
+        isLoading={isLoading}
+        categories={categories}
+        selectedMonth={selectedMonth}
+        selectedYear={selectedYear}
+        onMonthChange={setSelectedMonth}
+        onYearChange={setSelectedYear}
+        onCategoryClick={(name) => navigate(`/budget/category/${encodeURIComponent(name)}`)}
+        onCreateCategory={() => setOpenDialog('category')}
+      />
 
       {/* Expense Dialog */}
       <Dialog open={openDialog === 'expense'} onOpenChange={(open) => { if (!open) resetDialog(); }}>
@@ -487,9 +416,9 @@ const Budget = () => {
               <Button
                 className="flex-1 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
                 onClick={handleAddExpense}
-                disabled={isExpenseSubmitting}
+                disabled={createExpense.isPending}
               >
-                {isExpenseSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {createExpense.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Добавить
               </Button>
             </div>
@@ -529,7 +458,7 @@ const Budget = () => {
                   <SelectValue placeholder="Выберите источник" />
                 </SelectTrigger>
                 <SelectContent>
-                  {incomeSources.map((s) => (
+                  {INCOME_SOURCES.map((s) => (
                     <SelectItem key={s.value} value={s.value}>
                       {s.label}
                     </SelectItem>
@@ -558,9 +487,9 @@ const Budget = () => {
               <Button
                 className="flex-1 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
                 onClick={handleAddIncome}
-                disabled={isIncomeSubmitting}
+                disabled={createIncome.isPending}
               >
-                {isIncomeSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {createIncome.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Добавить
               </Button>
             </div>
@@ -618,9 +547,9 @@ const Budget = () => {
               <Button
                 className="flex-1 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20"
                 onClick={handleAddCategory}
-                disabled={isCategorySubmitting}
+                disabled={createCategory.isPending}
               >
-                {isCategorySubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {createCategory.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Добавить
               </Button>
             </div>

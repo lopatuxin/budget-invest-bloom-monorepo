@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   ShoppingCart,
@@ -32,30 +32,11 @@ import { useExpenseMetric } from '@/hooks/useExpenseMetric';
 import { useIncomeMetric } from '@/hooks/useIncomeMetric';
 import { useFreeCapital } from '@/hooks/useFreeCapital';
 import { useInvestmentPortfolio } from '@/hooks/useInvestmentPortfolio';
+import { useCountUp } from '@/hooks/useCountUp';
+import { formatCurrency, MONTHS } from '@/lib/dateOptions';
+import { DONUT_COLORS } from '@/lib/chartColors';
+import { Skeleton } from '@/components/ui/skeleton';
 
-const formatCurrency = (value: number) => value.toLocaleString('ru-RU') + ' \u20BD';
-
-// Animated count-up hook with easeOutCubic easing
-const useCountUp = (target: number, duration = 800) => {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    if (target === 0) { setValue(0); return; }
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setValue(target); return; }
-    let rafId: number;
-    const start = performance.now();
-    const step = (now: number) => {
-      const progress = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setValue(Math.round(target * eased));
-      if (progress < 1) rafId = requestAnimationFrame(step);
-    };
-    rafId = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(rafId);
-  }, [target, duration]);
-  return value;
-};
-
-const DONUT_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#14B8A6'];
 const DANGER_COLOR = '#EF4444';
 
 // Time range options for chart period selector
@@ -97,10 +78,19 @@ const sliceByRange = <T,>(data: T[], range: TimeRange): T[] => {
   return data;
 };
 
-// Loading skeleton
-const Skeleton = ({ className = '' }: { className?: string }) => (
-  <div className={`animate-pulse bg-white/10 rounded-xl ${className}`} />
-);
+
+// Month name lookup indexed by month number (1-based)
+const MONTH_NAMES = MONTHS.reduce<Record<number, string>>((acc, m) => {
+  acc[Number(m.value)] = m.label;
+  return acc;
+}, {});
+
+const parseTrend = (trend: string | null | undefined) => {
+  if (!trend) return null;
+  const num = parseFloat(trend);
+  if (isNaN(num)) return null;
+  return { value: trend, isPositive: num >= 0 };
+};
 
 const Index = () => {
   const navigate = useNavigate();
@@ -109,11 +99,12 @@ const Index = () => {
   const now = new Date();
   const currentMonth = String(now.getMonth() + 1);
   const currentYear = String(now.getFullYear());
+  const currentMonthNum = now.getMonth() + 1;
+
+  const previousYear = String(now.getFullYear() - 1);
 
   const { data: summaryResponse, isLoading: summaryLoading } = useOverviewSummary(currentMonth, currentYear, isAuthenticated);
   const summary = summaryResponse?.body;
-
-  const previousYear = String(now.getFullYear() - 1);
 
   const { data: incomeResponse, isLoading: incomeLoading } = useIncomeMetric(currentYear, isAuthenticated);
   const incomeMetric = incomeResponse?.body;
@@ -136,6 +127,66 @@ const Index = () => {
   // Time range state for bar chart and area chart (must be before conditional return)
   const [barTimeRange, setBarTimeRange] = useState<TimeRange>('6m');
   const [areaTimeRange, setAreaTimeRange] = useState<TimeRange>('6m');
+
+  // Animated KPI values — all hooks must be above any conditional return
+  const animCapital = useCountUp(!freeCapitalLoading ? freeCapital : 0);
+  const animSavingsRate = useCountUp(!summaryLoading && summary ? summary.savingsRate : 0);
+  const animPortfolio = useCountUp(!portfolioLoading ? portfolioValue : 0);
+
+  // Build rolling 12-month bar chart data: tail of previous year + head of current year
+  // Exactly 12 points guaranteed: (12 - currentMonthNum) prev + currentMonthNum curr
+  const allBarChartData = useMemo(() => {
+    const incomeMapCurr = new Map((incomeMetric?.monthlyData || []).map(d => [d.month, d]));
+    const expenseMapCurr = new Map((expenseMetric?.monthlyData || []).map(d => [d.month, d]));
+    const incomeMapPrev = new Map((incomePrevMetric?.monthlyData || []).map(d => [d.month, d]));
+    const expenseMapPrev = new Map((expensePrevMetric?.monthlyData || []).map(d => [d.month, d]));
+
+    // Tail of previous year: months from (currentMonthNum + 1) through 12
+    const prevYearTail: { name: string; income: number; expenses: number }[] = [];
+    for (let m = currentMonthNum + 1; m <= 12; m++) {
+      const iEntry = incomeMapPrev.get(m);
+      const eEntry = expenseMapPrev.get(m);
+      prevYearTail.push({
+        name: MONTH_NAMES[m] ?? String(m),
+        income: iEntry?.amount ?? 0,
+        expenses: eEntry?.amount ?? 0,
+      });
+    }
+
+    // Head of current year: months from 1 through currentMonthNum
+    const currYearHead: { name: string; income: number; expenses: number }[] = [];
+    for (let m = 1; m <= currentMonthNum; m++) {
+      const iEntry = incomeMapCurr.get(m);
+      const eEntry = expenseMapCurr.get(m);
+      currYearHead.push({
+        name: MONTH_NAMES[m] ?? String(m),
+        income: iEntry?.amount ?? 0,
+        expenses: eEntry?.amount ?? 0,
+      });
+    }
+
+    return [...prevYearTail, ...currYearHead];
+  }, [incomeMetric, expenseMetric, incomePrevMetric, expensePrevMetric, currentMonthNum]);
+
+  // Area chart data for income trend: rolling 12-month window
+  const allIncomeAreaData = useMemo(() => {
+    const incomeMapPrev = new Map((incomePrevMetric?.monthlyData || []).map(d => [d.month, d]));
+    const incomeMapCurr = new Map((incomeMetric?.monthlyData || []).map(d => [d.month, d]));
+
+    const prevTail: { name: string; amount: number }[] = [];
+    for (let m = currentMonthNum + 1; m <= 12; m++) {
+      const entry = incomeMapPrev.get(m);
+      prevTail.push({ name: MONTH_NAMES[m] ?? String(m), amount: entry?.amount ?? 0 });
+    }
+
+    const currHead: { name: string; amount: number }[] = [];
+    for (let m = 1; m <= currentMonthNum; m++) {
+      const entry = incomeMapCurr.get(m);
+      currHead.push({ name: MONTH_NAMES[m] ?? String(m), amount: entry?.amount ?? 0 });
+    }
+
+    return [...prevTail, ...currHead];
+  }, [incomeMetric, incomePrevMetric, currentMonthNum]);
 
   // If not authenticated, show landing page
   if (!isAuthenticated) {
@@ -193,41 +244,10 @@ const Index = () => {
     );
   }
 
-  // Build rolling 12-month bar chart data: tail of previous year + head of current year
-  const currentMonthNum = now.getMonth() + 1;
-  const allBarChartData = (() => {
-    const incomeMapCurr = new Map((incomeMetric?.monthlyData || []).map(d => [d.month, d]));
-    const expenseMapCurr = new Map((expenseMetric?.monthlyData || []).map(d => [d.month, d]));
-    const incomeMapPrev = new Map((incomePrevMetric?.monthlyData || []).map(d => [d.month, d]));
-    const expenseMapPrev = new Map((expensePrevMetric?.monthlyData || []).map(d => [d.month, d]));
-
-    // Tail of previous year: months from (currentMonthNum + 1) through 12
-    const prevYearTail = [];
-    for (let m = currentMonthNum + 1; m <= 12; m++) {
-      const iEntry = incomeMapPrev.get(m);
-      const eEntry = expenseMapPrev.get(m);
-      prevYearTail.push({
-        name: iEntry?.monthName || eEntry?.monthName || String(m),
-        income: iEntry?.amount || 0,
-        expenses: eEntry?.amount || 0,
-      });
-    }
-
-    // Head of current year: months from 1 through currentMonthNum
-    const currYearHead = [];
-    for (let m = 1; m <= currentMonthNum; m++) {
-      const iEntry = incomeMapCurr.get(m);
-      const eEntry = expenseMapCurr.get(m);
-      currYearHead.push({
-        name: iEntry?.monthName || eEntry?.monthName || String(m),
-        income: iEntry?.amount || 0,
-        expenses: eEntry?.amount || 0,
-      });
-    }
-
-    return [...prevYearTail, ...currYearHead];
-  })();
   const barChartData = sliceByRange(allBarChartData, barTimeRange);
+  const incomeAreaData = sliceByRange(allIncomeAreaData, areaTimeRange);
+
+  const isChartsLoading = incomeLoading || expenseLoading || incomePrevLoading || expensePrevLoading;
 
   // Donut data from categories
   const donutData = (summary?.categories || []).map((cat, i) => ({
@@ -237,38 +257,7 @@ const Index = () => {
   }));
   const totalCategoryAmount = donutData.reduce((sum, d) => sum + d.value, 0);
 
-  // Area chart data for income trend: rolling 12-month window
-  const allIncomeAreaData = (() => {
-    const incomeMapPrev = new Map((incomePrevMetric?.monthlyData || []).map(d => [d.month, d]));
-    const incomeMapCurr = new Map((incomeMetric?.monthlyData || []).map(d => [d.month, d]));
-
-    const prevTail = [];
-    for (let m = currentMonthNum + 1; m <= 12; m++) {
-      const entry = incomeMapPrev.get(m);
-      prevTail.push({ name: entry?.monthName || String(m), amount: entry?.amount || 0 });
-    }
-
-    const currHead = [];
-    for (let m = 1; m <= currentMonthNum; m++) {
-      const entry = incomeMapCurr.get(m);
-      currHead.push({ name: entry?.monthName || String(m), amount: entry?.amount || 0 });
-    }
-
-    return [...prevTail, ...currHead];
-  })();
-  const incomeAreaData = sliceByRange(allIncomeAreaData, areaTimeRange);
-
-  const isChartsLoading = incomeLoading || expenseLoading || incomePrevLoading || expensePrevLoading;
-
-  // Animated KPI values (count-up from 0)
-  const animCapital = useCountUp(!freeCapitalLoading ? freeCapital : 0);
-  const animSavingsRate = useCountUp(!summaryLoading && summary ? summary.savingsRate : 0);
-  const animPortfolio = useCountUp(!portfolioLoading ? portfolioValue : 0);
-
-  // Sparkline data for capital card: last 6 months from rolling window
-  const sparklineData = allIncomeAreaData.slice(-6).map(d => d.amount);
-
-  // KPI cards config
+  // KPI cards config — sparkline removed from ЧИСТЫЙ КАПИТАЛ (income data != capital)
   interface KpiCard {
     label: string;
     value: string;
@@ -276,7 +265,6 @@ const Index = () => {
     icon: typeof Wallet;
     color: string;
     glow: string;
-    sparkline?: number[];
   }
 
   const kpiCards: KpiCard[] = [
@@ -287,7 +275,6 @@ const Index = () => {
       icon: Wallet,
       color: '#10B981',
       glow: 'rgba(16, 185, 129, 0.3)',
-      sparkline: sparklineData,
     },
     {
       label: 'НОРМА СБЕРЕЖЕНИЙ',
@@ -307,13 +294,6 @@ const Index = () => {
     },
   ];
 
-  const parseTrend = (trend: string | null | undefined) => {
-    if (!trend) return null;
-    const num = parseFloat(trend);
-    if (isNaN(num)) return null;
-    return { value: trend, isPositive: num >= 0 };
-  };
-
   return (
     <div className="space-y-6 pb-6">
       {/* KPI Cards */}
@@ -323,7 +303,6 @@ const Index = () => {
           : kpiCards.map((card, index) => {
               const Icon = card.icon;
               const trend = parseTrend(card.trend);
-              const hasSparkline = card.sparkline && card.sparkline.length > 1;
               const isNegativeTrend = trend && !trend.isPositive;
 
               return (
@@ -348,35 +327,11 @@ const Index = () => {
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-3">
-                      {/* Mini sparkline */}
-                      {hasSparkline && (() => {
-                        const data = card.sparkline!;
-                        const max = Math.max(...data);
-                        const min = Math.min(...data);
-                        const range = max - min || 1;
-                        const w = 60;
-                        const h = 30;
-                        const points = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * h}`).join(' ');
-                        return (
-                          <svg width={w} height={h} className="opacity-60">
-                            <polyline
-                              points={points}
-                              fill="none"
-                              stroke={card.color}
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        );
-                      })()}
-                      <div
-                        className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: `${card.color}20`, boxShadow: `0 0 20px ${card.glow}` }}
-                      >
-                        <Icon className="w-5 h-5" style={{ color: card.color }} />
-                      </div>
+                    <div
+                      className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: `${card.color}20`, boxShadow: `0 0 20px ${card.glow}` }}
+                    >
+                      <Icon className="w-5 h-5" style={{ color: card.color }} />
                     </div>
                   </div>
                   {card.label === 'НОРМА СБЕРЕЖЕНИЙ' && summary && (

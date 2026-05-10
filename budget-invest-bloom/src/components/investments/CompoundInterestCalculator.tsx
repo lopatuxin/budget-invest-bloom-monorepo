@@ -10,13 +10,9 @@ import {
   Tooltip,
 } from 'recharts';
 import { useProjection } from '@/hooks/useProjection';
-import type { ProjectionPoint } from '@/types/investment';
-
-const formatCurrency = (value: number) => value.toLocaleString('ru-RU') + ' ₽';
-
-const Skeleton = ({ className = '' }: { className?: string }) => (
-  <div className={`animate-pulse bg-white/10 rounded-lg ${className}`} />
-);
+import type { ProjectionRequest, ProjectionPoint } from '@/types/investment';
+import { formatCurrency } from '@/lib/dateOptions';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const formatDate = (dateStr: string) =>
   new Date(dateStr).toLocaleDateString('ru-RU', { month: 'short', year: '2-digit' });
@@ -52,21 +48,26 @@ const CustomTooltip = ({
 };
 
 const CompoundInterestCalculator = () => {
-  const projection = useProjection();
-
   const [horizonMonths, setHorizonMonths] = useState(120);
   const [monthlyDeposit, setMonthlyDeposit] = useState(0);
   const [withdrawalRatePercent, setWithdrawalRatePercent] = useState(0);
+  const [request, setRequest] = useState<ProjectionRequest | null>(null);
+
+  const { data, isFetching, isError, error, refetch } = useProjection(request);
+
   const handleCalculate = () => {
-    projection.mutate({
+    const next: ProjectionRequest = {
       horizonMonths,
       monthlyDeposit,
       withdrawalRatePerYear: withdrawalRatePercent / 100,
       overrides: {},
-    });
+    };
+    setRequest(next);
+    // refetch fires after state update; use a microtask to let React flush the new request value
+    setTimeout(() => { void refetch(); }, 0);
   };
 
-  const result = projection.data?.body;
+  const result = data?.body;
   const lastPoint = result?.series?.[result.series.length - 1];
   const horizonYears = Math.round(horizonMonths / 12);
 
@@ -88,7 +89,7 @@ const CompoundInterestCalculator = () => {
               min={1}
               max={360}
               value={horizonMonths}
-              onChange={e => setHorizonMonths(Math.max(1, Math.min(360, Number(e.target.value))))}
+              onChange={e => { const p = Number(e.target.value); setHorizonMonths(Math.max(1, Math.min(360, Number.isFinite(p) ? p : 1))); }}
               className="w-full bg-white/5 border border-white/10 text-dashboard-text text-sm rounded-xl px-3 py-2.5 outline-none focus:border-blue-500/50 transition-colors font-mono"
             />
             <p className="text-[10px] text-dashboard-text-muted">
@@ -106,14 +107,14 @@ const CompoundInterestCalculator = () => {
               type="number"
               min={0}
               value={monthlyDeposit}
-              onChange={e => setMonthlyDeposit(Math.max(0, Number(e.target.value)))}
+              onChange={e => { const p = Number(e.target.value); setMonthlyDeposit(Math.max(0, Number.isFinite(p) ? p : 0)); }}
               className="w-full bg-white/5 border border-white/10 text-dashboard-text text-sm rounded-xl px-3 py-2.5 outline-none focus:border-blue-500/50 transition-colors font-mono"
             />
           </div>
 
           {/* Withdrawal rate */}
           <div className="space-y-1.5">
-            <label className="flex items-center gap-1.5 text-[11px] font-semibold tracking-widests text-dashboard-text-muted uppercase">
+            <label className="flex items-center gap-1.5 text-[11px] font-semibold tracking-widest text-dashboard-text-muted uppercase">
               <Percent className="w-3.5 h-3.5" />
               Ставка изъятия (% / год)
             </label>
@@ -123,7 +124,7 @@ const CompoundInterestCalculator = () => {
               max={100}
               step={0.1}
               value={withdrawalRatePercent}
-              onChange={e => setWithdrawalRatePercent(Math.max(0, Math.min(100, Number(e.target.value))))}
+              onChange={e => { const p = Number(e.target.value); setWithdrawalRatePercent(Math.max(0, Math.min(100, Number.isFinite(p) ? p : 0))); }}
               className="w-full bg-white/5 border border-white/10 text-dashboard-text text-sm rounded-xl px-3 py-2.5 outline-none focus:border-blue-500/50 transition-colors font-mono"
             />
           </div>
@@ -133,10 +134,10 @@ const CompoundInterestCalculator = () => {
         <div className="mt-5 flex justify-end">
           <button
             onClick={handleCalculate}
-            disabled={projection.isPending}
+            disabled={isFetching}
             className="flex items-center gap-2 px-5 py-2.5 bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:bg-blue-500/30 hover:border-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 rounded-xl text-sm font-semibold"
           >
-            {projection.isPending ? (
+            {isFetching ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
                 Расчёт...
@@ -152,16 +153,16 @@ const CompoundInterestCalculator = () => {
       </div>
 
       {/* Error state */}
-      {projection.isError && (
+      {isError && (
         <div className="glass-card p-4 border-l-4 border-red-500">
           <p className="text-red-400 text-sm">
-            {projection.error instanceof Error ? projection.error.message : 'Ошибка при расчёте прогноза'}
+            {error instanceof Error ? error.message : 'Ошибка при расчёте прогноза'}
           </p>
         </div>
       )}
 
       {/* Loading skeleton for results */}
-      {projection.isPending && (
+      {isFetching && (
         <div className="space-y-5">
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-5">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -173,7 +174,7 @@ const CompoundInterestCalculator = () => {
       )}
 
       {/* Results */}
-      {result && !projection.isPending && (
+      {result && !isFetching && (
         <div className="space-y-5">
 
           {/* Pending tickers banner */}

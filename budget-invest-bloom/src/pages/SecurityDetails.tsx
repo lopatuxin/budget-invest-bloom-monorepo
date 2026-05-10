@@ -17,38 +17,11 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { useSecurityDividendsHistory } from '@/hooks/useSecurityDividendsHistory';
 import { getPeriodDates } from '@/lib/periodDates';
 import type { Period } from '@/lib/periodDates';
-import type { PricePoint } from '@/types/investment';
-
-const formatCurrency = (value: number) => value.toLocaleString('ru-RU') + ' ₽';
-
-const Skeleton = ({ className = '' }: { className?: string }) => (
-  <div className={`animate-pulse bg-white/10 rounded-lg ${className}`} />
-);
+import { formatCurrency } from '@/lib/dateOptions';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ChartCurrencyTooltip } from '@/components/ChartCurrencyTooltip';
 
 const PERIODS: Period[] = ['1M', '3M', '1Y', 'MAX'];
-
-interface ChartTooltipPayload {
-  value: number;
-  payload: PricePoint;
-}
-
-const CustomTooltip = ({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: ChartTooltipPayload[];
-  label?: string;
-}) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-[#1a1f2e] border border-white/10 rounded-xl px-4 py-3 text-sm shadow-lg">
-      <p className="text-white/60 mb-1">{label}</p>
-      <p className="text-white font-semibold font-mono">{formatCurrency(payload[0].value)}</p>
-    </div>
-  );
-};
 
 const SecurityDetails = () => {
   const { ticker } = useParams<{ ticker: string }>();
@@ -178,7 +151,7 @@ const SecurityDetails = () => {
                 tickFormatter={(v: number) => v.toLocaleString('ru-RU')}
                 width={60}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<ChartCurrencyTooltip />} />
               <Line
                 type="monotone"
                 dataKey="close"
@@ -251,9 +224,9 @@ const SecurityDetails = () => {
           <p className="text-dashboard-text-muted text-sm">Нет выплаченных дивидендов</p>
         ) : (
           <div className="space-y-2">
-            {dividends.map((div, i) => (
+            {dividends.map((div) => (
               <div
-                key={i}
+                key={`${div.recordDate}-${div.amountPerShare}`}
                 className="flex items-center justify-between p-3 bg-white/[0.03] rounded-lg"
               >
                 <span className="text-sm text-dashboard-text-muted">

@@ -1,5 +1,4 @@
-import * as React from 'react';
-import {useState} from 'react';
+import {type FormEvent, useState} from 'react';
 import {Link, useNavigate} from 'react-router-dom';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
@@ -7,6 +6,7 @@ import {Label} from '@/components/ui/label';
 import {CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {useToast} from '@/hooks/use-toast';
 import {Eye, EyeOff, Lock, Mail, User} from 'lucide-react';
+import {apiPost} from '@/lib/api';
 
 const Register = () => {
     const [showPassword, setShowPassword] = useState(false);
@@ -19,14 +19,19 @@ const Register = () => {
         confirmPassword: ''
     });
     const [isLoading, setIsLoading] = useState(false);
+    const [lastAttempt, setLastAttempt] = useState(0);
     const {toast} = useToast();
     const navigate = useNavigate();
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
+
+        // Debounce: block repeated submits within 1 second
+        if (Date.now() - lastAttempt < 1000) return;
+
         setIsLoading(true);
 
-        // Валидация совпадения паролей
+        // Validate password match
         if (formData.password !== formData.confirmPassword) {
             toast({
                 title: "Ошибка",
@@ -38,55 +43,31 @@ const Register = () => {
         }
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/api/register`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    data: {
-                        firstName: formData.firstName,
-                        lastName: formData.lastName,
-                        email: formData.email,
-                        password: formData.password,
-                    }
-                }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                let errorMessage = errorData.message || 'Ошибка регистрации';
-
-                if (errorData.body && typeof errorData.body === 'object') {
-                    const validationErrors = Object.values(errorData.body).filter(Boolean).map(String);
-                    if (validationErrors.length > 0) {
-                        errorMessage = validationErrors.join(', ');
-                    }
-                }
-
-                toast({
-                    title: "Ошибка",
-                    description: errorMessage,
-                    variant: "destructive",
-                });
-                return;
-            }
+            await apiPost('/auth/api/register', {
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                email: formData.email,
+                password: formData.password,
+            }, { requiresAuth: false });
 
             toast({
                 title: "Успешно!",
                 description: "Аккаунт создан. Проверьте email для подтверждения.",
             });
 
-            // Перенаправление на страницу логина
+            // Redirect to login page
             setTimeout(() => {
                 navigate('/login');
             }, 2000);
         } catch (error) {
-            console.error('Registration error:', error);
+            setLastAttempt(Date.now());
+
+            const errorObj = error as Error & { status?: number };
+            console.warn('registration failed', errorObj.status || 'unknown');
+
             toast({
                 title: "Ошибка",
-                description: "Не удалось создать аккаунт. Попробуйте снова.",
+                description: errorObj.message || "Не удалось создать аккаунт. Попробуйте снова.",
                 variant: "destructive",
             });
         } finally {
@@ -152,6 +133,7 @@ const Register = () => {
                                     className="pl-10 text-dashboard-text placeholder:text-dashboard-text-muted focus:border-emerald-500/50 transition-colors"
                                     value={formData.email}
                                     onChange={(e) => handleInputChange('email', e.target.value)}
+                                    maxLength={254}
                                     required
                                 />
                             </div>
@@ -168,6 +150,7 @@ const Register = () => {
                                     className="pl-10 pr-10 text-dashboard-text placeholder:text-dashboard-text-muted focus:border-emerald-500/50 transition-colors"
                                     value={formData.password}
                                     onChange={(e) => handleInputChange('password', e.target.value)}
+                                    maxLength={128}
                                     required
                                 />
                                 <Button
@@ -197,6 +180,7 @@ const Register = () => {
                                     className="pl-10 pr-10 text-dashboard-text placeholder:text-dashboard-text-muted focus:border-emerald-500/50 transition-colors"
                                     value={formData.confirmPassword}
                                     onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                                    maxLength={128}
                                     required
                                 />
                                 <Button

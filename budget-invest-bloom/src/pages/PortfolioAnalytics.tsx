@@ -13,39 +13,12 @@ import {
 import { usePortfolioValueHistory } from '@/hooks/usePortfolioValueHistory';
 import { getPeriodDates } from '@/lib/periodDates';
 import type { Period } from '@/lib/periodDates';
-import type { PortfolioValuePoint } from '@/types/investment';
+import { formatCurrency } from '@/lib/dateOptions';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ChartCurrencyTooltip } from '@/components/ChartCurrencyTooltip';
 import CompoundInterestCalculator from '@/components/investments/CompoundInterestCalculator';
 
-const formatCurrency = (value: number) => value.toLocaleString('ru-RU') + ' ₽';
-
-const Skeleton = ({ className = '' }: { className?: string }) => (
-  <div className={`animate-pulse bg-white/10 rounded-lg ${className}`} />
-);
-
 const PERIODS: Period[] = ['1M', '3M', '1Y', 'MAX'];
-
-interface ChartTooltipPayload {
-  value: number;
-  payload: PortfolioValuePoint;
-}
-
-const CustomTooltip = ({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: ChartTooltipPayload[];
-  label?: string;
-}) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-[#1a1f2e] border border-white/10 rounded-xl px-4 py-3 text-sm shadow-lg">
-      <p className="text-white/60 mb-1">{label}</p>
-      <p className="text-white font-semibold font-mono">{formatCurrency(payload[0].value)}</p>
-    </div>
-  );
-};
 
 const PortfolioAnalytics = () => {
   const navigate = useNavigate();
@@ -208,7 +181,7 @@ const PortfolioAnalytics = () => {
                 tickFormatter={(v: number) => v.toLocaleString('ru-RU')}
                 width={72}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<ChartCurrencyTooltip />} />
               <Line
                 type="monotone"
                 dataKey="value"

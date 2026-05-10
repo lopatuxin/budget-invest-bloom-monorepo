@@ -13,6 +13,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import pyc.lopatuxin.budget.dto.response.CategoryHasExpensesErrorBody;
 import pyc.lopatuxin.budget.dto.response.ResponseApi;
 
 import java.util.HashMap;
@@ -138,6 +139,19 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.METHOD_NOT_ALLOWED)
                 .body(ResponseApi.error(HttpStatus.METHOD_NOT_ALLOWED.value(),
                         "HTTP-метод " + ex.getMethod() + " не поддерживается для данного эндпоинта"));
+    }
+
+    /**
+     * Handles attempt to delete a category that still has linked expenses.
+     */
+    @ExceptionHandler(CategoryHasExpensesException.class)
+    public ResponseEntity<ResponseApi<CategoryHasExpensesErrorBody>> handleCategoryHasExpenses(
+            CategoryHasExpensesException ex) {
+        log.warn("Недопустимая операция: {}", ex.getMessage());
+        CategoryHasExpensesErrorBody body = new CategoryHasExpensesErrorBody("CATEGORY_HAS_EXPENSES", ex.getExpenseCount());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ResponseApi.error(HttpStatus.CONFLICT.value(), ex.getMessage(), body));
     }
 
     /**

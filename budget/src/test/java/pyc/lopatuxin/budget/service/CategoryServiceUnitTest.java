@@ -13,6 +13,7 @@ import pyc.lopatuxin.budget.dto.request.DeleteCategoryRequestDto;
 import pyc.lopatuxin.budget.dto.request.UpdateCategoryRequestDto;
 import pyc.lopatuxin.budget.dto.response.CategoryResponseDto;
 import pyc.lopatuxin.budget.entity.Category;
+import pyc.lopatuxin.budget.exception.CategoryHasExpensesException;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
 
@@ -268,8 +269,8 @@ class CategoryServiceUnitTest {
     }
 
     @Test
-    @DisplayName("deleteCategory: должен бросить IllegalStateException, когда у категории есть расходы")
-    void deleteCategory_shouldThrowIllegalStateException_whenCategoryHasExpenses() {
+    @DisplayName("deleteCategory: должен бросить CategoryHasExpensesException, когда у категории есть расходы")
+    void deleteCategory_shouldThrowCategoryHasExpensesException_whenCategoryHasExpenses() {
         UUID categoryId = UUID.randomUUID();
         Category category = Category.builder()
                 .id(categoryId)
@@ -286,8 +287,9 @@ class CategoryServiceUnitTest {
         when(expenseRepository.countByCategoryId(categoryId)).thenReturn(3L);
 
         assertThatThrownBy(() -> categoryService.deleteCategory(userId, dto))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("Невозможно удалить категорию: есть связанные расходы (3)");
+                .isInstanceOf(CategoryHasExpensesException.class)
+                .hasMessage("Невозможно удалить категорию: есть связанные расходы (3)")
+                .satisfies(ex -> assertThat(((CategoryHasExpensesException) ex).getExpenseCount()).isEqualTo(3));
 
         verify(categoryRepository, never()).delete(any());
         verify(expenseRepository, never()).deleteAllByCategoryId(any());

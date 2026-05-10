@@ -1,4 +1,4 @@
-import type { ApiResponse } from './budget';
+import type { ApiResponse } from './common';
 
 export type TransactionType = 'BUY' | 'SELL';
 export type SecurityType = 'STOCK' | 'BOND' | 'ETF' | 'OFZ';
@@ -112,6 +112,7 @@ export interface ProjectionRequest {
   horizonMonths: number;
   monthlyDeposit: number;
   withdrawalRatePerYear: number;
+  // key: ticker symbol (e.g. 'SBER')
   overrides: Record<string, number>;
 }
 
@@ -123,4 +124,5 @@ export interface PaidDividend {
   currency: string;
 }
 
-export type { ApiResponse };
+// Re-exported from common for backward compatibility
+export type { ApiResponse } from './common';

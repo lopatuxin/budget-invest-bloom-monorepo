@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { TrendingUp, PieChart, Coins, Trash2, BarChart2 } from 'lucide-react';
 import AddAssetDialog from '@/components/AddAssetDialog';
@@ -10,30 +10,11 @@ import { useDeleteTransaction } from '@/hooks/useDeleteTransaction';
 import { useToast } from '@/hooks/use-toast';
 import { getSectorEmoji } from '@/lib/sectorEmoji';
 import { SECURITY_TYPE_LABEL, SECURITY_TYPE_ORDER } from '@/lib/securityType';
+import { useCountUp } from '@/hooks/useCountUp';
+import { formatCurrency } from '@/lib/dateOptions';
+import { DONUT_COLORS } from '@/lib/chartColors';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { SecurityType } from '@/types/investment';
-
-const DONUT_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#14B8A6'];
-const formatCurrency = (value: number) => value.toLocaleString('ru-RU') + ' ₽';
-
-// Animated count-up hook with easeOutCubic easing
-const useCountUp = (target: number, duration = 800) => {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    if (target === 0) { setValue(0); return; }
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setValue(target); return; }
-    let rafId: number;
-    const start = performance.now();
-    const step = (now: number) => {
-      const progress = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setValue(Math.round(target * eased));
-      if (progress < 1) rafId = requestAnimationFrame(step);
-    };
-    rafId = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(rafId);
-  }, [target, duration]);
-  return value;
-};
 
 const pluralAssets = (n: number) => {
   const mod10 = n % 10;
@@ -42,10 +23,6 @@ const pluralAssets = (n: number) => {
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${n} актива`;
   return `${n} активов`;
 };
-
-const Skeleton = ({ className = '' }: { className?: string }) => (
-  <div className={`animate-pulse bg-white/10 rounded-lg ${className}`} />
-);
 
 const Investments = () => {
   const { toast } = useToast();
@@ -74,6 +51,8 @@ const Investments = () => {
   const animTotalPnl = useCountUp(overview?.totalPnl ?? 0);
 
   const totalCost = overview?.totalCost ?? 0;
+  // Use original totalPnl (not animated) for sign and percent to avoid mid-animation mismatch
+  const rawTotalPnl = overview?.totalPnl ?? 0;
   const totalPnlPercent = totalCost > 0 && overview
     ? ((overview.totalPnl / totalCost) * 100).toFixed(1)
     : null;
@@ -82,11 +61,36 @@ const Investments = () => {
   const costBase = overview?.totalCost
     ?? positions.reduce((sum, p) => sum + p.totalCost, 0);
 
-  const sectorMap = positions.reduce<Record<string, number>>((acc, p) => {
-    const name = p.sector ?? 'Без сектора';
-    acc[name] = (acc[name] ?? 0) + p.totalCost;
-    return acc;
-  }, {});
+  const { sectorMap, positionsByTypeAndSector, totalCostByType } = useMemo(() => {
+    const sMap = positions.reduce<Record<string, number>>((acc, p) => {
+      const name = p.sector ?? 'Без сектора';
+      acc[name] = (acc[name] ?? 0) + p.totalCost;
+      return acc;
+    }, {});
+
+    const byTypeAndSector = positions.reduce<Partial<Record<SecurityType, Record<string, typeof positions>>>>(
+      (acc, p) => {
+        const type = p.securityType;
+        const sector = p.sector ?? 'Без сектора';
+        if (!acc[type]) acc[type] = {};
+        if (!acc[type]![sector]) acc[type]![sector] = [];
+        acc[type]![sector].push(p);
+        return acc;
+      },
+      {},
+    );
+
+    const costByType = positions.reduce<Partial<Record<SecurityType, number>>>((acc, p) => {
+      acc[p.securityType] = (acc[p.securityType] ?? 0) + p.totalCost;
+      return acc;
+    }, {});
+
+    return {
+      sectorMap: sMap,
+      positionsByTypeAndSector: byTypeAndSector,
+      totalCostByType: costByType,
+    };
+  }, [positions]);
 
   const sectors = Object.entries(sectorMap).map(([name, value], index) => ({
     name,
@@ -95,38 +99,9 @@ const Investments = () => {
     color: DONUT_COLORS[index % DONUT_COLORS.length],
   }));
 
-  // Group positions by type → sector for the holdings list
-  const positionsByTypeAndSector = positions.reduce<Record<SecurityType, Record<string, typeof positions>>>(
-    (acc, p) => {
-      const type = p.securityType;
-      const sector = p.sector ?? 'Без сектора';
-      if (!acc[type]) acc[type] = {};
-      if (!acc[type][sector]) acc[type][sector] = [];
-      acc[type][sector].push(p);
-      return acc;
-    },
-    {} as Record<SecurityType, Record<string, typeof positions>>,
-  );
-
-  // Total cost per security type
-  const totalCostByType = positions.reduce<Record<SecurityType, number>>((acc, p) => {
-    acc[p.securityType] = (acc[p.securityType] ?? 0) + p.totalCost;
-    return acc;
-  }, {} as Record<SecurityType, number>);
-
-  // Color index per ticker position
-  const holdingColorIndex = new Map<string, number>();
-  positions.forEach((p, i) => holdingColorIndex.set(p.ticker, i));
-
   const handleDeleteTransaction = (id: string) => {
-    deleteTransaction(id, {
+    deleteTransaction({ id }, {
       onSuccess: () => toast({ title: 'Сделка удалена' }),
-      onError: (err) =>
-        toast({
-          title: 'Ошибка',
-          description: err instanceof Error ? err.message : 'Не удалось удалить сделку',
-          variant: 'destructive',
-        }),
     });
   };
 
@@ -143,7 +118,7 @@ const Investments = () => {
     {
       label: 'ОБЩАЯ ДОХОДНОСТЬ',
       value: isLoading ? null : overview
-        ? `${animTotalPnl >= 0 ? '+' : ''}${formatCurrency(animTotalPnl)}${totalPnlPercent !== null ? ` (${totalPnlPercent}%)` : ''}`
+        ? `${rawTotalPnl >= 0 ? '+' : ''}${formatCurrency(animTotalPnl)}${totalPnlPercent !== null ? ` (${totalPnlPercent}%)` : ''}`
         : '—',
       icon: TrendingUp,
       color: pnlColor,
@@ -284,7 +259,7 @@ const Investments = () => {
             </div>
             <div className="space-y-6 max-h-[400px] overflow-y-auto dashboard-scroll pr-1">
               {SECURITY_TYPE_ORDER.filter((type) => positionsByTypeAndSector[type]).map((type, typeIdx) => {
-                const typeSectors = positionsByTypeAndSector[type];
+                const typeSectors = positionsByTypeAndSector[type]!;
                 const typeTotal = totalCostByType[type] ?? 0;
                 const typeAssetCount = Object.values(typeSectors).reduce((sum, arr) => sum + arr.length, 0);
                 const typePercentage = costBase > 0 ? ((typeTotal / costBase) * 100).toFixed(1) : '0.0';
