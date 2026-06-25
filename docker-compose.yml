@@ -321,9 +321,9 @@ services:
       INVESTMENT_POSTGRES_DB: ${INVESTMENT_POSTGRES_DB:-investment_dev}
       INVESTMENT_POSTGRES_USER: ${INVESTMENT_POSTGRES_USER:-investment_user}
       INVESTMENT_POSTGRES_PASSWORD: ${INVESTMENT_POSTGRES_PASSWORD:-dev_password}
-      # Yandex Disk
-      YADISK_LOGIN: ${YADISK_LOGIN}
-      YADISK_APP_PASSWORD: ${YADISK_APP_PASSWORD}
+      # Yandex Disk (native 'yandex' rclone backend via OAuth — WebDAV is no longer
+      # available on the free tariff). Generate the token with: rclone authorize "yandex"
+      YADISK_OAUTH_TOKEN: ${YADISK_OAUTH_TOKEN}
       YADISK_BACKUP_DIR: ${YADISK_BACKUP_DIR:-backups/budget-invest-bloom}
     volumes:
       - backup_temp:/backups
