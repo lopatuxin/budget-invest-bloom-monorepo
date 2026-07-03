@@ -1,1 +1,3 @@
-0 21 * * * /backup.sh >> /proc/1/fd/1 2>&1
+# Hourly tick — the script itself is idempotent (one backup per daily 21:00 slot)
+# and catches up a slot missed while the host or a database was down.
+0 * * * * /backup.sh >> /proc/1/fd/1 2>&1

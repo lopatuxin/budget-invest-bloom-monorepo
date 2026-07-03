@@ -327,6 +327,7 @@ services:
       YADISK_BACKUP_DIR: ${YADISK_BACKUP_DIR:-backups/budget-invest-bloom}
     volumes:
       - backup_temp:/backups
+      - backup_state:/state
     depends_on:
       auth-postgres:
         condition: service_healthy
@@ -354,6 +355,8 @@ volumes:
   gateway_gradle_cache:
     driver: local
   backup_temp:
+    driver: local
+  backup_state:
     driver: local
 
 networks:

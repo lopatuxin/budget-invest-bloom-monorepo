@@ -33,5 +33,16 @@ else
   echo "WARNING: scheduler will start anyway and retry on each scheduled run."
 fi
 
+# Clear a stale lock left by a previous run that was killed mid-backup. entrypoint
+# runs on every container (re)start, so the backup lock can never outlive the
+# container that created it and permanently block future backups.
+rm -rf /state/lock
+
+# Startup catch-up: run one attempt immediately so a slot missed while the host
+# was off is not left waiting until the next hourly tick. The script is idempotent
+# (skips a slot already done) and non-fatal here so a failure can't crash startup.
+echo "Running startup catch-up backup check..."
+/backup.sh || echo "WARNING: startup backup attempt incomplete; scheduler will retry on the next tick."
+
 echo "Starting supercronic..."
 exec supercronic /crontab
