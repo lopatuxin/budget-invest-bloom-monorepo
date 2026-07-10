@@ -35,7 +35,7 @@ public class PortfolioService {
     private final MarketDataService marketDataService;
     private final DividendRepository dividendRepository;
 
-    @Transactional(readOnly = true)
+    @Transactional(value = "investmentTransactionManager", readOnly = true)
     public PortfolioPageResponseDto getPortfolioPage(UUID userId) {
         List<Position> positions = positionRepository.findByUserIdWithSecurity(userId);
         if (positions.isEmpty()) {
@@ -63,7 +63,7 @@ public class PortfolioService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(value = "investmentTransactionManager", readOnly = true)
     public PositionResponseDto getByTicker(UUID userId, String ticker) {
         Position position = positionRepository.findByUserIdAndSecurity_Ticker(userId, ticker.toUpperCase())
                 .orElseThrow(() -> new EntityNotFoundException("Position not found: " + ticker));

@@ -48,7 +48,7 @@ public class InvestmentEntryService {
      * @param dto    investment entry data
      * @return response with the UUID of the created Expense or Income record
      */
-    @Transactional
+    @Transactional("budgetTransactionManager")
     public InvestmentEntryResponseDto create(UUID userId, InvestmentEntryRequestDto dto) {
         LocalDate date = dto.getExecutedAt().atZone(ZoneOffset.UTC).toLocalDate();
 
@@ -67,7 +67,7 @@ public class InvestmentEntryService {
      * @param entryId UUID of the Expense or Income to delete
      * @param type    BUY (Expense) or SELL (Income)
      */
-    @Transactional
+    @Transactional("budgetTransactionManager")
     public void delete(UUID userId, UUID entryId, EntryType type) {
         if (type == EntryType.BUY) {
             deleteBuyEntry(userId, entryId);

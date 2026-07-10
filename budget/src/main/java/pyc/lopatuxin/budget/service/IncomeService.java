@@ -31,7 +31,7 @@ public class IncomeService {
      * @param dto    данные нового дохода
      * @return DTO созданного дохода
      */
-    @Transactional
+    @Transactional("budgetTransactionManager")
     public IncomeResponseDto createIncome(UUID userId, CreateIncomeDto dto) {
         LocalDate date = dto.getDate() != null ? dto.getDate() : LocalDate.now();
 
@@ -62,7 +62,7 @@ public class IncomeService {
      * @param isTransfer  true if this income represents a transfer between assets (e.g. investment sell)
      * @return created income entity
      */
-    @Transactional
+    @Transactional("budgetTransactionManager")
     public Income createInternal(UUID userId, IncomeSource source, BigDecimal amount,
                                  LocalDate date, String description, boolean isTransfer) {
         Income income = Income.builder()

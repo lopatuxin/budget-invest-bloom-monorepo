@@ -7,6 +7,12 @@
 .DS_Store
 Thumbs.db
 
+# Gradle build artifacts (root multi-module build)
+.gradle/
+build/
+bin/
+!gradle/wrapper/gradle-wrapper.jar
+
 # Environment
 .env
 

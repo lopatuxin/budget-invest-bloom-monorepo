@@ -45,7 +45,7 @@ public class LogoutService {
      * @param httpResponse HTTP ответ для удаления cookie
      * @return ответ с результатом выхода
      */
-    @Transactional
+    @Transactional("authTransactionManager")
     public LogoutResponse logout(RequestHeadersDto headers, ApiRequest<LogoutRequest> request, String refreshTokenFromCookie, HttpServletResponse httpResponse) {
         LogoutRequest data = request.getData();
         String email = jwtService.extractEmail(headers.getJwt());

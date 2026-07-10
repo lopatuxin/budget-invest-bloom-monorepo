@@ -1,0 +1,18 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/changelog-v1.0.0.yml
+  - include:
+      file: db/changelog/budget/v1.0.0/001-create-categories-table.yml
+  - include:
+      file: db/changelog/budget/v1.0.0/002-create-expenses-table.yml
+  - include:
+      file: db/changelog/budget/v1.0.0/003-create-incomes-table.yml
+  - include:
+      file: db/changelog/budget/v1.0.0/004-create-capital-records-table.yml
+  - include:
+      file: db/changelog/budget/v1.0.0/005-import-legacy-budget.yml
+  - include:
+      file: db/changelog/budget/v1.0.0/006-add-categories-system.yml
+  - include:
+      file: db/changelog/budget/v1.0.0/007-add-transfer-flag.yml
+  - include:
+      file: db/changelog/budget/v1.0.0/008-adjust-initial-balance.yml

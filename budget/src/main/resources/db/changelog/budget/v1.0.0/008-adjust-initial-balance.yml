@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/changelog-v1.0.0.yml
+  - changeSet:
+      id: 008-adjust-initial-balance
+      author: budget-service
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: 0
+            sql: SELECT COUNT(*) FROM incomes WHERE user_id = 'd9e08bd2-f35a-4c85-a85d-52dcaf446bbd' AND description = 'Начальный остаток (корректировка стартового баланса)'
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO incomes (id, user_id, source, amount, description, date, is_transfer) VALUES
+                (gen_random_uuid(), 'd9e08bd2-f35a-4c85-a85d-52dcaf446bbd'::uuid, 'OTHER', 1614812.00, 'Начальный остаток (корректировка стартового баланса)', '2024-07-31', false)
+              ;
+      rollback:
+        - sql:
+            sql: |
+              DELETE FROM incomes
+              WHERE user_id = 'd9e08bd2-f35a-4c85-a85d-52dcaf446bbd'::uuid
+                AND amount = 1614812.00
+                AND date = '2024-07-31'
+                AND description = 'Начальный остаток (корректировка стартового баланса)';

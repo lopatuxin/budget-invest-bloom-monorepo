@@ -1,0 +1,26 @@
+# Build context is the repo root (app/Dockerfile). Keep it small: exclude
+# VCS, build artifacts, the frontend/gateway trees, docs and local config.
+.git
+.gitignore
+.gradle
+build
+**/build
+**/.gradle
+**/bin
+.idea
+*.iml
+*.log
+
+# Secrets and compose (never bake into the image)
+.env
+.env.*
+docker-compose*.yml
+
+# Not part of the monolith build
+gateway/
+budget-invest-bloom/
+scripts/
+docs/
+.claude/
+.remember/
+*.md

@@ -39,7 +39,7 @@ public class RefreshTokenService {
     private final RefreshTokenHasher tokenHasher;
     private final JwtConfig jwtConfig;
 
-    @Transactional
+    @Transactional("authTransactionManager")
     public RefreshTokenResponse refreshTokens(
             String refreshToken,
             RequestHeadersDto headers,

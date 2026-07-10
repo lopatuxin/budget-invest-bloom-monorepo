@@ -38,7 +38,7 @@ public class ExpenseService {
      * @param dto    данные для создания расхода
      * @return DTO с данными созданного расхода
      */
-    @Transactional
+    @Transactional("budgetTransactionManager")
     public ExpenseResponseDto createExpense(UUID userId, CreateExpenseDto dto) {
         Category category = categoryRepository.findByIdAndUserId(dto.getCategoryId(), userId)
                 .orElseThrow(() -> new EntityNotFoundException("Категория не найдена"));
@@ -80,7 +80,7 @@ public class ExpenseService {
      * @param isTransfer  true if this expense represents a transfer between assets (e.g. investment buy)
      * @return created expense entity
      */
-    @Transactional
+    @Transactional("budgetTransactionManager")
     public Expense createInternal(UUID userId, Category category, BigDecimal amount,
                                   LocalDate date, String description, boolean isTransfer) {
         Expense expense = Expense.builder()
@@ -103,7 +103,7 @@ public class ExpenseService {
      * @param userId  идентификатор пользователя
      * @param request данные для удаления расхода
      */
-    @Transactional
+    @Transactional("budgetTransactionManager")
     public void deleteExpense(UUID userId, DeleteExpenseRequestDto request) {
         Expense expense = expenseRepository.findById(request.getExpenseId())
                 .orElseThrow(() -> new EntityNotFoundException("Расход не найден"));

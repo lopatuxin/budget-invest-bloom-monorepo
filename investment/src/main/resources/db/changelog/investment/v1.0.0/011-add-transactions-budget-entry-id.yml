@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/changelog-v1.0.0.yml
+  - changeSet:
+      id: 011-add-transactions-budget-entry-id
+      author: investment
+      changes:
+        - addColumn:
+            tableName: transactions
+            columns:
+              - column:
+                  name: budget_entry_id
+                  type: uuid
+      rollback:
+        - dropColumn:
+            tableName: transactions
+            columnName: budget_entry_id

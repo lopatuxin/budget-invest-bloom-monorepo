@@ -14,13 +14,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import pyc.lopatuxin.budget.dto.common.ApiRequest;
 import pyc.lopatuxin.budget.dto.request.CreateCategoryDto;
 import pyc.lopatuxin.budget.dto.request.DeleteCategoryRequestDto;
 import pyc.lopatuxin.budget.dto.request.UpdateCategoryRequestDto;
 import pyc.lopatuxin.budget.dto.response.CategoryResponseDto;
-import pyc.lopatuxin.budget.dto.response.ResponseApi;
 import pyc.lopatuxin.budget.service.CategoryService;
+import pyc.lopatuxin.shared.dto.ApiRequest;
+import pyc.lopatuxin.shared.dto.ResponseApi;
 
 /**
  * Контроллер для управления категориями расходов.

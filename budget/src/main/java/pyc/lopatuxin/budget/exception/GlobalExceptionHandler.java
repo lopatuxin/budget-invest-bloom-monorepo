@@ -14,7 +14,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import pyc.lopatuxin.budget.dto.response.CategoryHasExpensesErrorBody;
-import pyc.lopatuxin.budget.dto.response.ResponseApi;
+import pyc.lopatuxin.shared.dto.ResponseApi;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,7 +24,7 @@ import java.util.Map;
  * Перехватывает исключения и преобразует их в стандартный ResponseApi-ответ.
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "pyc.lopatuxin.budget")
 public class GlobalExceptionHandler {
 
     /**

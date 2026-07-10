@@ -17,7 +17,7 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Transactional(value = "budgetTransactionManager", readOnly = true)
 public class BalanceService {
 
     private final IncomeRepository incomeRepository;

@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Transactional(value = "investmentTransactionManager", readOnly = true)
 public class ProjectionService {
 
     private static final MathContext MC = MathContext.DECIMAL128;

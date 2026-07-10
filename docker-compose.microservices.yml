@@ -1,0 +1,364 @@
+services:
+  # ========================================
+  # AUTH SERVICE - Database
+  # ========================================
+
+  auth-postgres:
+    image: postgres:15-alpine
+    container_name: auth-postgres-dev
+    environment:
+      POSTGRES_DB: ${AUTH_POSTGRES_DB:-auth_dev}
+      POSTGRES_USER: ${AUTH_POSTGRES_USER:-auth_user}
+      POSTGRES_PASSWORD: ${AUTH_POSTGRES_PASSWORD:-dev_password}
+    ports:
+      - "${AUTH_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - auth_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUTH_POSTGRES_USER:-auth_user} -d ${AUTH_POSTGRES_DB:-auth_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - finance-network
+
+  # ========================================
+  # AUTH SERVICE - Application
+  # ========================================
+
+  auth-service:
+    build:
+      context: ./auth
+      dockerfile: Dockerfile.dev
+    container_name: auth-service-dev
+    environment:
+      # Spring Configuration
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://auth-postgres:5432/${AUTH_POSTGRES_DB:-auth_dev}
+      SPRING_DATASOURCE_USERNAME: ${AUTH_POSTGRES_USER:-auth_user}
+      SPRING_DATASOURCE_PASSWORD: ${AUTH_POSTGRES_PASSWORD:-dev_password}
+
+      # JWT Configuration
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      JWT_ACCESS_TOKEN_EXPIRATION: ${JWT_ACCESS_TOKEN_EXPIRATION:-900000}
+      JWT_REFRESH_TOKEN_EXPIRATION: ${JWT_REFRESH_TOKEN_EXPIRATION:-604800000}
+
+      # Refresh Token Pepper (server-side secret for HMAC-SHA256 hashing)
+      AUTH_REFRESH_TOKEN_PEPPER: ${AUTH_REFRESH_TOKEN_PEPPER:?AUTH_REFRESH_TOKEN_PEPPER must be set}
+
+      # DevTools Configuration
+      SPRING_DEVTOOLS_RESTART_ENABLED: ${DEVTOOLS_RESTART_ENABLED:-true}
+      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: ${DEVTOOLS_LIVERELOAD_ENABLED:-true}
+    ports:
+      - "${AUTH_APP_PORT:-8081}:8081"
+      - "${AUTH_LIVERELOAD_PORT:-35729}:35729"
+    volumes:
+      # Hot-reload volumes
+      - ./auth/src:/app/src:rw
+      - ./auth/build.gradle.kts:/app/build.gradle.kts:rw
+      - ./auth/settings.gradle.kts:/app/settings.gradle.kts:rw
+      - auth_gradle_cache:/root/.gradle
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - finance-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/auth/actuator/health"]
+      interval: ${HEALTHCHECK_INTERVAL:-3s}
+      timeout: 2s
+      retries: 30
+      start_period: 90s
+
+  # ========================================
+  # BUDGET SERVICE - Database
+  # ========================================
+
+  budget-postgres:
+    image: postgres:15-alpine
+    container_name: budget-postgres-dev
+    environment:
+      POSTGRES_DB: ${BUDGET_POSTGRES_DB:-budget_dev}
+      POSTGRES_USER: ${BUDGET_POSTGRES_USER:-budget_user}
+      POSTGRES_PASSWORD: ${BUDGET_POSTGRES_PASSWORD:-dev_password}
+    ports:
+      - "${BUDGET_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - budget_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${BUDGET_POSTGRES_USER:-budget_user} -d ${BUDGET_POSTGRES_DB:-budget_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - finance-network
+
+  # ========================================
+  # BUDGET SERVICE - Application
+  # ========================================
+
+  budget-service:
+    build:
+      context: ./budget
+      dockerfile: Dockerfile.dev
+    container_name: budget-service-dev
+    environment:
+      # Spring Configuration
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://budget-postgres:5432/${BUDGET_POSTGRES_DB:-budget_dev}
+      SPRING_DATASOURCE_USERNAME: ${BUDGET_POSTGRES_USER:-budget_user}
+      SPRING_DATASOURCE_PASSWORD: ${BUDGET_POSTGRES_PASSWORD:-dev_password}
+
+      # DevTools Configuration
+      SPRING_DEVTOOLS_RESTART_ENABLED: ${DEVTOOLS_RESTART_ENABLED:-true}
+      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: ${DEVTOOLS_LIVERELOAD_ENABLED:-true}
+    expose:
+      - "8083"
+      - "35730"
+    volumes:
+      # Hot-reload volumes
+      - ./budget/src:/app/src:rw
+      - ./budget/build.gradle.kts:/app/build.gradle.kts:rw
+      - ./budget/settings.gradle.kts:/app/settings.gradle.kts:rw
+      - budget_gradle_cache:/root/.gradle
+    depends_on:
+      budget-postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - finance-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      interval: ${HEALTHCHECK_INTERVAL:-3s}
+      timeout: 2s
+      retries: 30
+      start_period: 90s
+
+  # ========================================
+  # INVESTMENT SERVICE - Database
+  # ========================================
+
+  investment-postgres:
+    image: postgres:15-alpine
+    container_name: investment-postgres-dev
+    environment:
+      POSTGRES_DB: ${INVESTMENT_POSTGRES_DB:-investment_dev}
+      POSTGRES_USER: ${INVESTMENT_POSTGRES_USER:-investment_user}
+      POSTGRES_PASSWORD: ${INVESTMENT_POSTGRES_PASSWORD:-dev_password}
+    ports:
+      - "${INVESTMENT_POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - investment_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${INVESTMENT_POSTGRES_USER:-investment_user} -d ${INVESTMENT_POSTGRES_DB:-investment_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - finance-network
+
+  # ========================================
+  # INVESTMENT SERVICE - Application
+  # ========================================
+
+  investment-service:
+    build:
+      context: ./investment
+      dockerfile: Dockerfile.dev
+    container_name: investment-service-dev
+    environment:
+      # Spring Configuration
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://investment-postgres:5432/${INVESTMENT_POSTGRES_DB:-investment_dev}
+      SPRING_DATASOURCE_USERNAME: ${INVESTMENT_POSTGRES_USER:-investment_user}
+      SPRING_DATASOURCE_PASSWORD: ${INVESTMENT_POSTGRES_PASSWORD:-dev_password}
+
+      # Budget service URL for inter-service calls (BUY/SELL → expense/income sync)
+      BUDGET_SERVICE_URL: ${BUDGET_SERVICE_URL:-http://budget-service:8083}
+
+      # DevTools Configuration
+      SPRING_DEVTOOLS_RESTART_ENABLED: ${DEVTOOLS_RESTART_ENABLED:-true}
+      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: ${DEVTOOLS_LIVERELOAD_ENABLED:-true}
+    expose:
+      - "8084"
+      - "35732"
+    volumes:
+      # Hot-reload volumes
+      - ./investment/src:/app/src:rw
+      - ./investment/build.gradle.kts:/app/build.gradle.kts:rw
+      - ./investment/settings.gradle.kts:/app/settings.gradle.kts:rw
+      - investment_gradle_cache:/root/.gradle
+    depends_on:
+      investment-postgres:
+        condition: service_healthy
+      budget-service:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - finance-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      interval: ${HEALTHCHECK_INTERVAL:-3s}
+      timeout: 2s
+      retries: 30
+      start_period: 90s
+
+  # ========================================
+  # GATEWAY SERVICE - Application
+  # ========================================
+
+  gateway-service:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile.dev
+    container_name: gateway-service-dev
+    environment:
+      # Spring Configuration
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+
+      # JWT Configuration (общий HMAC-ключ с Auth сервисом)
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+
+      # Service URLs (inside Docker network)
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
+      BUDGET_SERVICE_URL: ${BUDGET_SERVICE_URL:-http://budget-service:8083}
+      INVESTMENT_SERVICE_URL: ${INVESTMENT_SERVICE_URL:-http://investment-service:8084}
+
+      # CORS
+      GATEWAY_CORS_ALLOWED_ORIGINS: ${GATEWAY_CORS_ALLOWED_ORIGINS:-http://localhost:8080}
+
+      # DevTools Configuration
+      SPRING_DEVTOOLS_RESTART_ENABLED: ${DEVTOOLS_RESTART_ENABLED:-true}
+      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: ${DEVTOOLS_LIVERELOAD_ENABLED:-true}
+    ports:
+      - "${GATEWAY_APP_PORT:-8082}:8082"
+      - "${GATEWAY_LIVERELOAD_PORT:-35731}:35731"
+    volumes:
+      # Hot-reload volumes
+      - ./gateway/src:/app/src:rw
+      - ./gateway/build.gradle:/app/build.gradle:rw
+      - ./gateway/settings.gradle:/app/settings.gradle:rw
+      - gateway_gradle_cache:/root/.gradle
+    depends_on:
+      auth-service:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - finance-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: ${HEALTHCHECK_INTERVAL:-3s}
+      timeout: 2s
+      retries: 30
+      start_period: 90s
+
+  # ========================================
+  # FRONTEND - Development
+  # ========================================
+
+  frontend:
+    build:
+      context: ./budget-invest-bloom
+      target: development
+      dockerfile: Dockerfile
+    container_name: frontend-dev
+    ports:
+      - "${FRONTEND_PORT:-8080}:8082"
+    volumes:
+      # Mount source code for hot-reload
+      - ./budget-invest-bloom/src:/app/src
+      - ./budget-invest-bloom/public:/app/public
+      - ./budget-invest-bloom/index.html:/app/index.html
+      # Mount config files
+      - ./budget-invest-bloom/vite.config.ts:/app/vite.config.ts
+      - ./budget-invest-bloom/tsconfig.json:/app/tsconfig.json
+      - ./budget-invest-bloom/tsconfig.app.json:/app/tsconfig.app.json
+      - ./budget-invest-bloom/tsconfig.node.json:/app/tsconfig.node.json
+      - ./budget-invest-bloom/tailwind.config.ts:/app/tailwind.config.ts
+      - ./budget-invest-bloom/postcss.config.js:/app/postcss.config.js
+      - ./budget-invest-bloom/eslint.config.js:/app/eslint.config.js
+      - ./budget-invest-bloom/components.json:/app/components.json
+      # Preserve node_modules in container
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      # Фронт будет обращаться к Auth сервису
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8082}
+    depends_on:
+      - gateway-service
+    networks:
+      - finance-network
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+  # ========================================
+  # BACKUP SERVICE - Daily DB Backup
+  # ========================================
+
+  backup-service:
+    build:
+      context: ./scripts/backup
+      dockerfile: Dockerfile
+    container_name: backup-service-dev
+    environment:
+      # Auth DB
+      AUTH_POSTGRES_HOST: auth-postgres
+      AUTH_POSTGRES_DB: ${AUTH_POSTGRES_DB:-auth_dev}
+      AUTH_POSTGRES_USER: ${AUTH_POSTGRES_USER:-auth_user}
+      AUTH_POSTGRES_PASSWORD: ${AUTH_POSTGRES_PASSWORD:-dev_password}
+      # Budget DB
+      BUDGET_POSTGRES_HOST: budget-postgres
+      BUDGET_POSTGRES_DB: ${BUDGET_POSTGRES_DB:-budget_dev}
+      BUDGET_POSTGRES_USER: ${BUDGET_POSTGRES_USER:-budget_user}
+      BUDGET_POSTGRES_PASSWORD: ${BUDGET_POSTGRES_PASSWORD:-dev_password}
+      # Investment DB
+      INVESTMENT_POSTGRES_HOST: investment-postgres
+      INVESTMENT_POSTGRES_DB: ${INVESTMENT_POSTGRES_DB:-investment_dev}
+      INVESTMENT_POSTGRES_USER: ${INVESTMENT_POSTGRES_USER:-investment_user}
+      INVESTMENT_POSTGRES_PASSWORD: ${INVESTMENT_POSTGRES_PASSWORD:-dev_password}
+      # Yandex Disk (native 'yandex' rclone backend via OAuth — WebDAV is no longer
+      # available on the free tariff). Generate the token with: rclone authorize "yandex"
+      YADISK_OAUTH_TOKEN: ${YADISK_OAUTH_TOKEN}
+      YADISK_BACKUP_DIR: ${YADISK_BACKUP_DIR:-backups/budget-invest-bloom}
+    volumes:
+      - backup_temp:/backups
+      - backup_state:/state
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+      budget-postgres:
+        condition: service_healthy
+      investment-postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - finance-network
+
+volumes:
+  auth_postgres_data:
+    driver: local
+  auth_gradle_cache:
+    driver: local
+  budget_postgres_data:
+    driver: local
+  budget_gradle_cache:
+    driver: local
+  investment_postgres_data:
+    driver: local
+  investment_gradle_cache:
+    driver: local
+  gateway_gradle_cache:
+    driver: local
+  backup_temp:
+    driver: local
+  backup_state:
+    driver: local
+
+networks:
+  finance-network:
+    driver: bridge

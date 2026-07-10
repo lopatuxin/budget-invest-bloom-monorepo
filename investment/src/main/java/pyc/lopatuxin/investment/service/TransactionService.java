@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import pyc.lopatuxin.investment.client.BudgetClient;
 import pyc.lopatuxin.investment.dto.request.CreateTransactionDto;
 import pyc.lopatuxin.investment.dto.response.TransactionResponseDto;
 import pyc.lopatuxin.investment.entity.Position;
@@ -19,6 +18,8 @@ import pyc.lopatuxin.investment.repository.SecurityRepository;
 import pyc.lopatuxin.investment.repository.TransactionRepository;
 import pyc.lopatuxin.investment.service.market.DividendSyncService;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
+import pyc.lopatuxin.shared.port.EntryType;
+import pyc.lopatuxin.shared.port.InvestmentBudgetSync;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -40,9 +41,9 @@ public class TransactionService {
     private final MarketDataService marketDataService;
     private final DividendSyncService dividendSyncService;
     private final DividendRepository dividendRepository;
-    private final BudgetClient budgetClient;
+    private final InvestmentBudgetSync investmentBudgetSync;
 
-    @Transactional
+    @Transactional("investmentTransactionManager")
     public TransactionResponseDto create(UUID userId, CreateTransactionDto dto) {
         Security security = marketDataService.ensureSecurity(dto.getTicker().toUpperCase(), dto.getSecurityType());
 
@@ -60,7 +61,7 @@ public class TransactionService {
         recalculatePosition(userId, security.getTicker());
 
         BigDecimal amount = saved.getQuantity().multiply(saved.getPrice());
-        UUID budgetEntryId = budgetClient.createInvestmentEntry(userId, saved.getType(), amount, saved.getExecutedAt());
+        UUID budgetEntryId = investmentBudgetSync.createEntry(userId, toEntryType(saved.getType()), amount, saved.getExecutedAt());
         saved.setBudgetEntryId(budgetEntryId);
         transactionRepository.save(saved);
 
@@ -68,7 +69,7 @@ public class TransactionService {
         return transactionMapper.toDto(saved);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(value = "investmentTransactionManager", readOnly = true)
     public List<TransactionResponseDto> list(UUID userId, String ticker) {
         List<Transaction> transactions;
         if (ticker != null && !ticker.isBlank()) {
@@ -80,7 +81,7 @@ public class TransactionService {
         return transactionMapper.toDtoList(transactions);
     }
 
-    @Transactional
+    @Transactional("investmentTransactionManager")
     public void delete(UUID userId, UUID id) {
         Transaction tx = transactionRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + id));
@@ -89,12 +90,16 @@ public class TransactionService {
         }
         String ticker = tx.getSecurity().getTicker();
         if (tx.getBudgetEntryId() != null) {
-            budgetClient.deleteInvestmentEntry(userId, tx.getBudgetEntryId(), tx.getType());
+            investmentBudgetSync.deleteEntry(userId, tx.getBudgetEntryId(), toEntryType(tx.getType()));
         }
         transactionRepository.delete(tx);
         transactionRepository.flush();
         recalculatePosition(userId, ticker);
         log.info("Transaction deleted: userId={}, id={}", userId, id);
+    }
+
+    private EntryType toEntryType(TransactionType type) {
+        return EntryType.valueOf(type.name());
     }
 
     private void recalculatePosition(UUID userId, String ticker) {

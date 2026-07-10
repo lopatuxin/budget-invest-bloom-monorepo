@@ -30,7 +30,7 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/auth/api/auth")
 @RequiredArgsConstructor
 @Tag(name = "Аутентификация", description = "API для аутентификации и управления пользователями")
 public class LogoutController {
@@ -110,7 +110,6 @@ public class LogoutController {
             @CookieValue(name = "refreshToken", required = false) String refreshTokenFromCookie,
             HttpServletResponse httpResponse) {
 
-        log.info("Refresh token: {}", refreshTokenFromCookie);
         LogoutResponse logoutResponse = logoutService.logout(headers, request, refreshTokenFromCookie, httpResponse);
 
         return ResponseApi.<LogoutResponse>builder()

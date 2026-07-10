@@ -18,7 +18,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "pyc.lopatuxin.auth")
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ValidationException.class)

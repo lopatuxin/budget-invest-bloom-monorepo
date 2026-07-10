@@ -79,7 +79,7 @@ public class MarketDataService {
         return self.persistNewSecurity(normalizedTicker, moexDto, fallbackType);
     }
 
-    @Transactional
+    @Transactional("investmentTransactionManager")
     public Security persistNewSecurity(String ticker, MoexSecurityDto moexDto, SecurityType fallbackType) {
         return securityRepository.findById(ticker).orElseGet(() -> {
             Security security = moexDto != null
@@ -235,7 +235,7 @@ public class MarketDataService {
         }
     }
 
-    @Transactional
+    @Transactional("investmentTransactionManager")
     public void saveHistoryAndUpdateStatus(String ticker, List<PriceHistory> records) {
         priceHistoryRepository.saveAll(records);
         securityRepository.findById(ticker).ifPresent(s -> {
@@ -321,7 +321,7 @@ public class MarketDataService {
     }
 
     @EventListener(ApplicationReadyEvent.class)
-    @Transactional
+    @Transactional("investmentTransactionManager")
     public void backfillMissingSectors() {
         List<Security> missing = securityRepository.findBySectorIsNull();
         int updated = 0;

@@ -15,7 +15,7 @@ import java.util.UUID;
  */
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Transactional(value = "budgetTransactionManager", readOnly = true)
 public class PeriodAggregateService {
 
     private final ExpenseRepository expenseRepository;

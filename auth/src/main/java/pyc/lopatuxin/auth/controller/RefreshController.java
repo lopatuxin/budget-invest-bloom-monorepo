@@ -25,7 +25,7 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/auth/api")
 @RequiredArgsConstructor
 @Tag(name = "Аутентификация", description = "API для аутентификации и управления пользователями")
 public class RefreshController {
@@ -112,7 +112,6 @@ public class RefreshController {
             @CookieValue(name = "refreshToken") String refreshTokenFromCookie,
             HttpServletResponse httpResponse) {
 
-        log.info("Refresh token: {}", refreshTokenFromCookie);
         RefreshTokenResponse refreshTokenResponse = refreshTokenService.refreshTokens(
                 refreshTokenFromCookie,
                 headers,

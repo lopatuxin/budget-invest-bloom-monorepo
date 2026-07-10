@@ -1,0 +1,89 @@
+spring:
+  application:
+    name: budget-invest-bloom
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/bib}
+    username: ${SPRING_DATASOURCE_USERNAME:bib}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+  jpa:
+    open-in-view: false
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:900000}
+  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800000}
+  cookie:
+    secure: ${JWT_COOKIE_SECURE:false}
+    same-site: Lax
+    path: /auth
+
+auth:
+  refresh-token:
+    pepper: ${AUTH_REFRESH_TOKEN_PEPPER}
+
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8080}
+
+moex:
+  iss:
+    base-url: ${MOEX_ISS_BASE_URL:https://iss.moex.com/iss}
+    timeout-ms: 5000
+    connect-timeout-ms: 3000
+    snapshot-ttl-minutes: 5
+    securities-ttl-hours: 1
+    max-connections: 50
+    max-connections-per-route: 20
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      moex:
+        failureRateThreshold: 50
+        slidingWindowSize: 10
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        ignoreExceptions:
+          - pyc.lopatuxin.investment.client.moex.MoexNotFoundException
+  retry:
+    instances:
+      moex:
+        maxAttempts: 3
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        enableRandomizedWait: true
+        randomizedWaitFactor: 0.3
+        ignoreExceptions:
+          - pyc.lopatuxin.investment.client.moex.MoexNotFoundException
+
+server:
+  port: 8082
+  tomcat:
+    threads:
+      max: 20
+      min-spare: 2
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+
+logging:
+  level:
+    root: INFO
+    pyc.lopatuxin: INFO
+    org.springframework.security: INFO
+    liquibase: INFO

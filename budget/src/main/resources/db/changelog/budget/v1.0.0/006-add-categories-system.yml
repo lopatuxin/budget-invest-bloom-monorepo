@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/changelog-v1.0.0.yml
+  - changeSet:
+      id: 006-add-categories-system
+      author: budget-service
+      changes:
+        - addColumn:
+            tableName: categories
+            columns:
+              - column:
+                  name: system
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropColumn:
+            tableName: categories
+            columnName: system

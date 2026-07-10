@@ -35,7 +35,7 @@ public class DividendSyncService {
         this.dividendLoaderService = dividendLoaderService;
     }
 
-    @Transactional
+    @Transactional("investmentTransactionManager")
     public void syncDividends(String ticker) {
         List<MoexDividendDto> moexDividends;
         try {

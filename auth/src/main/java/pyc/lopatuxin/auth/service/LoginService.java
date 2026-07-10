@@ -34,7 +34,7 @@ public class LoginService {
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final int LOCK_DURATION_MINUTES = 15;
 
-    @Transactional
+    @Transactional("authTransactionManager")
     public LoginResponse login(LoginRequest request, RequestHeadersDto headers, HttpServletResponse httpResponse) {
         Optional<User> optionalUser = userRepository.findUserByEmail(request.getEmail());
 

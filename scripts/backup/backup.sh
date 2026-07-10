@@ -1,27 +1,37 @@
 #!/bin/sh
-# Guaranteed daily backup: idempotent and self-healing.
+# Guaranteed daily backup of the single `bib` database (all three schemas —
+# auth/budget/investment — plus their Liquibase history) in ONE cross-schema
+# consistent snapshot, followed by a weekly restore test.
 #
-# Instead of firing once at 21:00 and losing the whole day on any transient
-# failure, the scheduler ticks hourly and this script ensures exactly ONE
-# successful backup exists per daily 21:00 slot. If the host or a database was
-# down at 21:00, a later tick (or the next container startup) catches up.
+# The scheduler ticks hourly and this script ensures exactly ONE successful
+# backup exists per daily 21:00 slot. If the host or the database was down at
+# 21:00, a later tick (or the next container startup) catches up.
 #
-# Guarantees:
+# Guarantees (unchanged from the microservices version, now for one database):
 #   * idempotent  — a slot already backed up is skipped (state marker in /state);
 #   * catch-up    — a missed slot is completed as soon as things come back up;
-#   * per-DB      — each database is dumped and uploaded independently with
-#                   retry/backoff, so one DB being down never blocks the others
-#                   nor loses an already-produced dump;
-#   * all-or-mark — the slot is marked done only after EVERY dump reached Yandex;
+#   * retry       — the dump is retried with backoff (DB may still be starting);
+#   * mark-after-upload — the slot is marked done only after the dump reached Yandex;
 #   * single-run  — a lock prevents an overlapping run from colliding on files.
+#
+# Restore test (weekly): the fresh dump is restored into a throwaway database and
+# a smoke row-count check runs against a key table of each schema, then the
+# database is dropped. This makes "zero data loss" a verified property, not a
+# declaration. It piggybacks on a real backup, so it never needs a separate dump.
 
 DATE=$(date +%Y-%m-%d_%H-%M)
 BACKUP_DIR=/backups
 STATE_DIR=/state
 STATE_FILE="$STATE_DIR/last_success"
+RESTORE_STATE_FILE="$STATE_DIR/last_restore_test"
 LOCK_DIR="$STATE_DIR/lock"
 REMOTE_DIR="${YADISK_BACKUP_DIR:-backups/budget-invest-bloom}"
 RETRY_MAX=5
+
+HOST="${BIB_POSTGRES_HOST:-postgres}"
+DBUSER="${BIB_POSTGRES_USER:-bib}"
+DB="${BIB_POSTGRES_DB:-bib}"
+PASS="${BIB_POSTGRES_PASSWORD}"
 
 mkdir -p "$STATE_DIR"
 
@@ -35,6 +45,13 @@ else
   exit 0
 fi
 
+# Misconfiguration (empty credentials) is NOT transient — fail fast with a clear
+# message instead of wasting the retry/backoff budget on it.
+if [ -z "$DBUSER" ] || [ -z "$DB" ] || [ -z "$PASS" ]; then
+  echo "ERROR: backup misconfigured (empty BIB_POSTGRES_USER/DB/PASSWORD); aborting (not transient)."
+  exit 1
+fi
+
 # --- Determine the target daily slot (the most recent elapsed 21:00 boundary) ---
 # Before 21:00 the target is yesterday's slot (so a slot missed overnight is still
 # caught up the next morning); from 21:00 onward it is today's slot.
@@ -44,6 +61,60 @@ if [ "$HOUR" -ge 21 ]; then
 else
   TARGET=$(date -d @$(( $(date +%s) - 86400 )) +%F)
 fi
+
+# --- Weekly restore test: restore the given dump into a throwaway database,
+# smoke-check a key table of each schema, then drop it. Runs at most once per ISO
+# week; failure is non-fatal to the backup (logged, retried next run). ---
+restore_test() {
+  dumpfile=$1
+  week=$(date +%G-W%V)
+  last_week=""
+  [ -f "$RESTORE_STATE_FILE" ] && last_week=$(cat "$RESTORE_STATE_FILE")
+  if [ "$last_week" = "$week" ]; then
+    return 0
+  fi
+  [ -f "$dumpfile" ] || return 0
+
+  echo "=== Step: Weekly restore test (week $week) ==="
+  TESTDB="bib_restore_test_$(date +%s)"
+  export PGPASSWORD="$PASS"
+
+  if ! psql -h "$HOST" -p 5432 -U "$DBUSER" -d "$DB" -c "CREATE DATABASE $TESTDB" >/dev/null 2>&1; then
+    echo "WARNING: restore test — could not create $TESTDB; skipping this week."
+    unset PGPASSWORD
+    return 0
+  fi
+
+  ok=1
+  if pg_restore -h "$HOST" -p 5432 -U "$DBUSER" -d "$TESTDB" --no-owner --no-privileges "$dumpfile" >/dev/null 2>&1; then
+    # One key table per schema must be readable (proves the schema restored).
+    for pair in "auth.users" "budget.categories" "investment.securities"; do
+      schema=${pair%.*}
+      table=${pair#*.}
+      cnt=$(psql -h "$HOST" -p 5432 -U "$DBUSER" -d "$TESTDB" -tAc "SELECT count(*) FROM ${schema}.${table}" 2>/dev/null)
+      if [ -z "$cnt" ]; then
+        echo "WARNING: restore test — could not read ${schema}.${table}."
+        ok=0
+      else
+        echo "restore test — ${schema}.${table}: ${cnt} rows"
+      fi
+    done
+  else
+    echo "WARNING: restore test — pg_restore failed."
+    ok=0
+  fi
+
+  # Always drop the throwaway database, whatever happened.
+  psql -h "$HOST" -p 5432 -U "$DBUSER" -d "$DB" -c "DROP DATABASE IF EXISTS $TESTDB" >/dev/null 2>&1
+  unset PGPASSWORD
+
+  if [ "$ok" -eq 1 ]; then
+    echo "=== Restore test PASSED for week $week ==="
+    echo "$week" > "$RESTORE_STATE_FILE"
+  else
+    echo "=== Restore test FAILED for week $week (will retry on the next backup) ==="
+  fi
+}
 
 LAST_SUCCESS=""
 [ -f "$STATE_FILE" ] && LAST_SUCCESS=$(cat "$STATE_FILE")
@@ -55,69 +126,51 @@ fi
 
 echo "=== Step: Starting backup at $DATE (target slot: $TARGET, last success: ${LAST_SUCCESS:-none}) ==="
 
-# --- Dump one database with retry/backoff, then upload it independently. ---
-# A transient outage of one DB (e.g. it is still starting up and its host name is
-# not yet resolvable) must neither block the other databases nor lose a dump that
-# already succeeded. The dump file is named by the SLOT (not wall-clock), so a
-# re-run for the same slot overwrites the same object instead of piling up copies.
-# Returns 0 only if BOTH the dump and its upload succeed.
-backup_db() {
-  label=$1; host=$2; user=$3; db=$4; pass=$5
-  outfile="$BACKUP_DIR/${db}_$TARGET.dump"
+# The dump file is named by the SLOT (not wall-clock), so a re-run for the same
+# slot overwrites the same object instead of piling up copies.
+OUTFILE="$BACKUP_DIR/bib_$TARGET.dump"
 
-  # Misconfiguration (empty credentials) is NOT a transient error — fail fast with
-  # a clear message instead of wasting the whole retry/backoff budget on it.
-  if [ -z "$user" ] || [ -z "$db" ] || [ -z "$pass" ]; then
-    echo "ERROR: $label backup misconfigured (empty user/db/password); skipping (not transient)."
-    return 1
+# --- One cross-schema consistent snapshot of the whole `bib` (custom format:
+# restorable in full or per-schema by pg_restore). NOT --schema=public and NOT a
+# loop over schemas — a single pg_dump of the database captures all three schemas
+# and their Liquibase history tables atomically. ---
+echo "=== Step: Dumping bib database ($HOST/$DB) ==="
+attempt=1
+while true; do
+  if PGPASSWORD="$PASS" pg_dump -h "$HOST" -p 5432 -U "$DBUSER" -d "$DB" -F c -f "$OUTFILE"; then
+    echo "bib dump created: $(basename "$OUTFILE")"
+    break
   fi
-
-  echo "=== Step: Dumping $label database ($host/$db) ==="
-  attempt=1
-  while true; do
-    if PGPASSWORD="$pass" pg_dump -h "$host" -p 5432 -U "$user" -d "$db" -F c -f "$outfile"; then
-      echo "$label dump created: $(basename "$outfile")"
-      break
-    fi
-    if [ "$attempt" -ge "$RETRY_MAX" ]; then
-      echo "ERROR: pg_dump $label failed after $RETRY_MAX attempts; skipping."
-      rm -f "$outfile"
-      return 1
-    fi
-    delay=$((attempt * 15))
-    echo "WARNING: pg_dump $label failed (attempt $attempt/$RETRY_MAX); retrying in ${delay}s (DB may be starting up)."
-    sleep "$delay"
-    attempt=$((attempt + 1))
-  done
-
-  echo "=== Step: Uploading $label dump to Yandex Disk ==="
-  if rclone copy "$outfile" "yadisk:${REMOTE_DIR}/" --log-level INFO; then
-    echo "$label dump uploaded."
-    rm -f "$outfile"
-    return 0
+  if [ "$attempt" -ge "$RETRY_MAX" ]; then
+    echo "ERROR: pg_dump failed after $RETRY_MAX attempts; NOT marking success."
+    rm -f "$OUTFILE"
+    exit 1
   fi
-  echo "ERROR: upload of $label dump failed; will retry on next tick."
-  rm -f "$outfile"
-  return 1
-}
+  delay=$((attempt * 15))
+  echo "WARNING: pg_dump failed (attempt $attempt/$RETRY_MAX); retrying in ${delay}s (DB may be starting up)."
+  sleep "$delay"
+  attempt=$((attempt + 1))
+done
 
-FAILED=0
-backup_db auth       "${AUTH_POSTGRES_HOST:-auth-postgres}"             "$AUTH_POSTGRES_USER"       "$AUTH_POSTGRES_DB"       "$AUTH_POSTGRES_PASSWORD"       || FAILED=1
-backup_db budget     "${BUDGET_POSTGRES_HOST:-budget-postgres}"         "$BUDGET_POSTGRES_USER"     "$BUDGET_POSTGRES_DB"     "$BUDGET_POSTGRES_PASSWORD"     || FAILED=1
-backup_db investment "${INVESTMENT_POSTGRES_HOST:-investment-postgres}" "$INVESTMENT_POSTGRES_USER" "$INVESTMENT_POSTGRES_DB" "$INVESTMENT_POSTGRES_PASSWORD" || FAILED=1
-
-if [ "$FAILED" -ne 0 ]; then
-  echo "=== Backup INCOMPLETE for slot $TARGET; NOT marking success. Next tick will retry. ==="
+echo "=== Step: Uploading bib dump to Yandex Disk ==="
+if ! rclone copy "$OUTFILE" "yadisk:${REMOTE_DIR}/" --log-level INFO; then
+  echo "ERROR: upload of bib dump failed; will retry on next tick. NOT marking success."
+  rm -f "$OUTFILE"
   exit 1
 fi
+echo "bib dump uploaded."
 
-# Every dump reached Yandex — mark the slot done and prune old remote backups.
+# Dump reached Yandex — mark the slot done and prune old remote backups.
 if ! echo "$TARGET" > "$STATE_FILE"; then
   echo "WARNING: could not persist success marker to $STATE_FILE; next tick may re-run the slot."
 fi
 
-echo "=== Step: Removing backups older than 7 days from Yandex Disk ==="
-rclone delete "yadisk:${REMOTE_DIR}/" --min-age 7d --log-level INFO ||
+echo "=== Step: Removing backups older than ${BACKUP_RETENTION_DAYS:-7} days from Yandex Disk ==="
+rclone delete "yadisk:${REMOTE_DIR}/" --min-age "${BACKUP_RETENTION_DAYS:-7}d" --log-level INFO ||
   echo "WARNING: pruning old backups failed (non-fatal)."
 
+# Verify the freshly-produced dump actually restores (weekly), using it before removal.
+restore_test "$OUTFILE"
+
+rm -f "$OUTFILE"
 echo "=== Backup completed for slot $TARGET at $DATE ==="

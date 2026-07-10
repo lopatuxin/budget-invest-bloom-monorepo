@@ -14,10 +14,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import pyc.lopatuxin.budget.dto.common.ApiRequest;
 import pyc.lopatuxin.budget.dto.response.LifetimeBalanceResponseDto;
-import pyc.lopatuxin.budget.dto.response.ResponseApi;
 import pyc.lopatuxin.budget.service.BalanceService;
+import pyc.lopatuxin.shared.dto.ApiRequest;
+import pyc.lopatuxin.shared.dto.ResponseApi;
 
 /**
  * Controller for balance-related endpoints.

@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Transactional(value = "budgetTransactionManager", readOnly = true)
 public class OverviewSummaryService {
 
     private static final int TOP_CATEGORIES_LIMIT = 4;

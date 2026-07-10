@@ -37,7 +37,7 @@ public class CategoryService {
      * @param dto    данные для создания категории
      * @return DTO с данными созданной категории
      */
-    @Transactional
+    @Transactional("budgetTransactionManager")
     public CategoryResponseDto createCategory(UUID userId, CreateCategoryDto dto) {
         Objects.requireNonNull(userId, "userId не может быть null");
 
@@ -67,7 +67,7 @@ public class CategoryService {
      * @param request данные для обновления категории
      * @return DTO с обновлёнными данными категории
      */
-    @Transactional
+    @Transactional("budgetTransactionManager")
     public CategoryResponseDto updateCategory(UUID userId, UpdateCategoryRequestDto request) {
         Category category = categoryRepository.findByIdAndUserId(request.getCategoryId(), userId)
                 .orElseThrow(() -> new EntityNotFoundException("Категория не найдена"));
@@ -111,7 +111,7 @@ public class CategoryService {
      * @return существующая или только что созданная системная категория
      * @throws IllegalStateException если пользователь уже создал обычную категорию с таким же именем
      */
-    @Transactional
+    @Transactional("budgetTransactionManager")
     public Category ensureSystemCategory(UUID userId, String name, String emoji) {
         Optional<Category> existing = categoryRepository.findSystemCategoryByUserIdAndName(userId, name);
         if (existing.isPresent()) {
@@ -145,7 +145,7 @@ public class CategoryService {
      * @param userId идентификатор пользователя
      * @param dto    данные для удаления категории
      */
-    @Transactional
+    @Transactional("budgetTransactionManager")
     public void deleteCategory(UUID userId, DeleteCategoryRequestDto dto) {
         Category category = categoryRepository.findByIdAndUserId(dto.getCategoryId(), userId)
                 .orElseThrow(() -> new EntityNotFoundException("Категория не найдена"));
