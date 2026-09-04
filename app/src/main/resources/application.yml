@@ -18,7 +18,7 @@ spring:
 jwt:
   secret: ${JWT_SECRET}
   access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:900000}
-  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800000}
+  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:7776000000}
   cookie:
     secure: ${JWT_COOKIE_SECURE:false}
     same-site: Lax
