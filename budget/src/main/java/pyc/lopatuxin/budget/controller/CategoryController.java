@@ -17,10 +17,13 @@ import org.springframework.web.bind.annotation.RestController;
 import pyc.lopatuxin.budget.dto.request.CreateCategoryDto;
 import pyc.lopatuxin.budget.dto.request.DeleteCategoryRequestDto;
 import pyc.lopatuxin.budget.dto.request.UpdateCategoryRequestDto;
+import pyc.lopatuxin.budget.dto.response.CategoryListItemDto;
 import pyc.lopatuxin.budget.dto.response.CategoryResponseDto;
 import pyc.lopatuxin.budget.service.CategoryService;
 import pyc.lopatuxin.shared.dto.ApiRequest;
 import pyc.lopatuxin.shared.dto.ResponseApi;
+
+import java.util.List;
 
 /**
  * Контроллер для управления категориями расходов.
@@ -63,14 +66,6 @@ public class CategoryController {
             )
     )
     @ApiResponse(
-            responseCode = "401",
-            description = "Не авторизован",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ResponseApi.class)
-            )
-    )
-    @ApiResponse(
             responseCode = "409",
             description = "Категория с таким именем уже существует",
             content = @Content(
@@ -78,14 +73,7 @@ public class CategoryController {
                     schema = @Schema(implementation = ResponseApi.class)
             )
     )
-    @ApiResponse(
-            responseCode = "500",
-            description = "Внутренняя ошибка сервера",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ResponseApi.class)
-            )
-    )
+    @CommonApiResponses
     public ResponseApi<CategoryResponseDto> createCategory(
             @RequestBody @Valid ApiRequest<CreateCategoryDto> request) {
 
@@ -125,14 +113,6 @@ public class CategoryController {
             )
     )
     @ApiResponse(
-            responseCode = "401",
-            description = "Не авторизован",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ResponseApi.class)
-            )
-    )
-    @ApiResponse(
             responseCode = "404",
             description = "Категория не найдена",
             content = @Content(
@@ -148,14 +128,7 @@ public class CategoryController {
                     schema = @Schema(implementation = ResponseApi.class)
             )
     )
-    @ApiResponse(
-            responseCode = "500",
-            description = "Внутренняя ошибка сервера",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ResponseApi.class)
-            )
-    )
+    @CommonApiResponses
     public ResponseApi<CategoryResponseDto> updateCategory(
             @RequestBody @Valid ApiRequest<UpdateCategoryRequestDto> request) {
 
@@ -182,14 +155,11 @@ public class CategoryController {
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ResponseApi.class)))
     @ApiResponse(responseCode = "400", description = "Некорректные параметры запроса",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ResponseApi.class)))
-    @ApiResponse(responseCode = "401", description = "Не авторизован",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ResponseApi.class)))
     @ApiResponse(responseCode = "404", description = "Категория не найдена",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ResponseApi.class)))
     @ApiResponse(responseCode = "409", description = "Категория содержит расходы (требуется force=true для каскадного удаления)",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ResponseApi.class)))
-    @ApiResponse(responseCode = "500", description = "Внутренняя ошибка сервера",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ResponseApi.class)))
+    @CommonApiResponses
     public ResponseApi<Void> deleteCategory(
             @RequestBody @Valid ApiRequest<DeleteCategoryRequestDto> request) {
 
@@ -198,5 +168,34 @@ public class CategoryController {
                 request.getData()
         );
         return ResponseApi.success("Категория успешно удалена", null);
+    }
+
+    /**
+     * Возвращает категории пользователя для формы новой операции.
+     *
+     * @param request запрос с контекстом пользователя (data не используется)
+     * @return стандартный ответ со списком категорий, отсортированных по частоте использования
+     */
+    @PostMapping("/list")
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(
+            summary = "Список категорий для формы операции",
+            description = "Возвращает пользовательские категории (без системных), отсортированные по числу " +
+                    "не-трансферных расходов за последние 90 дней по убыванию, затем по названию."
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Список категорий успешно получен",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = ResponseApi.class)
+            )
+    )
+    @CommonApiResponses
+    public ResponseApi<List<CategoryListItemDto>> listCategories(
+            @RequestBody @Valid ApiRequest<Object> request) {
+
+        List<CategoryListItemDto> result = categoryService.listForOperationForm(request.getUser().getUserId());
+        return ResponseApi.success("Список категорий успешно получен", result);
     }
 }

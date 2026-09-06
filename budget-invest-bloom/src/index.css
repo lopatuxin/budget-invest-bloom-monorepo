@@ -4,6 +4,45 @@
 
 /* Финансовая дизайн-система с зелено-синими градиентами */
 
+/*
+ * "Гроссбух" light theme tokens for the authenticated app shell.
+ * Defined once on :root (not scoped to .app-shell) so Radix/vaul portals
+ * (Dialog, Drawer, Popover) — which mount to document.body, outside the
+ * .app-shell DOM subtree — inherit them too. Login/register/forgot-password
+ * stay dark: .dashboard-bg overrides the two tokens still used there
+ * (dashboard.text / dashboard.text-muted) back to the old dark values.
+ */
+@layer base {
+  :root {
+    --app-bg: 244 241 234;
+    --app-surface: 255 255 255;
+    --app-surface-2: 248 246 241;
+    --app-border: 228 223 211;
+    --app-border-strong: 210 204 190;
+    --app-text: 26 29 33;
+    --app-text-muted: 107 112 121;
+    --app-text-dim: 154 160 168;
+    --app-accent: 31 111 74;
+    --app-accent-ink: 255 255 255;
+    --app-accent-soft: 227 241 233;
+    --app-good: 31 111 74;
+    --app-good-soft: 227 241 233;
+    --app-warn: 154 107 18;
+    --app-warn-soft: 247 234 208;
+    --app-bad: 176 57 43;
+    --app-bad-soft: 248 225 220;
+    --app-neutral: 107 112 121;
+    --app-neutral-soft: 236 234 228;
+    --app-track: 236 232 223;
+  }
+
+  /* Unauthenticated pages (login/register/forgot-password) keep the old dark text tokens */
+  .dashboard-bg {
+    --app-text: 214 227 250;
+    --app-text-muted: 148 163 184;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -125,18 +164,18 @@
   }
 }
 
-/* Typography: DM Sans for headings, Manrope for body text */
+/* Typography: IBM Plex Sans for body and headings, Instrument Serif for display (opt-in via font-display) */
 @layer base {
   body {
-    font-family: 'Manrope Variable', 'Manrope', sans-serif;
+    font-family: 'IBM Plex Sans', sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'DM Sans Variable', 'DM Sans', sans-serif;
+    font-family: 'IBM Plex Sans', sans-serif;
   }
 }
 
-/* Dashboard dark theme glassmorphism */
+/* Dashboard dark theme glassmorphism (still used by the unauthenticated dark pages) */
 @layer components {
   .glass-card {
     position: relative;
@@ -153,6 +192,24 @@
     border-color: rgba(255, 255, 255, 0.18);
   }
 
+  /* "Гроссбух" light card: flat white surface, no blur, no hover state */
+  .app-shell .glass-card {
+    background: rgb(var(--app-surface));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 1px solid rgb(var(--app-border));
+    border-radius: 10px;
+  }
+
+  .app-shell .glass-card:hover {
+    background: rgb(var(--app-surface));
+    border-color: rgb(var(--app-border));
+  }
+
+  .app-shell .glass-card::after {
+    content: none;
+  }
+
   .btn-cta {
     @apply bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-600 hover:to-teal-500 text-white font-semibold transition-all duration-200;
     box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
@@ -164,6 +221,11 @@
 
   .dashboard-bg {
     background: linear-gradient(135deg, #0B1929 0%, #0E2A3A 100%);
+    min-height: 100vh;
+  }
+
+  .app-shell {
+    background: rgb(var(--app-bg));
     min-height: 100vh;
   }
 }

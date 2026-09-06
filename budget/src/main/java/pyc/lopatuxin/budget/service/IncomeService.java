@@ -1,10 +1,12 @@
 package pyc.lopatuxin.budget.service;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.budget.dto.request.CreateIncomeDto;
+import pyc.lopatuxin.budget.dto.request.DeleteIncomeRequestDto;
 import pyc.lopatuxin.budget.dto.response.IncomeResponseDto;
 import pyc.lopatuxin.budget.entity.Income;
 import pyc.lopatuxin.budget.entity.enums.IncomeSource;
@@ -77,5 +79,25 @@ public class IncomeService {
         income = incomeRepository.save(income);
         log.info("Created internal income {} for user {}", income.getId(), userId);
         return income;
+    }
+
+    /**
+     * Удаляет доход с проверкой принадлежности пользователю.
+     *
+     * @param userId  идентификатор пользователя
+     * @param request данные для удаления дохода
+     */
+    @Transactional("budgetTransactionManager")
+    public void deleteIncome(UUID userId, DeleteIncomeRequestDto request) {
+        Income income = incomeRepository.findById(request.getIncomeId())
+                .orElseThrow(() -> new EntityNotFoundException("Доход не найден"));
+
+        if (!income.getUserId().equals(userId)) {
+            throw new EntityNotFoundException("Доход не найден");
+        }
+
+        incomeRepository.delete(income);
+
+        log.info("Удалён доход {} для пользователя {}", request.getIncomeId(), userId);
     }
 }

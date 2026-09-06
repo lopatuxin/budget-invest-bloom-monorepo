@@ -9,6 +9,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import pyc.lopatuxin.shared.port.EntryType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -24,11 +25,6 @@ import java.time.Instant;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Schema(description = "Данные для регистрации инвестиционной операции")
 public class InvestmentEntryRequestDto {
-
-    public enum EntryType {
-        BUY,
-        SELL
-    }
 
     @NotNull(message = "Тип операции обязателен")
     @Schema(description = "Тип операции: BUY — покупка, SELL — продажа", example = "BUY")

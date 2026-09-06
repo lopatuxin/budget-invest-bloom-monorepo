@@ -1,6 +1,11 @@
-import '@fontsource-variable/dm-sans';
-import '@fontsource-variable/jetbrains-mono';
-import '@fontsource-variable/manrope';
+import '@fontsource/instrument-serif';
+import '@fontsource/instrument-serif/400-italic.css';
+import '@fontsource/ibm-plex-sans/400.css';
+import '@fontsource/ibm-plex-sans/500.css';
+import '@fontsource/ibm-plex-sans/600.css';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/500.css';
+import '@fontsource/ibm-plex-mono/600.css';
 import { createRoot } from 'react-dom/client'
 import React from 'react'
 import * as Sentry from '@sentry/react'

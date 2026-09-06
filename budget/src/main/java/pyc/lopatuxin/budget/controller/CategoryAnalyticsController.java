@@ -62,14 +62,6 @@ public class CategoryAnalyticsController {
             )
     )
     @ApiResponse(
-            responseCode = "401",
-            description = "Не авторизован",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ResponseApi.class)
-            )
-    )
-    @ApiResponse(
             responseCode = "404",
             description = "Категория не найдена",
             content = @Content(
@@ -77,14 +69,7 @@ public class CategoryAnalyticsController {
                     schema = @Schema(implementation = ResponseApi.class)
             )
     )
-    @ApiResponse(
-            responseCode = "500",
-            description = "Внутренняя ошибка сервера",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ResponseApi.class)
-            )
-    )
+    @CommonApiResponses
     public ResponseApi<CategoryAnalyticsResponseDto> getAnalytics(
             @RequestBody @Valid ApiRequest<CategoryAnalyticsRequestDto> request) {
 

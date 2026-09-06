@@ -5,4 +5,8 @@ spring:
     show-sql: false
   liquibase:
     enabled: true
-    change-log: classpath:db/changelog/db.changelog-master.yml
+    change-log: classpath:db/changelog/budget/db.changelog-master.yml
+    # Excludes changesets tagged "data-migration" (005-import-legacy-budget,
+    # 008-adjust-initial-balance): they carry the owner's personal data and must not be
+    # applied to a fresh environment, the test database included.
+    contexts: "!data-migration"

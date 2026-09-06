@@ -11,8 +11,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import pyc.lopatuxin.budget.dto.request.CreateCategoryDto;
 import pyc.lopatuxin.budget.dto.request.DeleteCategoryRequestDto;
 import pyc.lopatuxin.budget.dto.request.UpdateCategoryRequestDto;
+import pyc.lopatuxin.budget.dto.response.CategoryListItemDto;
 import pyc.lopatuxin.budget.dto.response.CategoryResponseDto;
 import pyc.lopatuxin.budget.entity.Category;
+import pyc.lopatuxin.budget.exception.BudgetConflictException;
 import pyc.lopatuxin.budget.exception.CategoryHasExpensesException;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
@@ -20,6 +22,8 @@ import pyc.lopatuxin.budget.repository.ExpenseRepository;
 import jakarta.persistence.EntityNotFoundException;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,6 +31,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -229,6 +234,32 @@ class CategoryServiceUnitTest {
     }
 
     @Test
+    @DisplayName("updateCategory: должен бросить BudgetConflictException для системной категории")
+    void updateCategory_shouldThrowBudgetConflictException_whenCategoryIsSystem() {
+        UUID categoryId = UUID.randomUUID();
+        Category systemCategory = Category.builder()
+                .id(categoryId)
+                .userId(userId)
+                .name("Инвестиции")
+                .budget(BigDecimal.ZERO)
+                .system(true)
+                .build();
+
+        UpdateCategoryRequestDto request = UpdateCategoryRequestDto.builder()
+                .categoryId(categoryId)
+                .name("Не инвестиции")
+                .build();
+
+        when(categoryRepository.findByIdAndUserId(categoryId, userId)).thenReturn(Optional.of(systemCategory));
+
+        assertThatThrownBy(() -> categoryService.updateCategory(userId, request))
+                .isInstanceOf(BudgetConflictException.class)
+                .hasMessageContaining("Инвестиции");
+
+        verify(categoryRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("deleteCategory: должен удалить категорию, когда она найдена и расходов нет")
     void deleteCategory_shouldDeleteCategory_whenFoundAndNoExpenses() {
         UUID categoryId = UUID.randomUUID();
@@ -321,6 +352,33 @@ class CategoryServiceUnitTest {
         verify(categoryRepository).delete(category);
     }
 
+    @Test
+    @DisplayName("deleteCategory: должен бросить BudgetConflictException для системной категории, даже с force=true")
+    void deleteCategory_shouldThrowBudgetConflictException_whenCategoryIsSystem() {
+        UUID categoryId = UUID.randomUUID();
+        Category systemCategory = Category.builder()
+                .id(categoryId)
+                .userId(userId)
+                .name("Инвестиции")
+                .budget(BigDecimal.ZERO)
+                .system(true)
+                .build();
+
+        DeleteCategoryRequestDto dto = DeleteCategoryRequestDto.builder()
+                .categoryId(categoryId)
+                .force(true)
+                .build();
+
+        when(categoryRepository.findByIdAndUserId(categoryId, userId)).thenReturn(Optional.of(systemCategory));
+
+        assertThatThrownBy(() -> categoryService.deleteCategory(userId, dto))
+                .isInstanceOf(BudgetConflictException.class)
+                .hasMessageContaining("Инвестиции");
+
+        verify(categoryRepository, never()).delete(any());
+        verify(expenseRepository, never()).deleteAllByCategoryId(any());
+    }
+
     // --- ensureSystemCategory ---
 
     @Test
@@ -376,8 +434,8 @@ class CategoryServiceUnitTest {
     }
 
     @Test
-    @DisplayName("ensureSystemCategory: если пользователь уже создал user-категорию с тем же именем — бросает IllegalStateException")
-    void ensureSystemCategory_shouldThrowIllegalStateException_whenUserCategoryConflict() {
+    @DisplayName("ensureSystemCategory: если пользователь уже создал user-категорию с тем же именем — бросает BudgetConflictException")
+    void ensureSystemCategory_shouldThrowBudgetConflictException_whenUserCategoryConflict() {
         String name = "Инвестиции";
         Category userCategory = Category.builder()
                 .id(UUID.randomUUID())
@@ -393,7 +451,7 @@ class CategoryServiceUnitTest {
                 .thenReturn(Optional.of(userCategory));
 
         assertThatThrownBy(() -> categoryService.ensureSystemCategory(userId, name, "💎"))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(BudgetConflictException.class)
                 .hasMessageContaining("Инвестиции");
 
         verify(categoryRepository, never()).save(any());
@@ -420,5 +478,73 @@ class CategoryServiceUnitTest {
 
         assertThat(result).hasSize(1);
         assertThat(result).noneMatch(Category::isSystem);
+    }
+
+    // --- listForOperationForm ---
+
+    @Test
+    @DisplayName("listForOperationForm: должен отсортировать категории по числу расходов за 90 дней по убыванию")
+    void listForOperationForm_shouldSortByExpenseFrequencyDescending() {
+        Category rare = Category.builder().id(UUID.randomUUID()).userId(userId).name("Редкая").build();
+        Category frequent = Category.builder().id(UUID.randomUUID()).userId(userId).name("Частая").build();
+
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(List.of(rare, frequent));
+        when(expenseRepository.countNonTransferExpensesByCategorySince(eq(userId), any(LocalDate.class)))
+                .thenReturn(List.<Object[]>of(
+                        new Object[]{rare.getId(), 1L},
+                        new Object[]{frequent.getId(), 10L}
+                ));
+
+        List<CategoryListItemDto> result = categoryService.listForOperationForm(userId);
+
+        assertThat(result).extracting(CategoryListItemDto::getName).containsExactly("Частая", "Редкая");
+    }
+
+    @Test
+    @DisplayName("listForOperationForm: при равной частоте должен отсортировать по имени по возрастанию")
+    void listForOperationForm_shouldSortByNameWhenFrequencyIsEqual() {
+        Category zebra = Category.builder().id(UUID.randomUUID()).userId(userId).name("Ящики").build();
+        Category apple = Category.builder().id(UUID.randomUUID()).userId(userId).name("Абонементы").build();
+
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(List.of(zebra, apple));
+        when(expenseRepository.countNonTransferExpensesByCategorySince(eq(userId), any(LocalDate.class)))
+                .thenReturn(Collections.emptyList());
+
+        List<CategoryListItemDto> result = categoryService.listForOperationForm(userId);
+
+        assertThat(result).extracting(CategoryListItemDto::getName).containsExactly("Абонементы", "Ящики");
+    }
+
+    @Test
+    @DisplayName("listForOperationForm: категория без расходов за 90 дней получает частоту 0")
+    void listForOperationForm_shouldTreatMissingCategoryAsZeroFrequency() {
+        Category noExpenses = Category.builder().id(UUID.randomUUID()).userId(userId).name("Без расходов").build();
+        Category withExpenses = Category.builder().id(UUID.randomUUID()).userId(userId).name("С расходами").build();
+
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(List.of(noExpenses, withExpenses));
+        when(expenseRepository.countNonTransferExpensesByCategorySince(eq(userId), any(LocalDate.class)))
+                .thenReturn(List.<Object[]>of(new Object[]{withExpenses.getId(), 2L}));
+
+        List<CategoryListItemDto> result = categoryService.listForOperationForm(userId);
+
+        assertThat(result).extracting(CategoryListItemDto::getName).containsExactly("С расходами", "Без расходов");
+    }
+
+    @Test
+    @DisplayName("listForOperationForm: не должен включать лимит бюджета в ответ")
+    void listForOperationForm_shouldNotIncludeBudgetInResponse() {
+        Category category = Category.builder().id(UUID.randomUUID()).userId(userId).name("Продукты")
+                .emoji("🛒").budget(new BigDecimal("30000.00")).build();
+
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(List.of(category));
+        when(expenseRepository.countNonTransferExpensesByCategorySince(eq(userId), any(LocalDate.class)))
+                .thenReturn(Collections.emptyList());
+
+        List<CategoryListItemDto> result = categoryService.listForOperationForm(userId);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().getId()).isEqualTo(category.getId());
+        assertThat(result.getFirst().getName()).isEqualTo("Продукты");
+        assertThat(result.getFirst().getEmoji()).isEqualTo("🛒");
     }
 }

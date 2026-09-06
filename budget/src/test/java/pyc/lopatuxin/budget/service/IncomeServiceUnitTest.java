@@ -9,18 +9,24 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pyc.lopatuxin.budget.dto.request.CreateIncomeDto;
+import pyc.lopatuxin.budget.dto.request.DeleteIncomeRequestDto;
 import pyc.lopatuxin.budget.dto.response.IncomeResponseDto;
 import pyc.lopatuxin.budget.entity.Income;
 import pyc.lopatuxin.budget.entity.enums.IncomeSource;
 import pyc.lopatuxin.budget.mapper.IncomeMapper;
 import pyc.lopatuxin.budget.repository.IncomeRepository;
 
+import jakarta.persistence.EntityNotFoundException;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -167,5 +173,66 @@ class IncomeServiceUnitTest {
 
         assertThat(result.getDescription()).isNull();
         assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("3000.00"));
+    }
+
+    // --- deleteIncome ---
+
+    @Test
+    @DisplayName("deleteIncome: должен удалить свой доход")
+    void deleteIncome_shouldDeleteOwnIncome() {
+        UUID incomeId = UUID.randomUUID();
+        Income income = Income.builder()
+                .id(incomeId)
+                .userId(userId)
+                .source(IncomeSource.SALARY)
+                .amount(new BigDecimal("50000.00"))
+                .date(LocalDate.of(2026, 4, 13))
+                .build();
+
+        DeleteIncomeRequestDto request = DeleteIncomeRequestDto.builder().incomeId(incomeId).build();
+
+        when(incomeRepository.findById(incomeId)).thenReturn(Optional.of(income));
+
+        incomeService.deleteIncome(userId, request);
+
+        verify(incomeRepository).delete(income);
+    }
+
+    @Test
+    @DisplayName("deleteIncome: должен бросить EntityNotFoundException, когда доход не найден")
+    void deleteIncome_shouldThrowEntityNotFoundException_whenIncomeNotFound() {
+        UUID incomeId = UUID.randomUUID();
+        DeleteIncomeRequestDto request = DeleteIncomeRequestDto.builder().incomeId(incomeId).build();
+
+        when(incomeRepository.findById(incomeId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> incomeService.deleteIncome(userId, request))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Доход не найден");
+
+        verify(incomeRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("deleteIncome: должен бросить EntityNotFoundException при попытке удалить чужой доход")
+    void deleteIncome_shouldThrowEntityNotFoundException_whenIncomeBelongsToAnotherUser() {
+        UUID incomeId = UUID.randomUUID();
+        Income income = Income.builder()
+                .id(incomeId)
+                .userId(UUID.randomUUID())
+                .source(IncomeSource.SALARY)
+                .amount(new BigDecimal("50000.00"))
+                .date(LocalDate.of(2026, 4, 13))
+                .build();
+
+        DeleteIncomeRequestDto request = DeleteIncomeRequestDto.builder().incomeId(incomeId).build();
+
+        when(incomeRepository.findById(incomeId)).thenReturn(Optional.of(income));
+
+        assertThatThrownBy(() -> incomeService.deleteIncome(userId, request))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Доход не найден");
+
+        verify(incomeRepository, never()).delete(any());
     }
 }

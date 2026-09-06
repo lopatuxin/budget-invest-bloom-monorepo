@@ -7,11 +7,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import pyc.lopatuxin.budget.dto.common.NormComparisonDto;
 import pyc.lopatuxin.budget.dto.response.BudgetSummaryResponseDto;
 import pyc.lopatuxin.budget.dto.response.CategorySummaryDto;
 import pyc.lopatuxin.budget.entity.Category;
+import pyc.lopatuxin.budget.entity.enums.NormStatus;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
+import pyc.lopatuxin.budget.repository.IncomeRepository;
 import pyc.lopatuxin.budget.service.PeriodAggregateService.PeriodAggregates;
 
 import java.math.BigDecimal;
@@ -36,6 +39,9 @@ class BudgetSummaryServiceUnitTest {
     private ExpenseRepository expenseRepository;
 
     @Mock
+    private IncomeRepository incomeRepository;
+
+    @Mock
     private CategoryRepository categoryRepository;
 
     @Mock
@@ -43,6 +49,9 @@ class BudgetSummaryServiceUnitTest {
 
     @Mock
     private CategorySummaryBuilder categorySummaryBuilder;
+
+    @Mock
+    private NormCalculationService normCalculationService;
 
     @InjectMocks
     private BudgetSummaryService budgetSummaryService;
@@ -55,6 +64,10 @@ class BudgetSummaryServiceUnitTest {
         // Default lenient stubs for inflation calculation — return empty lists so inflation = 0
         lenient().when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(eq(userId), anyInt()))
                 .thenReturn(Collections.emptyList());
+        // Default lenient stub for norm calculation — NO_HISTORY unless a test overrides it for
+        // a specific amount (windowed repository queries default to empty lists when unstubbed).
+        lenient().when(normCalculationService.calculateNorm(any(), any(), anyInt()))
+                .thenReturn(NormComparisonDto.builder().status(NormStatus.NO_HISTORY).build());
     }
 
     @Test
@@ -635,5 +648,160 @@ class BudgetSummaryServiceUnitTest {
         assertThat(result.getCategories().getFirst().getAmount())
                 .isEqualByComparingTo(new BigDecimal("15000"));
         verify(expenseRepository).sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end);
+    }
+
+    // --- dayOfMonth / daysInMonth ---
+
+    @Test
+    @DisplayName("Должен вернуть dayOfMonth равным сегодняшнему числу для текущего месяца")
+    void shouldReturnDayOfMonthAsTodayForCurrentMonth() {
+        LocalDate today = LocalDate.now();
+        int month = today.getMonthValue();
+        int year = today.getYear();
+        stubMonthAndPreviousMonth(month, year);
+
+        BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
+
+        assertThat(result.getDayOfMonth()).isEqualTo(today.getDayOfMonth());
+        assertThat(result.getDaysInMonth()).isEqualTo(LocalDate.of(year, month, 1).lengthOfMonth());
+    }
+
+    @Test
+    @DisplayName("Должен вернуть dayOfMonth равным длине месяца для прошлого месяца")
+    void shouldReturnDayOfMonthAsMonthLengthForPastMonth() {
+        LocalDate past = LocalDate.now().minusYears(1);
+        int month = past.getMonthValue();
+        int year = past.getYear();
+        stubMonthAndPreviousMonth(month, year);
+
+        BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
+
+        int expectedLength = LocalDate.of(year, month, 1).lengthOfMonth();
+        assertThat(result.getDayOfMonth()).isEqualTo(expectedLength);
+        assertThat(result.getDaysInMonth()).isEqualTo(expectedLength);
+    }
+
+    @Test
+    @DisplayName("Должен вернуть dayOfMonth равным 0 для будущего месяца")
+    void shouldReturnZeroDayOfMonthForFutureMonth() {
+        LocalDate future = LocalDate.now().plusYears(1);
+        int month = future.getMonthValue();
+        int year = future.getYear();
+        stubMonthAndPreviousMonth(month, year);
+
+        BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
+
+        assertThat(result.getDayOfMonth()).isZero();
+        assertThat(result.getDaysInMonth()).isEqualTo(LocalDate.of(year, month, 1).lengthOfMonth());
+    }
+
+    private void stubMonthAndPreviousMonth(int month, int year) {
+        LocalDate start = LocalDate.of(year, month, 1);
+        LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
+        int prevMonth = (month == 1) ? 12 : month - 1;
+        int prevYear = (month == 1) ? year - 1 : year;
+        LocalDate prevStart = LocalDate.of(prevYear, prevMonth, 1);
+        LocalDate prevEnd = prevStart.withDayOfMonth(prevStart.lengthOfMonth());
+
+        when(periodAggregateService.buildPeriodAggregates(userId, month, year))
+                .thenReturn(new PeriodAggregates(start, end, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO));
+        when(periodAggregateService.buildPeriodAggregates(userId, prevMonth, prevYear))
+                .thenReturn(new PeriodAggregates(prevStart, prevEnd, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO));
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(Collections.emptyList());
+        when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
+                .thenReturn(Collections.emptyList());
+    }
+
+    // --- сортировка категорий по отклонению от нормы ---
+
+    @Test
+    @DisplayName("Должен отсортировать категории по убыванию отклонения, а NO_HISTORY поместить в конец")
+    void shouldSortCategoriesByDeviationWithNoHistoryLast() {
+        int month = 3;
+        int year = 2024;
+        LocalDate start = LocalDate.of(year, month, 1);
+        LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
+
+        Category catNormal = Category.builder().id(UUID.randomUUID()).userId(userId).name("В норме").budget(BigDecimal.ZERO).build();
+        Category catAboveMuch = Category.builder().id(UUID.randomUUID()).userId(userId).name("Сильно выше").budget(BigDecimal.ZERO).build();
+        Category catNoHistory = Category.builder().id(UUID.randomUUID()).userId(userId).name("Без истории").budget(BigDecimal.ZERO).build();
+
+        BigDecimal normalAmount = new BigDecimal("1000.00");
+        BigDecimal aboveMuchAmount = new BigDecimal("2000.00");
+        BigDecimal noHistoryAmount = new BigDecimal("3000.00");
+
+        CategorySummaryDto normalDto = CategorySummaryDto.builder().id(catNormal.getId()).name("В норме")
+                .amount(normalAmount).budget(BigDecimal.ZERO).percentUsed(BigDecimal.ZERO).build();
+        CategorySummaryDto aboveMuchDto = CategorySummaryDto.builder().id(catAboveMuch.getId()).name("Сильно выше")
+                .amount(aboveMuchAmount).budget(BigDecimal.ZERO).percentUsed(BigDecimal.ZERO).build();
+        CategorySummaryDto noHistoryDto = CategorySummaryDto.builder().id(catNoHistory.getId()).name("Без истории")
+                .amount(noHistoryAmount).budget(BigDecimal.ZERO).percentUsed(BigDecimal.ZERO).build();
+
+        PeriodAggregates current = new PeriodAggregates(start, end, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+        PeriodAggregates prev = new PeriodAggregates(
+                LocalDate.of(year, 2, 1), LocalDate.of(year, 2, 29), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+
+        when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
+        when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
+        when(categoryRepository.findUserCategoriesByUserId(userId))
+                .thenReturn(List.of(catNormal, catAboveMuch, catNoHistory));
+        when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
+                .thenReturn(Collections.emptyList());
+        when(categorySummaryBuilder.buildCategorySummary(eq(catNormal), any())).thenReturn(normalDto);
+        when(categorySummaryBuilder.buildCategorySummary(eq(catAboveMuch), any())).thenReturn(aboveMuchDto);
+        when(categorySummaryBuilder.buildCategorySummary(eq(catNoHistory), any())).thenReturn(noHistoryDto);
+
+        when(normCalculationService.calculateNorm(any(), eq(normalAmount), anyInt())).thenReturn(
+                NormComparisonDto.builder().status(NormStatus.NORMAL).deviationPercent(new BigDecimal("5.0"))
+                        .usualByDay(normalAmount).averageMonthly(normalAmount).build());
+        when(normCalculationService.calculateNorm(any(), eq(aboveMuchAmount), anyInt())).thenReturn(
+                NormComparisonDto.builder().status(NormStatus.ABOVE_MUCH).deviationPercent(new BigDecimal("80.0"))
+                        .usualByDay(aboveMuchAmount).averageMonthly(aboveMuchAmount).build());
+        when(normCalculationService.calculateNorm(any(), eq(noHistoryAmount), anyInt())).thenReturn(
+                NormComparisonDto.builder().status(NormStatus.NO_HISTORY).build());
+
+        BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
+
+        assertThat(result.getCategories()).extracting(CategorySummaryDto::getName)
+                .containsExactly("Сильно выше", "В норме", "Без истории");
+    }
+
+    @Test
+    @DisplayName("Среди категорий NO_HISTORY должен отсортировать по убыванию суммы")
+    void shouldSortNoHistoryCategoriesByAmountDescending() {
+        int month = 3;
+        int year = 2024;
+        LocalDate start = LocalDate.of(year, month, 1);
+        LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
+
+        Category catSmall = Category.builder().id(UUID.randomUUID()).userId(userId).name("Маленькая").budget(BigDecimal.ZERO).build();
+        Category catBig = Category.builder().id(UUID.randomUUID()).userId(userId).name("Большая").budget(BigDecimal.ZERO).build();
+
+        BigDecimal smallAmount = new BigDecimal("500.00");
+        BigDecimal bigAmount = new BigDecimal("9000.00");
+
+        CategorySummaryDto smallDto = CategorySummaryDto.builder().id(catSmall.getId()).name("Маленькая")
+                .amount(smallAmount).budget(BigDecimal.ZERO).percentUsed(BigDecimal.ZERO).build();
+        CategorySummaryDto bigDto = CategorySummaryDto.builder().id(catBig.getId()).name("Большая")
+                .amount(bigAmount).budget(BigDecimal.ZERO).percentUsed(BigDecimal.ZERO).build();
+
+        PeriodAggregates current = new PeriodAggregates(start, end, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+        PeriodAggregates prev = new PeriodAggregates(
+                LocalDate.of(year, 2, 1), LocalDate.of(year, 2, 29), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+
+        when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
+        when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
+        when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(List.of(catSmall, catBig));
+        when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
+                .thenReturn(Collections.emptyList());
+        when(categorySummaryBuilder.buildCategorySummary(eq(catSmall), any())).thenReturn(smallDto);
+        when(categorySummaryBuilder.buildCategorySummary(eq(catBig), any())).thenReturn(bigDto);
+        // normCalculationService not stubbed for these amounts — the default lenient stub from setUp()
+        // returns NO_HISTORY for both
+
+        BudgetSummaryResponseDto result = budgetSummaryService.getSummary(userId, month, year);
+
+        assertThat(result.getCategories()).extracting(CategorySummaryDto::getName)
+                .containsExactly("Большая", "Маленькая");
     }
 }

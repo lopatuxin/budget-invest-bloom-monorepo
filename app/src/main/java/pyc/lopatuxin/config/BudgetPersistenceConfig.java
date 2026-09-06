@@ -30,11 +30,21 @@ public class BudgetPersistenceConfig {
     @DependsOn("budgetLiquibase")
     public LocalContainerEntityManagerFactoryBean budgetEntityManagerFactory(DataSource dataSource) {
         LocalContainerEntityManagerFactoryBean emf = new LocalContainerEntityManagerFactoryBean();
-        emf.setDataSource(dataSource);
         emf.setPackagesToScan("pyc.lopatuxin.budget.entity");
         emf.setPersistenceUnitName("budget");
         emf.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
         Map<String, Object> props = new HashMap<>();
+        // Pass the DataSource as a JPA property instead of emf.setDataSource(dataSource): the
+        // budget and investment persistence units share one physical DataSource, and
+        // setDataSource() makes LocalContainerEntityManagerFactoryBean expose it via
+        // EntityManagerFactoryInfo, which JpaTransactionManager auto-detects and starts
+        // coordinating as a JDBC resource. With two separate JpaTransactionManagers on the
+        // same DataSource that makes a nested call from one manager's transaction into the
+        // other's (investment BUY/SELL syncing to a budget entry) fail with
+        // "Pre-bound JDBC Connection found!". Keeping the DataSource out of
+        // EntityManagerFactoryInfo avoids that cross-manager coordination while Hibernate
+        // still gets a working connection pool through the property.
+        props.put("jakarta.persistence.nonJtaDataSource", dataSource);
         props.put("hibernate.default_schema", "budget");
         props.put("hibernate.hbm2ddl.auto", "validate");
         props.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
@@ -61,7 +71,11 @@ public class BudgetPersistenceConfig {
         lb.setChangeLog("classpath:db/changelog/budget/db.changelog-master.yml");
         lb.setDefaultSchema("budget");
         lb.setLiquibaseSchema("budget");
-        lb.setContexts("data-migration");
+        // Excludes changesets tagged "data-migration" (005-import-legacy-budget,
+        // 008-adjust-initial-balance) carrying the owner's personal data, so they stay out of
+        // every fresh environment, tests included. The already migrated production database
+        // already has them recorded as run and is unaffected.
+        lb.setContexts("!data-migration");
         return lb;
     }
 }

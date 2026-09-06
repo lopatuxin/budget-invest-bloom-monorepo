@@ -49,7 +49,7 @@ class IncomeMetricServiceUnitTest {
         );
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = incomeMetricService.getMetric(userId, year);
 
         assertThat(result).isNotNull();
         assertThat(result.getYear()).isEqualTo(year);
@@ -89,7 +89,7 @@ class IncomeMetricServiceUnitTest {
         int year = 2025;
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = incomeMetricService.getMetric(userId, year);
 
         assertThat(result.getYear()).isEqualTo(year);
         assertThat(result.getMonthlyData()).hasSize(12);
@@ -114,7 +114,7 @@ class IncomeMetricServiceUnitTest {
         );
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = incomeMetricService.getMetric(userId, year);
 
         assertThat(result.getMonthlyData().get(4).getAmount()).isEqualByComparingTo(new BigDecimal("200000.00"));
         assertThat(result.getMonthlyData().get(4).getMonthName()).isEqualTo("Май");
@@ -151,7 +151,7 @@ class IncomeMetricServiceUnitTest {
         );
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = incomeMetricService.getMetric(userId, year);
 
         assertThat(result.getMonthlyData()).hasSize(12);
 
@@ -186,7 +186,7 @@ class IncomeMetricServiceUnitTest {
         );
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = incomeMetricService.getMetric(userId, year);
 
         // Среднее считается по 2 ненулевым месяцам, а не по 12
         assertThat(result.getYearlyAverage()).isEqualByComparingTo(new BigDecimal("60000.00"));
@@ -203,7 +203,7 @@ class IncomeMetricServiceUnitTest {
         );
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = incomeMetricService.getMetric(userId, year);
 
         assertThat(result.getCurrentValue()).isEqualByComparingTo(new BigDecimal("95000"));
         assertThat(result.getPreviousValue()).isEqualByComparingTo(new BigDecimal("80000"));
@@ -218,7 +218,7 @@ class IncomeMetricServiceUnitTest {
         int year = 2025;
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = incomeMetricService.getMetric(userId, year);
 
         String[] expectedNames = {"Янв", "Фев", "Мар", "Апр", "Май", "Июн",
                 "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"};
@@ -241,7 +241,7 @@ class IncomeMetricServiceUnitTest {
         );
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = incomeMetricService.getMetric(userId, year);
 
         assertThat(result.getYearlyMax()).isEqualByComparingTo(new BigDecimal("250000"));
     }
@@ -257,7 +257,7 @@ class IncomeMetricServiceUnitTest {
         );
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(dbData);
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = incomeMetricService.getMetric(userId, year);
 
         // (160000 - 200000) / 200000 * 100 = -20.0%
         assertThat(result.getChangePercent()).isEqualTo("-20.0%");
@@ -276,7 +276,7 @@ class IncomeMetricServiceUnitTest {
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year))
                 .thenReturn(nonTransferOnly);
 
-        MetricResponseDto result = incomeMetricService.getIncomeMetric(userId, year);
+        MetricResponseDto result = incomeMetricService.getMetric(userId, year);
 
         // Только один месяц с данными; transfer-доход не учтён
         assertThat(result.getCurrentValue()).isEqualByComparingTo(new BigDecimal("90000.00"));

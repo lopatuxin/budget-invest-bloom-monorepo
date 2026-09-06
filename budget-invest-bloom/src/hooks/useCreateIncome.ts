@@ -8,6 +8,7 @@ interface CreateIncomeParams {
   amount: number;
   source: string;
   description: string | null;
+  date: string;
 }
 
 export function useCreateIncome() {
@@ -19,7 +20,7 @@ export function useCreateIncome() {
       apiPost<ApiResponse<unknown>>('/api/budget/incomes', data),
     onSuccess: () => {
       invalidateBudgetCaches(queryClient);
-      toast({ title: 'Доход добавлен' });
+      toast({ title: 'Доход записан' });
     },
     onError: (error: unknown) => {
       const message = error instanceof Error ? error.message : 'Не удалось добавить доход';

@@ -48,7 +48,7 @@ class ExpenseMetricServiceUnitTest {
         );
         when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(dbData);
 
-        MetricResponseDto result = expenseMetricService.getExpenseMetric(userId, year);
+        MetricResponseDto result = expenseMetricService.getMetric(userId, year);
 
         assertThat(result).isNotNull();
         assertThat(result.getYear()).isEqualTo(year);
@@ -88,7 +88,7 @@ class ExpenseMetricServiceUnitTest {
         int year = 2025;
         when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
-        MetricResponseDto result = expenseMetricService.getExpenseMetric(userId, year);
+        MetricResponseDto result = expenseMetricService.getMetric(userId, year);
 
         assertThat(result.getYear()).isEqualTo(year);
         assertThat(result.getMonthlyData()).hasSize(12);
@@ -112,7 +112,7 @@ class ExpenseMetricServiceUnitTest {
         );
         when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(dbData);
 
-        MetricResponseDto result = expenseMetricService.getExpenseMetric(userId, year);
+        MetricResponseDto result = expenseMetricService.getMetric(userId, year);
 
         assertThat(result.getMonthlyData().get(6).getAmount()).isEqualByComparingTo(new BigDecimal("55000.00"));
         assertThat(result.getMonthlyData().get(6).getMonthName()).isEqualTo("Июл");
@@ -131,7 +131,7 @@ class ExpenseMetricServiceUnitTest {
         int year = 2025;
         when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
-        expenseMetricService.getExpenseMetric(userId, year);
+        expenseMetricService.getMetric(userId, year);
 
         verify(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
     }
@@ -152,7 +152,7 @@ class ExpenseMetricServiceUnitTest {
         );
         when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(dbData);
 
-        MetricResponseDto result = expenseMetricService.getExpenseMetric(userId, year);
+        MetricResponseDto result = expenseMetricService.getMetric(userId, year);
 
         // (60000 - 40000) / 40000 * 100 = +50.0%
         assertThat(result.getChangePercent()).isEqualTo("+50.0%");
@@ -172,7 +172,7 @@ class ExpenseMetricServiceUnitTest {
         when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year))
                 .thenReturn(nonTransferOnly);
 
-        MetricResponseDto result = expenseMetricService.getExpenseMetric(userId, year);
+        MetricResponseDto result = expenseMetricService.getMetric(userId, year);
 
         // Только один месяц с данными, transfer-расход не учтён
         assertThat(result.getCurrentValue()).isEqualByComparingTo(new BigDecimal("20000.00"));

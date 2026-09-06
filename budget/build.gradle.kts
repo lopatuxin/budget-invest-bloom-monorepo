@@ -7,7 +7,6 @@ val testcontainersVersion = "1.20.4"
 dependencies {
     implementation(project(":shared"))
 
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-liquibase")
     implementation("org.springframework.boot:spring-boot-starter-validation")
@@ -25,4 +24,11 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter:$testcontainersVersion")
     testImplementation("org.testcontainers:postgresql:$testcontainersVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+// Pins the test JVM to the same timezone the app sets at startup (see App.main), so date
+// conversions (InvestmentEntryService, ExpenseService, IncomeService) are deterministic
+// regardless of the machine or CI runner's own default timezone.
+tasks.test {
+    jvmArgs("-Duser.timezone=Europe/Moscow")
 }

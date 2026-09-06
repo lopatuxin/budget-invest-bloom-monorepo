@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import pyc.lopatuxin.budget.dto.request.CreateIncomeDto;
+import pyc.lopatuxin.budget.dto.request.DeleteIncomeRequestDto;
 import pyc.lopatuxin.budget.dto.response.IncomeResponseDto;
 import pyc.lopatuxin.budget.service.IncomeService;
 import pyc.lopatuxin.shared.dto.ApiRequest;
@@ -39,8 +40,7 @@ public class IncomeController {
     @Operation(summary = "Добавить доход")
     @ApiResponse(responseCode = "201", description = "Доход успешно добавлен")
     @ApiResponse(responseCode = "400", description = "Некорректные данные")
-    @ApiResponse(responseCode = "401", description = "Не авторизован")
-    @ApiResponse(responseCode = "500", description = "Внутренняя ошибка сервера")
+    @CommonApiResponses
     public ResponseApi<IncomeResponseDto> createIncome(
             @RequestBody @Valid ApiRequest<CreateIncomeDto> request) {
         IncomeResponseDto result = incomeService.createIncome(
@@ -48,5 +48,27 @@ public class IncomeController {
                 request.getData()
         );
         return ResponseApi.created("Доход успешно добавлен", result);
+    }
+
+    /**
+     * Удаляет доход пользователя.
+     *
+     * @param request запрос с контекстом пользователя и идентификатором дохода
+     * @return стандартный ответ без тела
+     */
+    @PostMapping("/delete")
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(summary = "Удалить доход", description = "Удаляет доход пользователя по идентификатору")
+    @ApiResponse(responseCode = "200", description = "Доход успешно удалён")
+    @ApiResponse(responseCode = "400", description = "Некорректные параметры запроса")
+    @ApiResponse(responseCode = "404", description = "Доход не найден")
+    @CommonApiResponses
+    public ResponseApi<Void> deleteIncome(
+            @RequestBody @Valid ApiRequest<DeleteIncomeRequestDto> request) {
+        incomeService.deleteIncome(
+                request.getUser().getUserId(),
+                request.getData()
+        );
+        return ResponseApi.success("Доход успешно удалён", null);
     }
 }

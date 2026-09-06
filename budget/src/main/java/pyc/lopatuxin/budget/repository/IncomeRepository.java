@@ -50,26 +50,6 @@ public interface IncomeRepository extends JpaRepository<Income, UUID> {
     BigDecimal sumNonTransferByUserId(@Param("userId") UUID userId);
 
     /**
-     * Возвращает помесячные суммы доходов пользователя за указанный год.
-     *
-     * @param userId идентификатор пользователя
-     * @param year   календарный год
-     * @return список пар [номер месяца (Integer), сумма (BigDecimal)]
-     */
-    @Query("""
-            SELECT MONTH(i.date), SUM(i.amount)
-            FROM Income i
-            WHERE i.userId = :userId
-              AND YEAR(i.date) = :year
-            GROUP BY MONTH(i.date)
-            ORDER BY MONTH(i.date)
-            """)
-    List<Object[]> findMonthlyIncomeByUserIdAndYear(
-            @Param("userId") UUID userId,
-            @Param("year") int year
-    );
-
-    /**
      * Возвращает помесячные суммы не-трансферных доходов пользователя за указанный год.
      * Записи с isTransfer=true (инвестиции и переводы между активами) исключаются.
      *
@@ -89,5 +69,59 @@ public interface IncomeRepository extends JpaRepository<Income, UUID> {
     List<Object[]> findMonthlyNonTransferIncomeByUserIdAndYear(
             @Param("userId") UUID userId,
             @Param("year") int year
+    );
+
+    /**
+     * Возвращает не-трансферные доходы пользователя за месяц, используется лентой операций.
+     * Записи с isTransfer=true исключаются.
+     *
+     * @param userId    идентификатор пользователя
+     * @param startDate первый день месяца (включительно)
+     * @param endDate   последний день месяца (включительно)
+     * @return список доходов месяца
+     */
+    @Query("""
+            SELECT i FROM Income i
+            WHERE i.userId = :userId
+              AND i.date >= :startDate
+              AND i.date <= :endDate
+              AND i.isTransfer = false
+            """)
+    List<Income> findByUserIdAndDateBetweenAndIsTransferFalse(
+            @Param("userId") UUID userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    /**
+     * Возвращает помесячные агрегаты не-трансферных доходов за окно истории: для каждого месяца окна,
+     * в котором есть хотя бы одна запись, — сумму записей с датой до дня {@code day} включительно,
+     * сумму за полный месяц и число различных дней месяца, на которые приходятся записи (используется
+     * для определения границы, с которой у пользователя начался подневный учёт). Месяцы без записей
+     * в результат не попадают. Используется для расчёта нормы («обычно к этому дню») по доходам.
+     *
+     * @param userId    идентификатор пользователя
+     * @param startDate первый день окна (включительно)
+     * @param endDate   последний день окна (включительно)
+     * @param day       день месяца, до которого считается частичная сумма
+     * @return список массивов [year (Integer), month (Integer), cutoffSum (BigDecimal), fullSum (BigDecimal), distinctDays (Long)]
+     */
+    @Query("""
+            SELECT YEAR(i.date), MONTH(i.date),
+                   SUM(CASE WHEN DAY(i.date) <= :day THEN i.amount ELSE 0 END),
+                   SUM(i.amount),
+                   COUNT(DISTINCT DAY(i.date))
+            FROM Income i
+            WHERE i.userId = :userId
+              AND i.date >= :startDate
+              AND i.date <= :endDate
+              AND i.isTransfer = false
+            GROUP BY YEAR(i.date), MONTH(i.date)
+            """)
+    List<Object[]> findWindowedNonTransferIncomeStats(
+            @Param("userId") UUID userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("day") int day
     );
 }

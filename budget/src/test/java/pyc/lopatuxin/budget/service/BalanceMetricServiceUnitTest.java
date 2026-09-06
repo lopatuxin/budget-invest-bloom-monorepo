@@ -58,7 +58,7 @@ class BalanceMetricServiceUnitTest {
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(incomeData);
         when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(expenseData);
 
-        MetricResponseDto result = balanceMetricService.getBalanceMetric(userId, year);
+        MetricResponseDto result = balanceMetricService.getMetric(userId, year);
 
         assertThat(result).isNotNull();
         assertThat(result.getYear()).isEqualTo(year);
@@ -104,7 +104,7 @@ class BalanceMetricServiceUnitTest {
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
         when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
-        MetricResponseDto result = balanceMetricService.getBalanceMetric(userId, year);
+        MetricResponseDto result = balanceMetricService.getMetric(userId, year);
 
         assertThat(result.getYear()).isEqualTo(year);
         assertThat(result.getMonthlyData()).hasSize(12);
@@ -129,7 +129,7 @@ class BalanceMetricServiceUnitTest {
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(incomeData);
         when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
-        MetricResponseDto result = balanceMetricService.getBalanceMetric(userId, year);
+        MetricResponseDto result = balanceMetricService.getMetric(userId, year);
 
         // Май: 80000 - 0 = 80000
         assertThat(result.getMonthlyData().get(4).getAmount()).isEqualByComparingTo(new BigDecimal("80000.00"));
@@ -152,7 +152,7 @@ class BalanceMetricServiceUnitTest {
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
         when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(expenseData);
 
-        MetricResponseDto result = balanceMetricService.getBalanceMetric(userId, year);
+        MetricResponseDto result = balanceMetricService.getMetric(userId, year);
 
         // Март: 0 - 50000 = -50000 (отрицательное значение записывается в monthlyData)
         assertThat(result.getMonthlyData().get(2).getAmount()).isEqualByComparingTo(new BigDecimal("-50000.00"));
@@ -179,7 +179,7 @@ class BalanceMetricServiceUnitTest {
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(incomeData);
         when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(expenseData);
 
-        MetricResponseDto result = balanceMetricService.getBalanceMetric(userId, year);
+        MetricResponseDto result = balanceMetricService.getMetric(userId, year);
 
         // Январь: 100000 - 0 = 100000
         assertThat(result.getMonthlyData().get(0).getAmount()).isEqualByComparingTo(new BigDecimal("100000.00"));
@@ -213,7 +213,7 @@ class BalanceMetricServiceUnitTest {
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
         when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
-        balanceMetricService.getBalanceMetric(userId, year);
+        balanceMetricService.getMetric(userId, year);
 
         verify(incomeRepository).findMonthlyNonTransferIncomeByUserIdAndYear(userId, year);
         verify(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
@@ -240,7 +240,7 @@ class BalanceMetricServiceUnitTest {
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(incomeData);
         when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(expenseData);
 
-        MetricResponseDto result = balanceMetricService.getBalanceMetric(userId, year);
+        MetricResponseDto result = balanceMetricService.getMetric(userId, year);
 
         // Февраль: 200000 - 100000 = 100000
         // Май: 100000 - 60000 = 40000
@@ -268,7 +268,7 @@ class BalanceMetricServiceUnitTest {
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(incomeData);
         when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(expenseData);
 
-        MetricResponseDto result = balanceMetricService.getBalanceMetric(userId, year);
+        MetricResponseDto result = balanceMetricService.getMetric(userId, year);
 
         // nonZeroAmounts = [-30000, 60000, -50000] (все != 0 включены)
         // currentValue = последний ненулевой = -50000 (Июнь)
@@ -307,7 +307,7 @@ class BalanceMetricServiceUnitTest {
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndYear(userId, year)).thenReturn(incomeData);
         when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year)).thenReturn(expenseData);
 
-        MetricResponseDto result = balanceMetricService.getBalanceMetric(userId, year);
+        MetricResponseDto result = balanceMetricService.getMetric(userId, year);
 
         // Март: 80000 - 50000 = 30000
         // Июль: 150000 - 50000 = 100000

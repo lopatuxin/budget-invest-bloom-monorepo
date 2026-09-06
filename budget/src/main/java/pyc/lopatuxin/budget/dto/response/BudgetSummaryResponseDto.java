@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import pyc.lopatuxin.budget.dto.common.NormComparisonDto;
 import pyc.lopatuxin.budget.dto.common.PeriodDto;
 import pyc.lopatuxin.budget.dto.common.TrendsDto;
 
@@ -44,6 +45,18 @@ public class BudgetSummaryResponseDto {
     @Schema(description = "Тренды показателей относительно предыдущего месяца")
     private TrendsDto trends;
 
-    @Schema(description = "Список категорий расходов с суммами и процентом использования лимита")
+    @Schema(description = "Текущий день месяца: сегодняшнее число для текущего месяца, длина месяца для прошлого, 0 для будущего", example = "18")
+    private Integer dayOfMonth;
+
+    @Schema(description = "Число дней в запрошенном месяце", example = "30")
+    private Integer daysInMonth;
+
+    @Schema(description = "Сравнение расходов месяца с личной нормой («обычно к этому дню»)")
+    private NormComparisonDto expenseNorm;
+
+    @Schema(description = "Сравнение доходов месяца с личной нормой («обычно к этому дню»)")
+    private NormComparisonDto incomeNorm;
+
+    @Schema(description = "Список категорий расходов, отсортированный по отклонению от нормы")
     private List<CategorySummaryDto> categories;
 }

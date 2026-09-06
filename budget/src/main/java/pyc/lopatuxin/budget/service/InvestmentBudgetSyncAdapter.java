@@ -25,7 +25,7 @@ public class InvestmentBudgetSyncAdapter implements InvestmentBudgetSync {
     @Override
     public UUID createEntry(UUID userId, EntryType type, BigDecimal amount, Instant executedAt) {
         InvestmentEntryRequestDto dto = InvestmentEntryRequestDto.builder()
-                .type(map(type))
+                .type(type)
                 .amount(amount)
                 .executedAt(executedAt)
                 .build();
@@ -35,10 +35,6 @@ public class InvestmentBudgetSyncAdapter implements InvestmentBudgetSync {
 
     @Override
     public void deleteEntry(UUID userId, UUID budgetEntryId, EntryType type) {
-        investmentEntryService.delete(userId, budgetEntryId, map(type));
-    }
-
-    private InvestmentEntryRequestDto.EntryType map(EntryType type) {
-        return InvestmentEntryRequestDto.EntryType.valueOf(type.name());
+        investmentEntryService.delete(userId, budgetEntryId, type);
     }
 }

@@ -99,6 +99,46 @@ class CategoryAnalyticsControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("Список расходов и итог не должны включать расходы-переводы (isTransfer=true)")
+    void shouldExcludeTransferExpensesFromListAndTotal() throws Exception {
+        Category category = categoryRepository.save(Category.builder()
+                .userId(userId)
+                .name("Инвестиции")
+                .budget(BigDecimal.ZERO)
+                .emoji("💎")
+                .system(true)
+                .build());
+
+        expenseRepository.save(Expense.builder()
+                .userId(userId)
+                .category(category)
+                .amount(new BigDecimal("1000.00"))
+                .description("Обычный расход")
+                .date(LocalDate.of(2025, 4, 5))
+                .isTransfer(false)
+                .build());
+
+        expenseRepository.save(Expense.builder()
+                .userId(userId)
+                .category(category)
+                .amount(new BigDecimal("50000.00"))
+                .description("Покупка акций")
+                .date(LocalDate.of(2025, 4, 10))
+                .isTransfer(true)
+                .build());
+
+        String requestBody = buildAnalyticsRequest(userId, "Инвестиции", 2025, 4);
+
+        mockMvc.perform(post(BASE_URL)
+                        .content(requestBody)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.body.expenses", hasSize(1)))
+                .andExpect(jsonPath("$.body.totalExpenses", comparesEqualTo(1000.00)))
+                .andExpect(jsonPath("$.body.monthlyData[3].amount", comparesEqualTo(1000.00)));
+    }
+
+    @Test
     @DisplayName("Должен вернуть аналитику за весь год когда месяц не указан")
     void shouldReturnAnalyticsForWholeYearWhenMonthNotSpecified() throws Exception {
         Category category = categoryRepository.save(Category.builder()

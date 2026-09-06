@@ -9,6 +9,8 @@ export const qk = {
     categoryAnalytics: (name: string, year: number, month: number) =>
       ['category-analytics', name, year, month] as const,
     categoryAnalyticsAll: () => ['category-analytics'] as const,
+    operations: (month: string, year: string) => ['budget-operations', month, year] as const,
+    categoryList: () => ['budget-category-list'] as const,
   },
   metrics: {
     balance: (year: number) => ['balance-metric', year] as const,
@@ -36,6 +38,7 @@ export const qk = {
 // Invalidates all budget-related caches after mutations
 export const invalidateBudgetCaches = (queryClient: QueryClient) => {
   queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+  queryClient.invalidateQueries({ queryKey: ['budget-operations'] });
   queryClient.invalidateQueries({ queryKey: ['overview-summary'] });
   queryClient.invalidateQueries({ queryKey: ['free-capital'] });
   queryClient.invalidateQueries({ queryKey: ['category-analytics'] });

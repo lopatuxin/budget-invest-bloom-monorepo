@@ -20,6 +20,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.comparesEqualTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -270,6 +271,30 @@ class CategoryControllerTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.message", is("Категория с таким именем уже существует")));
         }
 
+        @Test
+        @DisplayName("Должен вернуть 409 при попытке переименовать системную категорию")
+        void shouldReturn409WhenUpdatingSystemCategory() throws Exception {
+            Category systemCategory = categoryRepository.save(Category.builder()
+                    .userId(userId)
+                    .name("Инвестиции")
+                    .emoji("💎")
+                    .budget(BigDecimal.ZERO)
+                    .system(true)
+                    .build());
+
+            String requestBody = buildUpdateRequest(userId, systemCategory.getId(), "Не инвестиции", "1000.00");
+
+            mockMvc.perform(post(UPDATE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.status", is(409)))
+                    .andExpect(jsonPath("$.message", is("Системную категорию «Инвестиции» нельзя переименовать или изменить")));
+
+            assertThat(categoryRepository.findById(systemCategory.getId()).orElseThrow().getName())
+                    .isEqualTo("Инвестиции");
+        }
+
         @ParameterizedTest(name = "{0}")
         @MethodSource("pyc.lopatuxin.budget.controller.CategoryControllerTest#invalidUpdateDataProvider")
         @DisplayName("Должен вернуть 400 при невалидных данных обновления категории")
@@ -401,6 +426,61 @@ class CategoryControllerTest extends AbstractIntegrationTest {
             assertThat(expenseRepository.countByCategoryId(category.getId())).isZero();
         }
 
+        @Test
+        @DisplayName("Должен вернуть 409 при попытке удалить системную категорию")
+        void shouldReturn409WhenDeletingSystemCategory() throws Exception {
+            Category systemCategory = categoryRepository.save(Category.builder()
+                    .userId(userId)
+                    .name("Инвестиции")
+                    .emoji("💎")
+                    .budget(BigDecimal.ZERO)
+                    .system(true)
+                    .build());
+
+            String requestBody = buildDeleteRequest(userId, systemCategory.getId());
+
+            mockMvc.perform(post(DELETE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.status", is(409)))
+                    .andExpect(jsonPath("$.message", is("Системную категорию «Инвестиции» нельзя удалить")));
+
+            assertThat(categoryRepository.findById(systemCategory.getId())).isPresent();
+        }
+
+        @Test
+        @DisplayName("Должен вернуть 409 при попытке принудительно удалить системную категорию (force=true)")
+        void shouldReturn409WhenForceDeletingSystemCategory() throws Exception {
+            Category systemCategory = categoryRepository.save(Category.builder()
+                    .userId(userId)
+                    .name("Инвестиции")
+                    .emoji("💎")
+                    .budget(BigDecimal.ZERO)
+                    .system(true)
+                    .build());
+
+            expenseRepository.save(Expense.builder()
+                    .userId(userId)
+                    .category(systemCategory)
+                    .amount(new BigDecimal("50000.00"))
+                    .date(LocalDate.now())
+                    .isTransfer(true)
+                    .build());
+
+            String requestBody = buildDeleteRequest(userId, systemCategory.getId(), true);
+
+            mockMvc.perform(post(DELETE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.status", is(409)))
+                    .andExpect(jsonPath("$.message", is("Системную категорию «Инвестиции» нельзя удалить")));
+
+            assertThat(categoryRepository.findById(systemCategory.getId())).isPresent();
+            assertThat(expenseRepository.countByCategoryId(systemCategory.getId())).isEqualTo(1);
+        }
+
         private String buildDeleteRequest(UUID reqUserId, UUID categoryId) {
             return buildDeleteRequest(reqUserId, categoryId, null);
         }
@@ -420,6 +500,85 @@ class CategoryControllerTest extends AbstractIntegrationTest {
                       }
                     }
                     """.formatted(reqUserId, UUID.randomUUID(), categoryId, forceField);
+        }
+    }
+
+    @Nested
+    @DisplayName("Список категорий для формы операции (POST /list)")
+    class ListCategories {
+
+        private static final String LIST_URL = BASE_URL + "/list";
+
+        @Test
+        @DisplayName("Должен вернуть категории без лимита бюджета, отсортированные по частоте расходов за 90 дней")
+        void shouldReturnCategoriesSortedByExpenseFrequency() throws Exception {
+            Category rare = categoryRepository.save(Category.builder()
+                    .userId(userId).name("Редкая").emoji("🎯").budget(new BigDecimal("1000.00")).build());
+            Category frequent = categoryRepository.save(Category.builder()
+                    .userId(userId).name("Частая").emoji("🛒").budget(new BigDecimal("2000.00")).build());
+
+            expenseRepository.save(Expense.builder().userId(userId).category(rare)
+                    .amount(new BigDecimal("100.00")).date(LocalDate.now()).build());
+            expenseRepository.save(Expense.builder().userId(userId).category(frequent)
+                    .amount(new BigDecimal("100.00")).date(LocalDate.now()).build());
+            expenseRepository.save(Expense.builder().userId(userId).category(frequent)
+                    .amount(new BigDecimal("100.00")).date(LocalDate.now().minusDays(5)).build());
+
+            String requestBody = buildEmptyRequest(userId);
+
+            mockMvc.perform(post(LIST_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.body", hasSize(2)))
+                    .andExpect(jsonPath("$.body[0].name", is("Частая")))
+                    .andExpect(jsonPath("$.body[0].emoji", is("🛒")))
+                    .andExpect(jsonPath("$.body[0].budget").doesNotExist())
+                    .andExpect(jsonPath("$.body[1].name", is("Редкая")));
+        }
+
+        @Test
+        @DisplayName("Не должен включать системные категории в список")
+        void shouldNotIncludeSystemCategories() throws Exception {
+            categoryRepository.save(Category.builder()
+                    .userId(userId).name("Инвестиции").budget(BigDecimal.ZERO).system(true).build());
+            categoryRepository.save(Category.builder()
+                    .userId(userId).name("Продукты").budget(new BigDecimal("1000.00")).build());
+
+            String requestBody = buildEmptyRequest(userId);
+
+            mockMvc.perform(post(LIST_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.body", hasSize(1)))
+                    .andExpect(jsonPath("$.body[0].name", is("Продукты")));
+        }
+
+        @Test
+        @DisplayName("Должен вернуть пустой список, если у пользователя нет категорий")
+        void shouldReturnEmptyListWhenNoCategories() throws Exception {
+            String requestBody = buildEmptyRequest(userId);
+
+            mockMvc.perform(post(LIST_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.body", hasSize(0)));
+        }
+
+        private String buildEmptyRequest(UUID reqUserId) {
+            return """
+                    {
+                      "user": {
+                        "userId": "%s",
+                        "email": "test@example.com",
+                        "role": "USER",
+                        "sessionId": "%s"
+                      },
+                      "data": {}
+                    }
+                    """.formatted(reqUserId, UUID.randomUUID());
         }
     }
 

@@ -54,6 +54,7 @@ services:
       dockerfile: app/Dockerfile
     container_name: bib-app
     environment:
+      TZ: Europe/Moscow
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${BIB_POSTGRES_DB:-bib}
       SPRING_DATASOURCE_USERNAME: ${BIB_POSTGRES_USER:-bib}
       SPRING_DATASOURCE_PASSWORD: ${BIB_POSTGRES_PASSWORD:?BIB_POSTGRES_PASSWORD must be set}

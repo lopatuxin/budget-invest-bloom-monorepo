@@ -8,16 +8,23 @@ import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.budget.dto.request.CreateCategoryDto;
 import pyc.lopatuxin.budget.dto.request.DeleteCategoryRequestDto;
 import pyc.lopatuxin.budget.dto.request.UpdateCategoryRequestDto;
+import pyc.lopatuxin.budget.dto.response.CategoryListItemDto;
 import pyc.lopatuxin.budget.dto.response.CategoryResponseDto;
 import pyc.lopatuxin.budget.entity.Category;
+import pyc.lopatuxin.budget.exception.BudgetConflictException;
 import pyc.lopatuxin.budget.exception.CategoryHasExpensesException;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Сервис для управления категориями расходов.
@@ -26,6 +33,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class CategoryService {
+
+    private static final int OPERATION_FORM_FREQUENCY_WINDOW_DAYS = 90;
 
     private final CategoryRepository categoryRepository;
     private final ExpenseRepository expenseRepository;
@@ -72,6 +81,11 @@ public class CategoryService {
         Category category = categoryRepository.findByIdAndUserId(request.getCategoryId(), userId)
                 .orElseThrow(() -> new EntityNotFoundException("Категория не найдена"));
 
+        if (category.isSystem()) {
+            throw new BudgetConflictException(
+                    "Системную категорию «" + category.getName() + "» нельзя переименовать или изменить");
+        }
+
         category.setName(request.getName());
         if (request.getBudget() != null) {
             category.setBudget(request.getBudget());
@@ -101,7 +115,7 @@ public class CategoryService {
      *   <li>If no category with that name exists — create a new one with {@code system=true}.</li>
      *   <li>If a user-owned (non-system) category with the same name exists — this is a conflict.
      *       The unique constraint {@code uq_categories_user_name} prevents creating a duplicate.
-     *       In this edge case a {@link IllegalStateException} is thrown and a WARNING is logged.
+     *       In this edge case a {@link BudgetConflictException} is thrown and a WARNING is logged.
      *       The investment service should surface this to the user as a configuration issue.</li>
      * </ol>
      *
@@ -109,7 +123,7 @@ public class CategoryService {
      * @param name   название системной категории
      * @param emoji  эмодзи-иконка (может быть null)
      * @return существующая или только что созданная системная категория
-     * @throws IllegalStateException если пользователь уже создал обычную категорию с таким же именем
+     * @throws BudgetConflictException если пользователь уже создал обычную категорию с таким же именем
      */
     @Transactional("budgetTransactionManager")
     public Category ensureSystemCategory(UUID userId, String name, String emoji) {
@@ -122,7 +136,7 @@ public class CategoryService {
         if (userConflict.isPresent()) {
             log.warn("User {} has a non-system category named '{}' — cannot create system category with same name",
                     userId, name);
-            throw new IllegalStateException(
+            throw new BudgetConflictException(
                     "Невозможно создать системную категорию «" + name + "»: пользователь уже создал категорию с таким именем");
         }
 
@@ -150,6 +164,11 @@ public class CategoryService {
         Category category = categoryRepository.findByIdAndUserId(dto.getCategoryId(), userId)
                 .orElseThrow(() -> new EntityNotFoundException("Категория не найдена"));
 
+        if (category.isSystem()) {
+            throw new BudgetConflictException(
+                    "Системную категорию «" + category.getName() + "» нельзя удалить");
+        }
+
         long expenseCount = expenseRepository.countByCategoryId(category.getId());
         boolean force = Boolean.TRUE.equals(dto.getForce());
 
@@ -164,5 +183,35 @@ public class CategoryService {
 
         categoryRepository.delete(category);
         log.info("Удалена категория {} пользователя {}", category.getId(), userId);
+    }
+
+    /**
+     * Возвращает категории пользователя для формы новой операции, отсортированные по числу
+     * не-трансферных расходов за последние 90 дней по убыванию, затем по названию по возрастанию.
+     *
+     * @param userId идентификатор пользователя
+     * @return список категорий без лимита бюджета
+     */
+    @Transactional(value = "budgetTransactionManager", readOnly = true)
+    public List<CategoryListItemDto> listForOperationForm(UUID userId) {
+        List<Category> categories = categoryRepository.findUserCategoriesByUserId(userId);
+
+        LocalDate sinceDate = LocalDate.now().minusDays(OPERATION_FORM_FREQUENCY_WINDOW_DAYS);
+        Map<UUID, Long> expenseCountByCategory = expenseRepository
+                .countNonTransferExpensesByCategorySince(userId, sinceDate)
+                .stream()
+                .collect(Collectors.toMap(row -> (UUID) row[0], row -> (Long) row[1]));
+
+        return categories.stream()
+                .sorted(Comparator
+                        .comparing((Category category) -> expenseCountByCategory.getOrDefault(category.getId(), 0L))
+                        .reversed()
+                        .thenComparing(Category::getName))
+                .map(category -> CategoryListItemDto.builder()
+                        .id(category.getId())
+                        .name(category.getName())
+                        .emoji(category.getEmoji())
+                        .build())
+                .toList();
     }
 }

@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import pyc.lopatuxin.budget.dto.response.MetricResponseDto;
 import pyc.lopatuxin.budget.dto.response.MonthlyMetricDto;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
 import pyc.lopatuxin.budget.repository.IncomeRepository;
@@ -28,17 +27,6 @@ public class BalanceMetricService extends AbstractMetricService {
 
     private final IncomeRepository incomeRepository;
     private final ExpenseRepository expenseRepository;
-
-    /**
-     * Формирует детальную метрику баланса за указанный год.
-     *
-     * @param userId идентификатор пользователя
-     * @param year   календарный год
-     * @return объект с помесячной разбивкой и агрегированными показателями
-     */
-    public MetricResponseDto getBalanceMetric(UUID userId, int year) {
-        return getMetric(userId, year);
-    }
 
     @Override
     protected List<Object[]> findMonthlyData(UUID userId, int year) {

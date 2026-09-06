@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -156,6 +157,19 @@ class ExpenseControllerTest extends AbstractIntegrationTest {
     @DisplayName("Должен вернуть 400 при отрицательной сумме расхода")
     void shouldReturn400WhenAmountIsNegative() throws Exception {
         String requestBody = buildRequest(userId, categoryId, "-100.00", "Отрицательная сумма", "2026-04-06");
+
+        mockMvc.perform(post(BASE_URL)
+                        .content(requestBody)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status", is(400)));
+    }
+
+    @Test
+    @DisplayName("Должен вернуть 400 при дате расхода в будущем")
+    void shouldReturn400WhenDateIsInFuture() throws Exception {
+        String futureDate = LocalDate.now().plusDays(1).toString();
+        String requestBody = buildRequest(userId, categoryId, "500.00", "Из будущего", futureDate);
 
         mockMvc.perform(post(BASE_URL)
                         .content(requestBody)
@@ -320,6 +334,29 @@ class ExpenseControllerTest extends AbstractIntegrationTest {
                             .contentType(MediaType.APPLICATION_JSON))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.status", is(400)));
+        }
+
+        @Test
+        @DisplayName("Должен вернуть 409 при попытке удалить расход-перевод (isTransfer=true)")
+        void shouldReturn409WhenDeletingTransferExpense() throws Exception {
+            Expense transferExpense = expenseRepository.save(Expense.builder()
+                    .userId(userId)
+                    .category(categoryRepository.findById(categoryId).orElseThrow())
+                    .amount(new BigDecimal("50000.00"))
+                    .date(LocalDate.now())
+                    .isTransfer(true)
+                    .build());
+
+            String requestBody = buildDeleteRequest(userId, transferExpense.getId());
+
+            mockMvc.perform(post(DELETE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.status", is(409)))
+                    .andExpect(jsonPath("$.message", is("Запись-перевод нельзя удалить обычным способом")));
+
+            assertThat(expenseRepository.findById(transferExpense.getId())).isPresent();
         }
 
         private String buildDeleteRequest(UUID reqUserId, UUID expenseId) {

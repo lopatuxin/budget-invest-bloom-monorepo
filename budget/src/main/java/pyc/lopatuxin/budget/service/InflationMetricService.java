@@ -47,14 +47,25 @@ public class InflationMetricService extends AbstractMetricService {
     private record CategoryCalc(UUID categoryId, String name, String emoji,
                                 BigDecimal avgCurrent, BigDecimal avgPrevious, BigDecimal changePercent) {}
 
+    /**
+     * Builds the per-category inflation breakdown so it reconciles with the overall figure:
+     * every category's average is divided by the same number of months (the count of months
+     * with any non-transfer expense that year) used by {@link #findMonthlyData}, instead of
+     * each category's own count of active months.
+     */
     private List<CategoryInflationDto> buildCategoryBreakdown(UUID userId, int year) {
+        long currentMonths = expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year).size();
+        long previousMonths = expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1).size();
+        if (currentMonths == 0 || previousMonths == 0) {
+            return List.of();
+        }
+
         List<Object[]> currentStats = expenseRepository.findNonTransferCategoryStatsByUserIdAndYear(userId, year);
         List<Object[]> previousStats = expenseRepository.findNonTransferCategoryStatsByUserIdAndYear(userId, year - 1);
-
-        Map<UUID, Object[]> previousMap = toPreviousMap(previousStats);
+        Map<UUID, BigDecimal> previousTotals = toTotalsByCategory(previousStats);
 
         List<CategoryCalc> calculated = currentStats.stream()
-                .map(row -> toCategoryCalc(row, previousMap))
+                .map(row -> toCategoryCalc(row, previousTotals, currentMonths, previousMonths))
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .toList();
@@ -73,56 +84,35 @@ public class InflationMetricService extends AbstractMetricService {
                 .toList();
     }
 
-    private Map<UUID, Object[]> toPreviousMap(List<Object[]> rows) {
-        Map<UUID, Object[]> map = new HashMap<>();
+    private Map<UUID, BigDecimal> toTotalsByCategory(List<Object[]> rows) {
+        Map<UUID, BigDecimal> map = new HashMap<>();
         for (Object[] row : rows) {
-            map.put((UUID) row[0], row);
+            map.put((UUID) row[0], (BigDecimal) row[3]);
         }
         return map;
     }
 
-    private Optional<BigDecimal> toAvgCurrent(Object[] row) {
-        long monthCount = (Long) row[3];
-        if (monthCount == 0) {
-            return Optional.empty();
-        }
-        BigDecimal totalAmount = (BigDecimal) row[4];
-        return Optional.of(totalAmount.divide(BigDecimal.valueOf(monthCount), 10, RoundingMode.HALF_UP));
-    }
-
-    private Optional<BigDecimal> toAvgPrevious(Object[] prevRow) {
-        long monthCount = (Long) prevRow[3];
-        if (monthCount == 0) {
-            return Optional.empty();
-        }
-        BigDecimal totalAmount = (BigDecimal) prevRow[4];
-        return Optional.of(totalAmount.divide(BigDecimal.valueOf(monthCount), 10, RoundingMode.HALF_UP));
-    }
-
-    private Optional<CategoryCalc> toCategoryCalc(Object[] row, Map<UUID, Object[]> previousMap) {
-        Optional<BigDecimal> avgCurrentOpt = toAvgCurrent(row);
-        if (avgCurrentOpt.isEmpty()) {
-            return Optional.empty();
-        }
-
+    private Optional<CategoryCalc> toCategoryCalc(Object[] row, Map<UUID, BigDecimal> previousTotals,
+                                                  long currentMonths, long previousMonths) {
         UUID categoryId = (UUID) row[0];
-        Object[] prevRow = previousMap.get(categoryId);
-        if (prevRow == null) {
-            return Optional.empty();
-        }
-
-        Optional<BigDecimal> avgPreviousOpt = toAvgPrevious(prevRow);
-        if (avgPreviousOpt.isEmpty() || avgPreviousOpt.get().compareTo(BigDecimal.ZERO) == 0) {
+        BigDecimal previousTotal = previousTotals.get(categoryId);
+        if (previousTotal == null || previousTotal.compareTo(BigDecimal.ZERO) == 0) {
             return Optional.empty();
         }
 
         String name = (String) row[1];
         String emoji = (String) row[2];
-        BigDecimal avgCurrent = avgCurrentOpt.get();
-        BigDecimal avgPrevious = avgPreviousOpt.get();
+        BigDecimal currentTotal = (BigDecimal) row[3];
+
+        BigDecimal avgCurrent = average(currentTotal, currentMonths);
+        BigDecimal avgPrevious = average(previousTotal, previousMonths);
         BigDecimal changePercent = calculatePercentChange(avgCurrent, avgPrevious);
 
         return Optional.of(new CategoryCalc(categoryId, name, emoji, avgCurrent, avgPrevious, changePercent));
+    }
+
+    private BigDecimal average(BigDecimal total, long months) {
+        return total.divide(BigDecimal.valueOf(months), 10, RoundingMode.HALF_UP);
     }
 
     private CategoryInflationDto toDto(CategoryCalc calc, BigDecimal totalAvgCurrent) {

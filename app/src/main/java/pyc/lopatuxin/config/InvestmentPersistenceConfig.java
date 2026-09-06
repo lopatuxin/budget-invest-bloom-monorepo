@@ -30,11 +30,21 @@ public class InvestmentPersistenceConfig {
     @DependsOn("investmentLiquibase")
     public LocalContainerEntityManagerFactoryBean investmentEntityManagerFactory(DataSource dataSource) {
         LocalContainerEntityManagerFactoryBean emf = new LocalContainerEntityManagerFactoryBean();
-        emf.setDataSource(dataSource);
         emf.setPackagesToScan("pyc.lopatuxin.investment.entity");
         emf.setPersistenceUnitName("investment");
         emf.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
         Map<String, Object> props = new HashMap<>();
+        // Pass the DataSource as a JPA property instead of emf.setDataSource(dataSource): the
+        // budget and investment persistence units share one physical DataSource, and
+        // setDataSource() makes LocalContainerEntityManagerFactoryBean expose it via
+        // EntityManagerFactoryInfo, which JpaTransactionManager auto-detects and starts
+        // coordinating as a JDBC resource. With two separate JpaTransactionManagers on the
+        // same DataSource that makes a nested call from one manager's transaction into the
+        // other's (investment BUY/SELL syncing to a budget entry) fail with
+        // "Pre-bound JDBC Connection found!". Keeping the DataSource out of
+        // EntityManagerFactoryInfo avoids that cross-manager coordination while Hibernate
+        // still gets a working connection pool through the property.
+        props.put("jakarta.persistence.nonJtaDataSource", dataSource);
         props.put("hibernate.default_schema", "investment");
         props.put("hibernate.hbm2ddl.auto", "validate");
         props.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");

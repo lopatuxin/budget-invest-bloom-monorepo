@@ -76,26 +76,6 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
     );
 
     /**
-     * Возвращает помесячные суммы расходов пользователя за указанный год.
-     *
-     * @param userId идентификатор пользователя
-     * @param year   календарный год
-     * @return список пар [номер месяца (Integer), сумма (BigDecimal)]
-     */
-    @Query("""
-            SELECT MONTH(e.date), SUM(e.amount)
-            FROM Expense e
-            WHERE e.userId = :userId
-              AND YEAR(e.date) = :year
-            GROUP BY MONTH(e.date)
-            ORDER BY MONTH(e.date)
-            """)
-    List<Object[]> findMonthlyExpenseByUserIdAndYear(
-            @Param("userId") UUID userId,
-            @Param("year") int year
-    );
-
-    /**
      * Возвращает помесячные суммы не-трансферных расходов пользователя за указанный год.
      * Записи с isTransfer=true (инвестиции и переводы между активами) исключаются.
      *
@@ -181,6 +161,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
               AND e.category.id = :categoryId
               AND e.date >= :startDate
               AND e.date <= :endDate
+              AND e.isTransfer = false
             ORDER BY e.date DESC
             """)
     List<Expense> findByUserIdAndCategoryIdAndDateBetweenOrderByDateDesc(
@@ -193,36 +174,16 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
     long countByCategoryId(UUID categoryId);
 
     /**
-     * Returns aggregated expense stats per category for a given user and year.
-     * Each result element: [categoryId (UUID), name (String), emoji (String), monthCount (Long), totalAmount (BigDecimal)].
-     *
-     * @param userId identifier of the user
-     * @param year   calendar year
-     * @return list of arrays with category stats
-     */
-    @Query("""
-            SELECT e.category.id, e.category.name, e.category.emoji, COUNT(DISTINCT MONTH(e.date)), SUM(e.amount)
-            FROM Expense e
-            WHERE e.userId = :userId
-              AND YEAR(e.date) = :year
-            GROUP BY e.category.id, e.category.name, e.category.emoji
-            """)
-    List<Object[]> findCategoryStatsByUserIdAndYear(
-            @Param("userId") UUID userId,
-            @Param("year") int year
-    );
-
-    /**
-     * Returns aggregated non-transfer expense stats per category for a given user and year.
+     * Returns aggregated non-transfer expense totals per category for a given user and year.
      * Entries with isTransfer=true (investments and transfers between assets) are excluded.
-     * Each result element: [categoryId (UUID), name (String), emoji (String), monthCount (Long), totalAmount (BigDecimal)].
+     * Each result element: [categoryId (UUID), name (String), emoji (String), totalAmount (BigDecimal)].
      *
      * @param userId identifier of the user
      * @param year   calendar year
      * @return list of arrays with category stats
      */
     @Query("""
-            SELECT e.category.id, e.category.name, e.category.emoji, COUNT(DISTINCT MONTH(e.date)), SUM(e.amount)
+            SELECT e.category.id, e.category.name, e.category.emoji, SUM(e.amount)
             FROM Expense e
             WHERE e.userId = :userId
               AND YEAR(e.date) = :year
@@ -243,4 +204,108 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
     @Modifying
     @Query("DELETE FROM Expense e WHERE e.category.id = :categoryId")
     int deleteAllByCategoryId(@Param("categoryId") UUID categoryId);
+
+    /**
+     * Возвращает не-трансферные расходы пользователя за месяц вместе с категорией (без N+1),
+     * используется лентой операций. Записи с isTransfer=true исключаются.
+     *
+     * @param userId    идентификатор пользователя
+     * @param startDate первый день месяца (включительно)
+     * @param endDate   последний день месяца (включительно)
+     * @return список расходов месяца с загруженной категорией
+     */
+    @Query("""
+            SELECT e FROM Expense e
+            JOIN FETCH e.category
+            WHERE e.userId = :userId
+              AND e.date >= :startDate
+              AND e.date <= :endDate
+              AND e.isTransfer = false
+            """)
+    List<Expense> findByUserIdAndDateBetweenAndIsTransferFalse(
+            @Param("userId") UUID userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    /**
+     * Возвращает число не-трансферных расходов пользователя по каждой категории начиная с указанной даты.
+     * Используется для сортировки категорий по частоте использования в форме операции.
+     *
+     * @param userId    идентификатор пользователя
+     * @param sinceDate дата начала периода (включительно)
+     * @return список массивов [categoryId (UUID), count (Long)]
+     */
+    @Query("""
+            SELECT e.category.id, COUNT(e)
+            FROM Expense e
+            WHERE e.userId = :userId
+              AND e.date >= :sinceDate
+              AND e.isTransfer = false
+            GROUP BY e.category.id
+            """)
+    List<Object[]> countNonTransferExpensesByCategorySince(
+            @Param("userId") UUID userId,
+            @Param("sinceDate") LocalDate sinceDate
+    );
+
+    /**
+     * Возвращает помесячные агрегаты не-трансферных расходов за окно истории: для каждого месяца окна,
+     * в котором есть хотя бы одна запись, — сумму записей с датой до дня {@code day} включительно,
+     * сумму за полный месяц и число различных дней месяца, на которые приходятся записи (используется
+     * для определения границы, с которой у пользователя начался подневный учёт). Месяцы без записей
+     * в результат не попадают. Используется для расчёта нормы («обычно к этому дню») по расходам в целом.
+     *
+     * @param userId    идентификатор пользователя
+     * @param startDate первый день окна (включительно)
+     * @param endDate   последний день окна (включительно)
+     * @param day       день месяца, до которого считается частичная сумма
+     * @return список массивов [year (Integer), month (Integer), cutoffSum (BigDecimal), fullSum (BigDecimal), distinctDays (Long)]
+     */
+    @Query("""
+            SELECT YEAR(e.date), MONTH(e.date),
+                   SUM(CASE WHEN DAY(e.date) <= :day THEN e.amount ELSE 0 END),
+                   SUM(e.amount),
+                   COUNT(DISTINCT DAY(e.date))
+            FROM Expense e
+            WHERE e.userId = :userId
+              AND e.date >= :startDate
+              AND e.date <= :endDate
+              AND e.isTransfer = false
+            GROUP BY YEAR(e.date), MONTH(e.date)
+            """)
+    List<Object[]> findWindowedNonTransferExpenseStats(
+            @Param("userId") UUID userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("day") int day
+    );
+
+    /**
+     * То же, что {@link #findWindowedNonTransferExpenseStats}, но с разбивкой по категориям.
+     * Используется для расчёта нормы по каждой категории.
+     *
+     * @param userId    идентификатор пользователя
+     * @param startDate первый день окна (включительно)
+     * @param endDate   последний день окна (включительно)
+     * @param day       день месяца, до которого считается частичная сумма
+     * @return список массивов [year (Integer), month (Integer), categoryId (UUID), cutoffSum (BigDecimal), fullSum (BigDecimal)]
+     */
+    @Query("""
+            SELECT YEAR(e.date), MONTH(e.date), e.category.id,
+                   SUM(CASE WHEN DAY(e.date) <= :day THEN e.amount ELSE 0 END),
+                   SUM(e.amount)
+            FROM Expense e
+            WHERE e.userId = :userId
+              AND e.date >= :startDate
+              AND e.date <= :endDate
+              AND e.isTransfer = false
+            GROUP BY YEAR(e.date), MONTH(e.date), e.category.id
+            """)
+    List<Object[]> findWindowedNonTransferExpenseStatsByCategory(
+            @Param("userId") UUID userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("day") int day
+    );
 }

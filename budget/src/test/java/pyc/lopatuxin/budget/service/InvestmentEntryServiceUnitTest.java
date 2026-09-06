@@ -9,7 +9,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pyc.lopatuxin.budget.dto.request.InvestmentEntryRequestDto;
-import pyc.lopatuxin.budget.dto.request.InvestmentEntryRequestDto.EntryType;
+import pyc.lopatuxin.shared.port.EntryType;
 import pyc.lopatuxin.budget.dto.response.InvestmentEntryResponseDto;
 import pyc.lopatuxin.budget.entity.Category;
 import pyc.lopatuxin.budget.entity.Expense;

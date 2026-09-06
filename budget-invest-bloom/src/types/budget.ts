@@ -1,3 +1,24 @@
+export type NormStatus = 'ABOVE_MUCH' | 'ABOVE' | 'NORMAL' | 'BELOW' | 'NO_HISTORY';
+
+export interface NormComparison {
+  usualByDay: number | null;
+  averageMonthly: number | null;
+  deviationPercent: number | null;
+  status: NormStatus;
+}
+
+// Category shape as returned by /api/budget/summary — distinct from the plain
+// CategorySummary below (used by /api/budget/overview), which has no norm.
+export interface BudgetCategorySummary {
+  id: string;
+  name: string;
+  emoji: string;
+  amount: number;
+  budget: number;
+  percentUsed: number;
+  norm: NormComparison;
+}
+
 export interface BudgetSummaryResponse {
   period: { month: number; year: number };
   income: number;
@@ -5,7 +26,38 @@ export interface BudgetSummaryResponse {
   balance: number;
   personalInflation: number;
   trends: TrendsData;
-  categories: CategorySummary[];
+  dayOfMonth: number;
+  daysInMonth: number;
+  expenseNorm: NormComparison;
+  incomeNorm: NormComparison;
+  categories: BudgetCategorySummary[];
+}
+
+export type OperationKind = 'EXPENSE' | 'INCOME';
+
+export interface Operation {
+  id: string;
+  kind: OperationKind;
+  date: string;
+  amount: number;
+  description: string | null;
+  categoryId?: string;
+  categoryName?: string;
+  categoryEmoji?: string;
+  source?: string;
+  sourceName?: string;
+}
+
+export interface OperationsResponse {
+  period: { month: number; year: number };
+  total: number;
+  items: Operation[];
+}
+
+export interface OperationCategory {
+  id: string;
+  name: string;
+  emoji: string;
 }
 
 export interface OverviewTrendsData {

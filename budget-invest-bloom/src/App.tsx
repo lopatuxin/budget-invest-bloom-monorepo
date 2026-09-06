@@ -8,8 +8,9 @@ import * as Sentry from "@sentry/react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import HealthGate from "@/components/HealthGate";
 import Navigation from "@/components/Navigation";
-import Sidebar from "@/components/Sidebar";
+import AppRail from "@/components/AppRail";
 import BottomNav from "@/components/BottomNav";
+import { OperationDialogProvider } from "@/components/operation/OperationDialogProvider";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -94,29 +95,31 @@ const AppLayout = () => {
   }
 
   return (
-    <div className="dashboard-bg h-screen overflow-hidden">
+    <div className="app-shell h-screen overflow-hidden">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-emerald-500 focus:text-white focus:rounded-xl"
       >
         Перейти к контенту
       </a>
-      <Sidebar />
-      <BottomNav />
-      <main id="main-content" tabIndex={-1} className="lg:ml-[264px] h-screen overflow-y-auto dashboard-scroll p-4 lg:p-6 pb-20 lg:pb-6">
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            {protectedRoutes.map(({ path, element }) => (
-              <Route key={path} path={path} element={element} />
-            ))}
-            <Route path="/login" element={<Navigate to="/" replace />} />
-            <Route path="/register" element={<Navigate to="/" replace />} />
-            <Route path="/forgot-password" element={<Navigate to="/" replace />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </main>
+      <OperationDialogProvider>
+        <AppRail />
+        <BottomNav />
+        <main id="main-content" tabIndex={-1} className="lg:ml-[76px] h-screen overflow-y-auto dashboard-scroll pt-4 px-4 pb-24 lg:pt-7 lg:px-8 lg:pb-8">
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {protectedRoutes.map(({ path, element }) => (
+                <Route key={path} path={path} element={element} />
+              ))}
+              <Route path="/login" element={<Navigate to="/" replace />} />
+              <Route path="/register" element={<Navigate to="/" replace />} />
+              <Route path="/forgot-password" element={<Navigate to="/" replace />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </main>
+      </OperationDialogProvider>
     </div>
   );
 };

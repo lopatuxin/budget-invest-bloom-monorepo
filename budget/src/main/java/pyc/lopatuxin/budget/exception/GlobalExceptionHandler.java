@@ -155,10 +155,12 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles invalid business logic state (e.g., deleting an entity with linked records).
+     * Handles a deliberate domain conflict (e.g. modifying a protected system category
+     * or deleting a transfer record). Unlike a bare {@link IllegalStateException}, this
+     * type is only ever thrown for messages that are safe to return to the client.
      */
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<ResponseApi<Object>> handleIllegalState(IllegalStateException ex) {
+    @ExceptionHandler(BudgetConflictException.class)
+    public ResponseEntity<ResponseApi<Object>> handleBudgetConflict(BudgetConflictException ex) {
         log.warn("Недопустимая операция: {}", ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)

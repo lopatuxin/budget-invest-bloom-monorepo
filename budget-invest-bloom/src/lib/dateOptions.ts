@@ -30,3 +30,30 @@ export const formatCurrency = (value: number): string =>
     currency: 'RUB',
     maximumFractionDigits: 0,
   }).format(value);
+
+/** Formats a local Date as YYYY-MM-DD without any UTC shift (unlike toISOString) */
+export const toApiDateString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/** Returns a new Date at local midnight, n days offset from today */
+export const daysFromToday = (offset: number): Date => {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + offset);
+  return date;
+};
+
+const DAY_MONTH_FORMAT = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' });
+
+/** "Сегодня"/"Вчера" for the two nearest days, otherwise "16 сентября" */
+export const formatRelativeDay = (date: Date): string => {
+  const today = daysFromToday(0);
+  const yesterday = daysFromToday(-1);
+  if (date.getTime() === today.getTime()) return 'Сегодня';
+  if (date.getTime() === yesterday.getTime()) return 'Вчера';
+  return DAY_MONTH_FORMAT.format(date);
+};

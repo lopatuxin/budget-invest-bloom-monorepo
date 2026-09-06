@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -53,6 +54,7 @@ public class CreateExpenseDto {
      * Дата совершения расхода.
      * Если не указана — используется текущая дата.
      */
+    @PastOrPresent(message = "Дата не может быть в будущем")
     @Schema(description = "Дата расхода (если не указана — текущая дата)", example = "2026-04-06")
     private LocalDate date;
 }

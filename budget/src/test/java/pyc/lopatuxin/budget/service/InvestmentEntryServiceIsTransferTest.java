@@ -9,7 +9,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pyc.lopatuxin.budget.dto.request.InvestmentEntryRequestDto;
-import pyc.lopatuxin.budget.dto.request.InvestmentEntryRequestDto.EntryType;
+import pyc.lopatuxin.shared.port.EntryType;
 import pyc.lopatuxin.budget.entity.Category;
 import pyc.lopatuxin.budget.entity.Expense;
 import pyc.lopatuxin.budget.entity.Income;
@@ -139,7 +139,7 @@ class InvestmentEntryServiceIsTransferTest {
     }
 
     @Test
-    @DisplayName("createBuyEntry: дата исполнения корректно конвертируется в LocalDate (UTC)")
+    @DisplayName("createBuyEntry: дата исполнения корректно конвертируется в LocalDate (часовой пояс приложения, Europe/Moscow)")
     void createBuyEntry_shouldConvertInstantToLocalDateCorrectly() {
         Expense savedExpense = Expense.builder()
                 .id(UUID.randomUUID())
@@ -152,7 +152,7 @@ class InvestmentEntryServiceIsTransferTest {
         when(categoryService.ensureSystemCategory(any(), any(), any())).thenReturn(systemCategory);
         when(expenseService.createInternal(any(), any(), any(), any(), any(), eq(true))).thenReturn(savedExpense);
 
-        // 2026-05-09T23:30:00Z → LocalDate 2026-05-09 в UTC
+        // 2026-05-09T23:30:00Z = 2026-05-10T02:30 по Москве (UTC+3) — уже следующий день.
         InvestmentEntryRequestDto dto = InvestmentEntryRequestDto.builder()
                 .type(EntryType.BUY)
                 .amount(new BigDecimal("5000.00"))
@@ -165,7 +165,7 @@ class InvestmentEntryServiceIsTransferTest {
         verify(expenseService).createInternal(
                 any(), any(), any(), dateCaptor.capture(), any(), eq(true));
 
-        assertThat(dateCaptor.getValue()).isEqualTo(LocalDate.of(2026, 5, 9));
+        assertThat(dateCaptor.getValue()).isEqualTo(LocalDate.of(2026, 5, 10));
     }
 
     @Test

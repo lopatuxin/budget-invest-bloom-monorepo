@@ -13,7 +13,7 @@ public class TestcontainersConfiguration {
     @ServiceConnection
     @SuppressWarnings("resource")
     PostgreSQLContainer<?> postgresContainer() {
-        return new PostgreSQLContainer<>(DockerImageName.parse("postgres:latest"))
+        return new PostgreSQLContainer<>(DockerImageName.parse("postgres:15-alpine"))
                 .withDatabaseName("budget_test")
                 .withUsername("test_user")
                 .withPassword("test_password");

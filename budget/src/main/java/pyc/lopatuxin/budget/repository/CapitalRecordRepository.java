@@ -44,6 +44,29 @@ public interface CapitalRecordRepository extends JpaRepository<CapitalRecord, UU
     List<CapitalRecord> findLatestByUserId(@Param("userId") UUID userId, Pageable pageable);
 
     /**
+     * Возвращает последнюю известную запись капитала пользователя не позднее указанного месяца и года.
+     * Используется для тренда капитала: сравнение опирается на фактическое последнее известное
+     * значение на указанный период, а не на ноль, если записи именно за этот месяц нет.
+     *
+     * @param userId   идентификатор пользователя
+     * @param year     год, не позднее которого искать запись
+     * @param month    месяц (в пределах {@code year}), не позднее которого искать запись
+     * @param pageable параметры страницы (для ограничения результата одной записью)
+     * @return список записей (обычно одна — самая последняя не позднее указанного периода)
+     */
+    @Query("""
+            SELECT cr
+            FROM CapitalRecord cr
+            WHERE cr.userId = :userId
+              AND (cr.year < :year OR (cr.year = :year AND cr.month <= :month))
+            ORDER BY cr.year DESC, cr.month DESC
+            """)
+    List<CapitalRecord> findLatestByUserIdAsOf(@Param("userId") UUID userId,
+                                               @Param("year") Integer year,
+                                               @Param("month") Integer month,
+                                               Pageable pageable);
+
+    /**
      * Возвращает помесячные суммы капитала пользователя за указанный год.
      * Каждый элемент массива содержит номер месяца и сумму капитала.
      *

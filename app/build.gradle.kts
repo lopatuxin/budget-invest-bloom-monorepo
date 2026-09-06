@@ -6,6 +6,8 @@ springBoot {
     mainClass.set("pyc.lopatuxin.App")
 }
 
+val testcontainersVersion = "1.20.4"
+
 dependencies {
     implementation(project(":shared"))
     implementation(project(":auth"))
@@ -17,6 +19,12 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-liquibase")
     runtimeOnly("org.postgresql:postgresql")
+
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    testImplementation("org.testcontainers:junit-jupiter:$testcontainersVersion")
+    testImplementation("org.testcontainers:postgresql:$testcontainersVersion")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 // Fixed, deterministic boot-jar name (Dockerfile relies on it instead of a glob).

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiPost } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
-import { invalidateBudgetCaches } from '@/lib/queryKeys';
+import { invalidateBudgetCaches, qk } from '@/lib/queryKeys';
 import type { ApiResponse } from '@/types/budget';
 
 interface CreateCategoryParams {
@@ -19,7 +19,8 @@ export function useCreateCategory() {
       apiPost<ApiResponse<unknown>>('/api/budget/categories', data),
     onSuccess: (_data, variables) => {
       invalidateBudgetCaches(queryClient);
-      toast({ title: 'Категория добавлена', description: `Добавлена категория "${variables.name}"` });
+      queryClient.invalidateQueries({ queryKey: qk.budget.categoryList() });
+      toast({ title: 'Категория создана', description: `Добавлена категория "${variables.name}"` });
     },
     onError: (error: unknown) => {
       const message = error instanceof Error ? error.message : 'Не удалось добавить категорию';

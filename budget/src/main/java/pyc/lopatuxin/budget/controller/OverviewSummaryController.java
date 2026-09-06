@@ -64,22 +64,7 @@ public class OverviewSummaryController {
                     schema = @Schema(implementation = ResponseApi.class)
             )
     )
-    @ApiResponse(
-            responseCode = "401",
-            description = "Не авторизован",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ResponseApi.class)
-            )
-    )
-    @ApiResponse(
-            responseCode = "500",
-            description = "Внутренняя ошибка сервера",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ResponseApi.class)
-            )
-    )
+    @CommonApiResponses
     public ResponseApi<OverviewSummaryResponseDto> getOverview(
             @RequestBody @Valid ApiRequest<PeriodDto> request) {
 

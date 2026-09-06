@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
 	darkMode: ["class"],
@@ -19,8 +20,9 @@ export default {
 		},
 		extend: {
 			fontFamily: {
-				sans: ['"DM Sans Variable"', 'DM Sans', 'sans-serif'],
-				mono: ['"JetBrains Mono Variable"', 'JetBrains Mono', 'monospace'],
+				sans: ['"IBM Plex Sans"', 'sans-serif'],
+				mono: ['"IBM Plex Mono"', 'monospace'],
+				display: ['"Instrument Serif"', 'serif'],
 			},
 			colors: {
 				border: 'hsl(var(--border))',
@@ -70,8 +72,34 @@ export default {
 					amber: '#F59E0B',
 					purple: '#8B5CF6',
 					red: '#EF4444',
-					text: '#d6e3fa',
-					'text-muted': '#94A3B8',
+					// Piped through CSS vars so the same classes (text-dashboard-text, etc.)
+					// render the "Гроссбух" light palette under .app-shell and the old dark
+					// palette under .dashboard-bg — see index.css.
+					text: 'rgb(var(--app-text) / <alpha-value>)',
+					'text-muted': 'rgb(var(--app-text-muted) / <alpha-value>)',
+				},
+				// "Гроссбух" light theme tokens — see the token table in docs/plans/budget-page-redesign.md
+				app: {
+					bg: 'rgb(var(--app-bg) / <alpha-value>)',
+					surface: 'rgb(var(--app-surface) / <alpha-value>)',
+					'surface-2': 'rgb(var(--app-surface-2) / <alpha-value>)',
+					border: 'rgb(var(--app-border) / <alpha-value>)',
+					'border-strong': 'rgb(var(--app-border-strong) / <alpha-value>)',
+					text: 'rgb(var(--app-text) / <alpha-value>)',
+					'text-muted': 'rgb(var(--app-text-muted) / <alpha-value>)',
+					'text-dim': 'rgb(var(--app-text-dim) / <alpha-value>)',
+					accent: 'rgb(var(--app-accent) / <alpha-value>)',
+					'accent-ink': 'rgb(var(--app-accent-ink) / <alpha-value>)',
+					'accent-soft': 'rgb(var(--app-accent-soft) / <alpha-value>)',
+					good: 'rgb(var(--app-good) / <alpha-value>)',
+					'good-soft': 'rgb(var(--app-good-soft) / <alpha-value>)',
+					warn: 'rgb(var(--app-warn) / <alpha-value>)',
+					'warn-soft': 'rgb(var(--app-warn-soft) / <alpha-value>)',
+					bad: 'rgb(var(--app-bad) / <alpha-value>)',
+					'bad-soft': 'rgb(var(--app-bad-soft) / <alpha-value>)',
+					neutral: 'rgb(var(--app-neutral) / <alpha-value>)',
+					'neutral-soft': 'rgb(var(--app-neutral-soft) / <alpha-value>)',
+					track: 'rgb(var(--app-track) / <alpha-value>)',
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
@@ -128,5 +156,5 @@ export default {
 			}
 		}
 	},
-	plugins: [require("tailwindcss-animate")],
+	plugins: [tailwindcssAnimate],
 } satisfies Config;

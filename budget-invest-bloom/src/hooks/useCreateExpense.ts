@@ -8,6 +8,7 @@ interface CreateExpenseParams {
   categoryId: string;
   amount: number;
   description: string | null;
+  date: string;
 }
 
 export function useCreateExpense() {
@@ -19,7 +20,7 @@ export function useCreateExpense() {
       apiPost<ApiResponse<unknown>>('/api/budget/expenses', data),
     onSuccess: () => {
       invalidateBudgetCaches(queryClient);
-      toast({ title: 'Расход добавлен' });
+      toast({ title: 'Расход записан' });
     },
     onError: (error: unknown) => {
       const message = error instanceof Error ? error.message : 'Не удалось добавить расход';

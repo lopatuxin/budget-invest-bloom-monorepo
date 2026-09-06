@@ -11,6 +11,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pyc.lopatuxin.budget.dto.response.OverviewSummaryResponseDto;
+import pyc.lopatuxin.budget.entity.CapitalRecord;
 import pyc.lopatuxin.budget.repository.CapitalRecordRepository;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
@@ -19,6 +20,7 @@ import pyc.lopatuxin.budget.service.PeriodAggregateService.PeriodAggregates;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -136,5 +138,44 @@ class OverviewSummaryServiceUnitTest {
         assertThat(result).isNotNull();
         assertThat(result.getSavingsRate()).isNotNull();
         assertThat(result.getSavingsRate()).isEqualTo(35);
+    }
+
+    // ─── capital trend tests ─────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("Тренд капитала должен опираться на последнее известное значение прошлого месяца, а не на ноль")
+    void capitalTrend_shouldUseLastKnownPreviousCapital_whenExactPreviousMonthRecordMissing() {
+        stubCurrentAndPrev(userId, 3, 2024, new BigDecimal("100000"), new BigDecimal("50000"));
+
+        // Текущий месяц (март 2024): капитал зафиксирован точно.
+        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, 3, 2024))
+                .thenReturn(Optional.of(CapitalRecord.builder().amount(new BigDecimal("200000")).build()));
+
+        // Прошлый месяц (февраль 2024): точной записи нет, но есть более ранняя (январь 2024).
+        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, 2, 2024))
+                .thenReturn(Optional.empty());
+        when(capitalRecordRepository.findLatestByUserIdAsOf(eq(userId), eq(2024), eq(2), any()))
+                .thenReturn(List.of(CapitalRecord.builder().amount(new BigDecimal("180000")).build()));
+
+        OverviewSummaryResponseDto result = overviewSummaryService.getOverview(userId, 3, 2024);
+
+        // (200000 - 180000) / 180000 * 100 = +11.1%, не "+0.0%"
+        assertThat(result.getTrends().getCapital()).isEqualTo("+11.1%");
+    }
+
+    @Test
+    @DisplayName("Тренд капитала должен остаться +0.0%, если и раньше прошлого месяца записей нет")
+    void capitalTrend_shouldStayZero_whenNoCapitalHistoryAtAll() {
+        stubCurrentAndPrev(userId, 3, 2024, new BigDecimal("100000"), new BigDecimal("50000"));
+
+        when(capitalRecordRepository.findByUserIdAndMonthAndYear(userId, 3, 2024))
+                .thenReturn(Optional.of(CapitalRecord.builder().amount(new BigDecimal("200000")).build()));
+        // No exact match and no earlier history for February either.
+        when(capitalRecordRepository.findLatestByUserIdAsOf(eq(userId), eq(2024), eq(2), any()))
+                .thenReturn(Collections.emptyList());
+
+        OverviewSummaryResponseDto result = overviewSummaryService.getOverview(userId, 3, 2024);
+
+        assertThat(result.getTrends().getCapital()).isEqualTo("+0.0%");
     }
 }

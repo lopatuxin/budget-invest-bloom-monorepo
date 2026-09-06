@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -37,6 +38,7 @@ public class CreateIncomeDto {
     @Schema(description = "Описание (необязательно)")
     private String description;
 
+    @PastOrPresent(message = "Дата не может быть в будущем")
     @Schema(description = "Дата дохода. Если не указана — используется текущая дата", example = "2026-04-13")
     private LocalDate date;
 }

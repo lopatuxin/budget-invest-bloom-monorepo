@@ -1,0 +1,30 @@
+# Line ending policy.
+# Scripts and config files that end up inside Linux Docker images must keep LF:
+# a CRLF shebang breaks the interpreter lookup (e.g. "./gradlew: not found", exit 127)
+# during the image build, no matter what core.autocrlf the developer has locally.
+
+* text=auto
+
+gradlew text eol=lf
+*.sh text eol=lf
+crontab text eol=lf
+Dockerfile text eol=lf
+Dockerfile.* text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.conf text eol=lf
+
+# Env files are read by docker compose and injected into containers as-is:
+# a trailing CR turns a numeric value into a parse error on service startup.
+.env* text eol=lf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.jar binary
+*.lockb binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary

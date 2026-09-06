@@ -109,6 +109,60 @@ class BudgetSummaryControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("Должен вернуть dayOfMonth и daysInMonth в ответе")
+    void shouldReturnDayOfMonthAndDaysInMonthFields() throws Exception {
+        LocalDate today = LocalDate.now();
+        String requestBody = buildRequest(userId, today.getMonthValue(), today.getYear());
+
+        mockMvc.perform(post(BASE_URL)
+                        .content(requestBody)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.body.dayOfMonth", is(today.getDayOfMonth())))
+                .andExpect(jsonPath("$.body.daysInMonth", is(today.lengthOfMonth())));
+    }
+
+    @Test
+    @DisplayName("Должен вернуть expenseNorm и incomeNorm со статусом NO_HISTORY при отсутствии истории")
+    void shouldReturnNoHistoryNormsWhenNoHistoryExists() throws Exception {
+        String requestBody = buildRequest(userId, 6, 2024);
+
+        mockMvc.perform(post(BASE_URL)
+                        .content(requestBody)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.body.expenseNorm.status", is("NO_HISTORY")))
+                .andExpect(jsonPath("$.body.expenseNorm.usualByDay").doesNotExist())
+                .andExpect(jsonPath("$.body.incomeNorm.status", is("NO_HISTORY")));
+    }
+
+    @Test
+    @DisplayName("Должен вернуть норму категории со статусом NO_HISTORY, если история отсутствует")
+    void shouldReturnCategoryNormWithNoHistoryStatus() throws Exception {
+        Category category = categoryRepository.save(Category.builder()
+                .userId(userId)
+                .name("Продукты")
+                .emoji("🛒")
+                .budget(BigDecimal.ZERO)
+                .build());
+
+        expenseRepository.save(Expense.builder()
+                .userId(userId)
+                .category(category)
+                .amount(new BigDecimal("1500.00"))
+                .date(LocalDate.of(2024, 6, 10))
+                .build());
+
+        String requestBody = buildRequest(userId, 6, 2024);
+
+        mockMvc.perform(post(BASE_URL)
+                        .content(requestBody)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.body.categories[0].norm.status", is("NO_HISTORY")));
+    }
+
+    @Test
     @DisplayName("Должен вернуть статус 400 при отсутствии параметра month")
     void shouldReturnBadRequestWhenMonthParamIsMissing() throws Exception {
         String requestBody = """

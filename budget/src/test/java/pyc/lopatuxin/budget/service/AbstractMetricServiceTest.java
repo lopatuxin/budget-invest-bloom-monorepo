@@ -7,6 +7,7 @@ import pyc.lopatuxin.budget.dto.response.MetricResponseDto;
 import pyc.lopatuxin.budget.dto.response.MonthlyMetricDto;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -291,6 +292,38 @@ class AbstractMetricServiceTest {
 
         // (150000 - 100000) / 100000 * 100 = +50.0%
         assertThat(result.getChangePercent()).isEqualTo("+50.0%");
+    }
+
+    // ========== Обрезание текущего года по текущему месяцу ==========
+
+    @Test
+    @DisplayName("Для текущего года должен вернуть данные только по текущий месяц включительно, даже если данные есть дальше")
+    void shouldTruncateMonthlyDataToCurrentMonth_whenYearIsCurrentYear() {
+        LocalDate today = LocalDate.now();
+        int currentYear = today.getYear();
+        int currentMonth = today.getMonthValue();
+
+        // Данные заданы на все 12 месяцев, включая месяцы после текущего.
+        service.setData(List.of(
+                new Object[]{1, new BigDecimal("10000")},
+                new Object[]{12, new BigDecimal("99999")}
+        ));
+
+        MetricResponseDto result = service.getMetric(userId, currentYear);
+
+        assertThat(result.getMonthlyData()).hasSize(currentMonth);
+        assertThat(result.getMonthlyData().getLast().getMonth()).isEqualTo(currentMonth);
+    }
+
+    @Test
+    @DisplayName("Для прошлого года должен вернуть данные за все 12 месяцев независимо от текущего месяца")
+    void shouldReturnAllTwelveMonths_whenYearIsNotCurrentYear() {
+        int pastYear = LocalDate.now().getYear() - 1;
+        service.setData(List.<Object[]>of(new Object[]{1, new BigDecimal("10000")}));
+
+        MetricResponseDto result = service.getMetric(userId, pastYear);
+
+        assertThat(result.getMonthlyData()).hasSize(12);
     }
 
     // ========== getMetricName() вызывается корректно ==========

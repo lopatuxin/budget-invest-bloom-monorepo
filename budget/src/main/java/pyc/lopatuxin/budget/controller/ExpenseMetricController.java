@@ -61,26 +61,11 @@ public class ExpenseMetricController {
                     schema = @Schema(implementation = ResponseApi.class)
             )
     )
-    @ApiResponse(
-            responseCode = "401",
-            description = "Не авторизован",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ResponseApi.class)
-            )
-    )
-    @ApiResponse(
-            responseCode = "500",
-            description = "Внутренняя ошибка сервера",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ResponseApi.class)
-            )
-    )
+    @CommonApiResponses
     public ResponseApi<MetricResponseDto> getExpenseMetric(
             @RequestBody @Valid ApiRequest<YearDto> request) {
 
-        MetricResponseDto metric = expenseMetricService.getExpenseMetric(
+        MetricResponseDto metric = expenseMetricService.getMetric(
                 request.getUser().getUserId(),
                 request.getData().getYear()
         );

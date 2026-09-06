@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { TrendingUp, PieChart, Coins, Trash2, BarChart2 } from 'lucide-react';
+import { TrendingUp, PieChart, Coins, Trash2, BarChart2, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import AddAssetDialog from '@/components/AddAssetDialog';
 import EmptyState from '@/components/EmptyState';
 import { SecurityLogo } from '@/components/SecurityLogo';
@@ -159,6 +160,18 @@ const Investments = () => {
   if (positions.length === 0) {
     return (
       <div className="space-y-6 pb-6">
+        {/* Controlled dialog — opened via sidebar quick action or empty-state button */}
+        <AddAssetDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+
+        {/* Page header */}
+        <div className="flex items-center justify-between animate-fade-slide-up">
+          <h1 className="text-lg font-semibold text-dashboard-text">Мои инвестиции</h1>
+          <Button variant="ghost" size="sm" className="gap-2" onClick={() => setDialogOpen(true)}>
+            <Plus className="w-4 h-4" />
+            Добавить актив
+          </Button>
+        </div>
+
         <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:pb-0 hide-scrollbar">
           {kpiCards.map((card, index) => {
             const Icon = card.icon;
@@ -194,9 +207,6 @@ const Investments = () => {
             onAction={() => setDialogOpen(true)}
           />
         </div>
-
-        {/* Controlled dialog opened from EmptyState action */}
-        <AddAssetDialog open={dialogOpen} onOpenChange={setDialogOpen} />
       </div>
     );
   }
@@ -210,6 +220,10 @@ const Investments = () => {
       {/* Page header */}
       <div className="flex items-center justify-between animate-fade-slide-up">
         <h1 className="text-lg font-semibold text-dashboard-text">Мои инвестиции</h1>
+        <Button variant="ghost" size="sm" className="gap-2" onClick={() => setDialogOpen(true)}>
+          <Plus className="w-4 h-4" />
+          Добавить актив
+        </Button>
       </div>
 
       {/* KPI Cards */}

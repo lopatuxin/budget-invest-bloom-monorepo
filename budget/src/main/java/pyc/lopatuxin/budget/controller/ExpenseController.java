@@ -63,14 +63,6 @@ public class ExpenseController {
             )
     )
     @ApiResponse(
-            responseCode = "401",
-            description = "Не авторизован",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ResponseApi.class)
-            )
-    )
-    @ApiResponse(
             responseCode = "404",
             description = "Категория не найдена",
             content = @Content(
@@ -78,14 +70,7 @@ public class ExpenseController {
                     schema = @Schema(implementation = ResponseApi.class)
             )
     )
-    @ApiResponse(
-            responseCode = "500",
-            description = "Внутренняя ошибка сервера",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ResponseApi.class)
-            )
-    )
+    @CommonApiResponses
     public ResponseApi<ExpenseResponseDto> createExpense(
             @RequestBody @Valid ApiRequest<CreateExpenseDto> request) {
 
@@ -125,14 +110,6 @@ public class ExpenseController {
             )
     )
     @ApiResponse(
-            responseCode = "401",
-            description = "Не авторизован",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ResponseApi.class)
-            )
-    )
-    @ApiResponse(
             responseCode = "404",
             description = "Расход не найден",
             content = @Content(
@@ -140,14 +117,7 @@ public class ExpenseController {
                     schema = @Schema(implementation = ResponseApi.class)
             )
     )
-    @ApiResponse(
-            responseCode = "500",
-            description = "Внутренняя ошибка сервера",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ResponseApi.class)
-            )
-    )
+    @CommonApiResponses
     public ResponseApi<Void> deleteExpense(
             @RequestBody @Valid ApiRequest<DeleteExpenseRequestDto> request) {
 

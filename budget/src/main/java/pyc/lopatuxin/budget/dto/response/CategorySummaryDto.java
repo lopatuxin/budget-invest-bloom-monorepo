@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import pyc.lopatuxin.budget.dto.common.NormComparisonDto;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -40,4 +41,7 @@ public class CategorySummaryDto {
 
     @Schema(description = "Процент использования лимита (0-100), округлённый до двух знаков", example = "83.33")
     private BigDecimal percentUsed;
+
+    @Schema(description = "Сравнение расходов категории с личной нормой («обычно к этому дню»)")
+    private NormComparisonDto norm;
 }

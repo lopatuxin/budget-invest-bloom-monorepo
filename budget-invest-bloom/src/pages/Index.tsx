@@ -27,6 +27,7 @@ import {
   Area,
 } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOperationDialog } from '@/components/operation/OperationDialogProvider';
 import { useOverviewSummary } from '@/hooks/useOverviewSummary';
 import { useExpenseMetric } from '@/hooks/useExpenseMetric';
 import { useIncomeMetric } from '@/hooks/useIncomeMetric';
@@ -95,6 +96,7 @@ const parseTrend = (trend: string | null | undefined) => {
 const Index = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { openOperationDialog } = useOperationDialog();
 
   const now = new Date();
   const currentMonth = String(now.getMonth() + 1);
@@ -381,8 +383,8 @@ const Index = () => {
                 icon={<LucidePieChart className="w-10 h-10" />}
                 title="Нет данных по категориям"
                 description="Добавьте расход, чтобы увидеть распределение"
-                actionLabel="Перейти в бюджет"
-                onAction={() => navigate('/budget?action=expense')}
+                actionLabel="Записать расход"
+                onAction={() => openOperationDialog('expense')}
               />
             </div>
           ) : (
@@ -508,8 +510,8 @@ const Index = () => {
                 icon={<TrendingUp className="w-10 h-10" />}
                 title="Нет данных по доходам"
                 description="Запишите доход, чтобы отслеживать тренд"
-                actionLabel="Перейти в бюджет"
-                onAction={() => navigate('/budget?action=income')}
+                actionLabel="Записать доход"
+                onAction={() => openOperationDialog('income')}
               />
             </div>
           ) : (

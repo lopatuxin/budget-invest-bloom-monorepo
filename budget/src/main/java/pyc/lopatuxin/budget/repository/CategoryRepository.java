@@ -15,14 +15,6 @@ import java.util.UUID;
 public interface CategoryRepository extends JpaRepository<Category, UUID> {
 
     /**
-     * Возвращает все категории расходов для указанного пользователя.
-     *
-     * @param userId идентификатор пользователя
-     * @return список категорий пользователя
-     */
-    List<Category> findByUserId(UUID userId);
-
-    /**
      * Находит категорию по идентификатору и идентификатору пользователя.
      *
      * @param id     идентификатор категории

@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 
@@ -75,8 +76,9 @@ class InflationMetricServiceUnitTest {
         // инфляция = (120000 - 100000) / 100000 * 100 = 20.0%
         assertThat(result.getMonthlyData().get(2).getAmount()).isEqualByComparingTo(new BigDecimal("20.0"));
 
-        verify(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
-        verify(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
+        // Called twice: once for the monthly series, once for the category-breakdown month count.
+        verify(expenseRepository, atLeastOnce()).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
+        verify(expenseRepository, atLeastOnce()).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
     }
 
     @Test
@@ -241,7 +243,7 @@ class InflationMetricServiceUnitTest {
 
         inflationMetricService.getInflationMetric(userId, year);
 
-        verify(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
+        verify(expenseRepository, atLeastOnce()).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
     }
 
     @Test
@@ -256,23 +258,20 @@ class InflationMetricServiceUnitTest {
 
     /**
      * Вспомогательный метод: строит строку Object[] в формате findNonTransferCategoryStatsByUserIdAndYear.
-     * Поля: [UUID categoryId, String name, String emoji, Long monthCount, BigDecimal totalAmount]
+     * Поля: [UUID categoryId, String name, String emoji, BigDecimal totalAmount]
      */
-    private Object[] categoryRow(UUID categoryId, String name, String emoji,
-                                 long monthCount, BigDecimal totalAmount) {
-        return new Object[]{categoryId, name, emoji, monthCount, totalAmount};
+    private Object[] categoryRow(UUID categoryId, String name, String emoji, BigDecimal totalAmount) {
+        return new Object[]{categoryId, name, emoji, totalAmount};
     }
 
     @Test
     @DisplayName("categoryBreakdown пустой когда нет данных прошлого года")
     void categoryBreakdown_shouldBeEmptyWhenNoPreviousYearData() {
         int year = 2025;
+        // No data at all for either year: buildCategoryBreakdown short-circuits on the shared
+        // month count before ever querying findNonTransferCategoryStatsByUserIdAndYear.
         doReturn(Collections.emptyList())
                 .when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
-        doReturn(Collections.emptyList())
-                .when(expenseRepository).findNonTransferCategoryStatsByUserIdAndYear(userId, year);
-        doReturn(Collections.emptyList())
-                .when(expenseRepository).findNonTransferCategoryStatsByUserIdAndYear(userId, year - 1);
 
         MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
 
@@ -292,9 +291,9 @@ class InflationMetricServiceUnitTest {
                 .when(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
 
         // Category stats: current year — 1 month, 13200 total; previous — 1 month, 12000 total
-        doReturn(List.<Object[]>of(categoryRow(catId, "Продукты", "🛒", 1L, new BigDecimal("13200.00"))))
+        doReturn(List.<Object[]>of(categoryRow(catId, "Продукты", "🛒", new BigDecimal("13200.00"))))
                 .when(expenseRepository).findNonTransferCategoryStatsByUserIdAndYear(userId, year);
-        doReturn(List.<Object[]>of(categoryRow(catId, "Продукты", "🛒", 1L, new BigDecimal("12000.00"))))
+        doReturn(List.<Object[]>of(categoryRow(catId, "Продукты", "🛒", new BigDecimal("12000.00"))))
                 .when(expenseRepository).findNonTransferCategoryStatsByUserIdAndYear(userId, year - 1);
 
         MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
@@ -331,14 +330,14 @@ class InflationMetricServiceUnitTest {
 
         // current: catGrow=18000 (1 мес), catDrop=6000 (1 мес); total=24000
         doReturn(List.of(
-                categoryRow(catGrow, "Кафе", "☕", 1L, new BigDecimal("18000.00")),
-                categoryRow(catDrop, "Транспорт", "🚌", 1L, new BigDecimal("6000.00"))
+                categoryRow(catGrow, "Кафе", "☕", new BigDecimal("18000.00")),
+                categoryRow(catDrop, "Транспорт", "🚌", new BigDecimal("6000.00"))
         )).when(expenseRepository).findNonTransferCategoryStatsByUserIdAndYear(userId, year);
 
         // previous: catGrow=10000 (1 мес), catDrop=10000 (1 мес)
         doReturn(List.of(
-                categoryRow(catGrow, "Кафе", "☕", 1L, new BigDecimal("10000.00")),
-                categoryRow(catDrop, "Транспорт", "🚌", 1L, new BigDecimal("10000.00"))
+                categoryRow(catGrow, "Кафе", "☕", new BigDecimal("10000.00")),
+                categoryRow(catDrop, "Транспорт", "🚌", new BigDecimal("10000.00"))
         )).when(expenseRepository).findNonTransferCategoryStatsByUserIdAndYear(userId, year - 1);
 
         MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
@@ -382,13 +381,13 @@ class InflationMetricServiceUnitTest {
 
         // current: обе категории присутствуют
         doReturn(List.of(
-                categoryRow(catExisting, "Продукты", "🛒", 1L, new BigDecimal("10000.00")),
-                categoryRow(catNew, "Новая категория", "🆕", 1L, new BigDecimal("5000.00"))
+                categoryRow(catExisting, "Продукты", "🛒", new BigDecimal("10000.00")),
+                categoryRow(catNew, "Новая категория", "🆕", new BigDecimal("5000.00"))
         )).when(expenseRepository).findNonTransferCategoryStatsByUserIdAndYear(userId, year);
 
         // previous: только catExisting
         doReturn(List.<Object[]>of(
-                categoryRow(catExisting, "Продукты", "🛒", 1L, new BigDecimal("10000.00"))
+                categoryRow(catExisting, "Продукты", "🛒", new BigDecimal("10000.00"))
         )).when(expenseRepository).findNonTransferCategoryStatsByUserIdAndYear(userId, year - 1);
 
         MetricResponseDto result = inflationMetricService.getInflationMetric(userId, year);
@@ -448,8 +447,8 @@ class InflationMetricServiceUnitTest {
 
         // Инфляция рассчитана только по non-transfer расходам: (11000-10000)/10000*100 = 10.0%
         assertThat(result.getMonthlyData().get(0).getAmount()).isEqualByComparingTo(new BigDecimal("10.0"));
-        verify(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
-        verify(expenseRepository).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
+        verify(expenseRepository, atLeastOnce()).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1);
+        verify(expenseRepository, atLeastOnce()).findMonthlyNonTransferExpenseByUserIdAndYear(userId, year);
     }
 
     @Test

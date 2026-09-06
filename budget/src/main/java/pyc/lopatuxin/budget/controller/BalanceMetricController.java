@@ -61,26 +61,11 @@ public class BalanceMetricController {
                     schema = @Schema(implementation = ResponseApi.class)
             )
     )
-    @ApiResponse(
-            responseCode = "401",
-            description = "Не авторизован",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ResponseApi.class)
-            )
-    )
-    @ApiResponse(
-            responseCode = "500",
-            description = "Внутренняя ошибка сервера",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = ResponseApi.class)
-            )
-    )
+    @CommonApiResponses
     public ResponseApi<MetricResponseDto> getBalanceMetric(
             @RequestBody @Valid ApiRequest<YearDto> request) {
 
-        MetricResponseDto metric = balanceMetricService.getBalanceMetric(
+        MetricResponseDto metric = balanceMetricService.getMetric(
                 request.getUser().getUserId(),
                 request.getData().getYear()
         );

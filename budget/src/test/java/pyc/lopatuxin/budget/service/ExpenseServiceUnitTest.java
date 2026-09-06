@@ -10,9 +10,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pyc.lopatuxin.budget.dto.request.CreateExpenseDto;
+import pyc.lopatuxin.budget.dto.request.DeleteExpenseRequestDto;
 import pyc.lopatuxin.budget.dto.response.ExpenseResponseDto;
 import pyc.lopatuxin.budget.entity.Category;
 import pyc.lopatuxin.budget.entity.Expense;
+import pyc.lopatuxin.budget.exception.BudgetConflictException;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
 
@@ -24,6 +26,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -181,5 +184,83 @@ class ExpenseServiceUnitTest {
 
         assertThat(result.getDescription()).isNull();
         assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("300.00"));
+    }
+
+    // --- deleteExpense ---
+
+    @Test
+    @DisplayName("deleteExpense: должен удалить обычный расход пользователя")
+    void deleteExpense_shouldDeleteExpense_whenOwnedByUserAndNotTransfer() {
+        UUID expenseId = UUID.randomUUID();
+        Expense expense = Expense.builder()
+                .id(expenseId)
+                .userId(userId)
+                .category(category)
+                .amount(new BigDecimal("100.00"))
+                .isTransfer(false)
+                .build();
+
+        DeleteExpenseRequestDto dto = DeleteExpenseRequestDto.builder().expenseId(expenseId).build();
+        when(expenseRepository.findById(expenseId)).thenReturn(Optional.of(expense));
+
+        expenseService.deleteExpense(userId, dto);
+
+        verify(expenseRepository).delete(expense);
+    }
+
+    @Test
+    @DisplayName("deleteExpense: должен бросить EntityNotFoundException, если расход не найден")
+    void deleteExpense_shouldThrowEntityNotFoundException_whenExpenseNotFound() {
+        UUID expenseId = UUID.randomUUID();
+        DeleteExpenseRequestDto dto = DeleteExpenseRequestDto.builder().expenseId(expenseId).build();
+        when(expenseRepository.findById(expenseId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> expenseService.deleteExpense(userId, dto))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Расход не найден");
+
+        verify(expenseRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("deleteExpense: должен бросить EntityNotFoundException, если расход принадлежит другому пользователю")
+    void deleteExpense_shouldThrowEntityNotFoundException_whenExpenseBelongsToAnotherUser() {
+        UUID expenseId = UUID.randomUUID();
+        Expense expense = Expense.builder()
+                .id(expenseId)
+                .userId(UUID.randomUUID())
+                .category(category)
+                .amount(new BigDecimal("100.00"))
+                .build();
+
+        DeleteExpenseRequestDto dto = DeleteExpenseRequestDto.builder().expenseId(expenseId).build();
+        when(expenseRepository.findById(expenseId)).thenReturn(Optional.of(expense));
+
+        assertThatThrownBy(() -> expenseService.deleteExpense(userId, dto))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Расход не найден");
+
+        verify(expenseRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("deleteExpense: должен бросить BudgetConflictException для записи-перевода (isTransfer=true)")
+    void deleteExpense_shouldThrowBudgetConflictException_whenExpenseIsTransfer() {
+        UUID expenseId = UUID.randomUUID();
+        Expense transferExpense = Expense.builder()
+                .id(expenseId)
+                .userId(userId)
+                .category(category)
+                .amount(new BigDecimal("50000.00"))
+                .isTransfer(true)
+                .build();
+
+        DeleteExpenseRequestDto dto = DeleteExpenseRequestDto.builder().expenseId(expenseId).build();
+        when(expenseRepository.findById(expenseId)).thenReturn(Optional.of(transferExpense));
+
+        assertThatThrownBy(() -> expenseService.deleteExpense(userId, dto))
+                .isInstanceOf(BudgetConflictException.class);
+
+        verify(expenseRepository, never()).delete(any());
     }
 }

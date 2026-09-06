@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.budget.dto.request.InvestmentEntryRequestDto;
-import pyc.lopatuxin.budget.dto.request.InvestmentEntryRequestDto.EntryType;
 import pyc.lopatuxin.budget.dto.response.InvestmentEntryResponseDto;
 import pyc.lopatuxin.budget.entity.Category;
 import pyc.lopatuxin.budget.entity.Expense;
@@ -13,9 +12,10 @@ import pyc.lopatuxin.budget.entity.Income;
 import pyc.lopatuxin.budget.entity.enums.IncomeSource;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
 import pyc.lopatuxin.budget.repository.IncomeRepository;
+import pyc.lopatuxin.shared.port.EntryType;
 
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.UUID;
 
 /**
@@ -50,7 +50,7 @@ public class InvestmentEntryService {
      */
     @Transactional("budgetTransactionManager")
     public InvestmentEntryResponseDto create(UUID userId, InvestmentEntryRequestDto dto) {
-        LocalDate date = dto.getExecutedAt().atZone(ZoneOffset.UTC).toLocalDate();
+        LocalDate date = dto.getExecutedAt().atZone(ZoneId.systemDefault()).toLocalDate();
 
         if (dto.getType() == EntryType.BUY) {
             return createBuyEntry(userId, dto, date);

@@ -48,7 +48,7 @@ class CapitalMetricServiceUnitTest {
         );
         when(capitalRecordRepository.findMonthlyCapitalByUserIdAndYear(userId, year)).thenReturn(dbData);
 
-        MetricResponseDto result = capitalMetricService.getCapitalMetric(userId, year);
+        MetricResponseDto result = capitalMetricService.getMetric(userId, year);
 
         assertThat(result).isNotNull();
         assertThat(result.getYear()).isEqualTo(year);
@@ -88,7 +88,7 @@ class CapitalMetricServiceUnitTest {
         int year = 2025;
         when(capitalRecordRepository.findMonthlyCapitalByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
-        MetricResponseDto result = capitalMetricService.getCapitalMetric(userId, year);
+        MetricResponseDto result = capitalMetricService.getMetric(userId, year);
 
         assertThat(result.getYear()).isEqualTo(year);
         assertThat(result.getMonthlyData()).hasSize(12);
@@ -113,7 +113,7 @@ class CapitalMetricServiceUnitTest {
         );
         when(capitalRecordRepository.findMonthlyCapitalByUserIdAndYear(userId, year)).thenReturn(dbData);
 
-        MetricResponseDto result = capitalMetricService.getCapitalMetric(userId, year);
+        MetricResponseDto result = capitalMetricService.getMetric(userId, year);
 
         assertThat(result.getMonthlyData().get(4).getAmount()).isEqualByComparingTo(new BigDecimal("200000.00"));
         assertThat(result.getMonthlyData().get(4).getMonthName()).isEqualTo("Май");
@@ -150,7 +150,7 @@ class CapitalMetricServiceUnitTest {
         );
         when(capitalRecordRepository.findMonthlyCapitalByUserIdAndYear(userId, year)).thenReturn(dbData);
 
-        MetricResponseDto result = capitalMetricService.getCapitalMetric(userId, year);
+        MetricResponseDto result = capitalMetricService.getMetric(userId, year);
 
         assertThat(result.getMonthlyData()).hasSize(12);
 
@@ -185,7 +185,7 @@ class CapitalMetricServiceUnitTest {
         );
         when(capitalRecordRepository.findMonthlyCapitalByUserIdAndYear(userId, year)).thenReturn(dbData);
 
-        MetricResponseDto result = capitalMetricService.getCapitalMetric(userId, year);
+        MetricResponseDto result = capitalMetricService.getMetric(userId, year);
 
         // Среднее считается по 2 ненулевым месяцам, а не по 12
         assertThat(result.getYearlyAverage()).isEqualByComparingTo(new BigDecimal("60000.00"));
@@ -202,7 +202,7 @@ class CapitalMetricServiceUnitTest {
         );
         when(capitalRecordRepository.findMonthlyCapitalByUserIdAndYear(userId, year)).thenReturn(dbData);
 
-        MetricResponseDto result = capitalMetricService.getCapitalMetric(userId, year);
+        MetricResponseDto result = capitalMetricService.getMetric(userId, year);
 
         assertThat(result.getCurrentValue()).isEqualByComparingTo(new BigDecimal("95000"));
         assertThat(result.getPreviousValue()).isEqualByComparingTo(new BigDecimal("80000"));
@@ -217,7 +217,7 @@ class CapitalMetricServiceUnitTest {
         int year = 2025;
         when(capitalRecordRepository.findMonthlyCapitalByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
-        MetricResponseDto result = capitalMetricService.getCapitalMetric(userId, year);
+        MetricResponseDto result = capitalMetricService.getMetric(userId, year);
 
         String[] expectedNames = {"Янв", "Фев", "Мар", "Апр", "Май", "Июн",
                 "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"};
@@ -240,7 +240,7 @@ class CapitalMetricServiceUnitTest {
         );
         when(capitalRecordRepository.findMonthlyCapitalByUserIdAndYear(userId, year)).thenReturn(dbData);
 
-        MetricResponseDto result = capitalMetricService.getCapitalMetric(userId, year);
+        MetricResponseDto result = capitalMetricService.getMetric(userId, year);
 
         assertThat(result.getYearlyMax()).isEqualByComparingTo(new BigDecimal("250000"));
     }
@@ -256,7 +256,7 @@ class CapitalMetricServiceUnitTest {
         );
         when(capitalRecordRepository.findMonthlyCapitalByUserIdAndYear(userId, year)).thenReturn(dbData);
 
-        MetricResponseDto result = capitalMetricService.getCapitalMetric(userId, year);
+        MetricResponseDto result = capitalMetricService.getMetric(userId, year);
 
         // (160000 - 200000) / 200000 * 100 = -20.0%
         assertThat(result.getChangePercent()).isEqualTo("-20.0%");
@@ -268,7 +268,7 @@ class CapitalMetricServiceUnitTest {
         int year = 2025;
         when(capitalRecordRepository.findMonthlyCapitalByUserIdAndYear(userId, year)).thenReturn(Collections.emptyList());
 
-        capitalMetricService.getCapitalMetric(userId, year);
+        capitalMetricService.getMetric(userId, year);
 
         verify(capitalRecordRepository).findMonthlyCapitalByUserIdAndYear(userId, year);
     }
@@ -289,7 +289,7 @@ class CapitalMetricServiceUnitTest {
         );
         when(capitalRecordRepository.findMonthlyCapitalByUserIdAndYear(userId, year)).thenReturn(dbData);
 
-        MetricResponseDto result = capitalMetricService.getCapitalMetric(userId, year);
+        MetricResponseDto result = capitalMetricService.getMetric(userId, year);
 
         // changePercent = (150000 - 80000) / 80000 * 100 = +87.5%
         assertThat(result.getChangePercent()).isEqualTo("+87.5%");

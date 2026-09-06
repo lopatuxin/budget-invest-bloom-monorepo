@@ -10,13 +10,11 @@ import pyc.lopatuxin.budget.dto.request.DeleteExpenseRequestDto;
 import pyc.lopatuxin.budget.dto.response.ExpenseResponseDto;
 import pyc.lopatuxin.budget.entity.Category;
 import pyc.lopatuxin.budget.entity.Expense;
+import pyc.lopatuxin.budget.exception.BudgetConflictException;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.UUID;
-
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -110,6 +108,11 @@ public class ExpenseService {
 
         if (!expense.getUserId().equals(userId)) {
             throw new EntityNotFoundException("Расход не найден");
+        }
+
+        if (expense.isTransfer()) {
+            throw new BudgetConflictException(
+                    "Запись-перевод нельзя удалить обычным способом");
         }
 
         expenseRepository.delete(expense);

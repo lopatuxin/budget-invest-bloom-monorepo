@@ -100,7 +100,12 @@ public class OverviewSummaryService {
         BigDecimal prevCapital = capitalRecordRepository
                 .findByUserIdAndMonthAndYear(userId, prevMonth, prevYear)
                 .map(CapitalRecord::getAmount)
-                .orElse(BigDecimal.ZERO);
+                .orElseGet(() -> capitalRecordRepository
+                        .findLatestByUserIdAsOf(userId, prevYear, prevMonth, PageRequest.of(0, 1))
+                        .stream()
+                        .findFirst()
+                        .map(CapitalRecord::getAmount)
+                        .orElse(BigDecimal.ZERO));
 
         return TrendsDto.builder()
                 .expenses(TrendFormatter.formatTrend(current.expenses(), prev.expenses()))
