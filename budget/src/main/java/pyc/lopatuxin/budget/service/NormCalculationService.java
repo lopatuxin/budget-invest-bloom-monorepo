@@ -21,10 +21,6 @@ import java.util.function.Function;
 @Service
 public class NormCalculationService {
 
-    private static final BigDecimal ABOVE_MUCH_THRESHOLD = new BigDecimal("50");
-    private static final BigDecimal ABOVE_THRESHOLD = new BigDecimal("10");
-    private static final BigDecimal BELOW_THRESHOLD = new BigDecimal("-10");
-
     /**
      * Compares the actual amount for the current period against the norm derived from
      * {@code dataMonths}.
@@ -60,7 +56,7 @@ public class NormCalculationService {
                 .usualByDay(usualByDay)
                 .averageMonthly(averageMonthly)
                 .deviationPercent(deviationPercent)
-                .status(resolveStatus(deviationPercent))
+                .status(NormStatus.fromDeviationPercent(deviationPercent))
                 .build();
     }
 
@@ -93,19 +89,6 @@ public class NormCalculationService {
     private BigDecimal average(List<MonthlyAggregateRow> rows, Function<MonthlyAggregateRow, BigDecimal> extractor) {
         BigDecimal total = rows.stream().map(extractor).reduce(BigDecimal.ZERO, BigDecimal::add);
         return total.divide(BigDecimal.valueOf(rows.size()), 10, RoundingMode.HALF_UP);
-    }
-
-    private NormStatus resolveStatus(BigDecimal deviationPercent) {
-        if (deviationPercent.compareTo(ABOVE_MUCH_THRESHOLD) > 0) {
-            return NormStatus.ABOVE_MUCH;
-        }
-        if (deviationPercent.compareTo(ABOVE_THRESHOLD) > 0) {
-            return NormStatus.ABOVE;
-        }
-        if (deviationPercent.compareTo(BELOW_THRESHOLD) < 0) {
-            return NormStatus.BELOW;
-        }
-        return NormStatus.NORMAL;
     }
 
     /**

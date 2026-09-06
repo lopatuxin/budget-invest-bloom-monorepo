@@ -23,13 +23,13 @@ function formatBadgeText(deviationPercent: number): string {
 }
 
 interface BudgetNormBadgeProps {
-  deviationPercent: number | null;
+  deviationPercent?: number | null;
   status: NormStatus;
   variant: 'expense' | 'income';
 }
 
 export function BudgetNormBadge({ deviationPercent, status, variant }: BudgetNormBadgeProps) {
-  if (status === 'NO_HISTORY' || deviationPercent === null) return null;
+  if (status === 'NO_HISTORY' || deviationPercent == null) return null;
 
   const styles = variant === 'expense' ? EXPENSE_STYLES[status] : INCOME_STYLES[status];
   const Arrow = deviationPercent >= 0 ? ArrowUpRight : ArrowDownRight;

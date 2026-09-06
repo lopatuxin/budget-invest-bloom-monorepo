@@ -19,7 +19,7 @@ const EmptyState = ({ icon, title, description, actionLabel, onAction }: EmptySt
       {actionLabel && onAction && (
         <button
           onClick={onAction}
-          className="mt-1 px-4 py-2 rounded-lg text-xs font-medium bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors"
+          className="mt-1 px-4 py-2 rounded-lg text-xs font-medium bg-app-accent-soft text-app-accent hover:bg-app-accent hover:text-app-accent-ink transition-colors"
         >
           {actionLabel}
         </button>

@@ -19,7 +19,6 @@ import pyc.lopatuxin.budget.service.PeriodAggregateService.PeriodAggregates;
 import pyc.lopatuxin.budget.util.TrendFormatter;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -47,6 +46,7 @@ public class BudgetSummaryService {
     private final PeriodAggregateService periodAggregateService;
     private final CategorySummaryBuilder categorySummaryBuilder;
     private final NormCalculationService normCalculationService;
+    private final PersonalInflationCalculator personalInflationCalculator;
     private final ExpenseRepository expenseRepository;
     private final IncomeRepository incomeRepository;
     private final CategoryRepository categoryRepository;
@@ -68,7 +68,7 @@ public class BudgetSummaryService {
 
         PeriodAggregates current = periodAggregateService.buildPeriodAggregates(userId, month, year);
 
-        BigDecimal personalInflation = calculatePersonalInflation(userId, month, year, monthlyExpensesByYear);
+        BigDecimal personalInflation = personalInflationCalculator.calculate(userId, month, year, monthlyExpensesByYear);
 
         TrendsDto trends = calculateTrends(userId, month, year, current, personalInflation, monthlyExpensesByYear);
 
@@ -115,55 +115,6 @@ public class BudgetSummaryService {
     }
 
     /**
-     * Calculates personal inflation as the percentage change in average monthly expenses
-     * of the current year compared to the previous year.
-     * The average is calculated by the actual number of months with data, not calendar months.
-     */
-    private BigDecimal calculatePersonalInflation(UUID userId, int month, int year,
-                                                  Map<Integer, List<Object[]>> monthlyExpensesByYear) {
-        List<Object[]> currentYearMonthly = monthlyExpensesForYear(userId, year, monthlyExpensesByYear);
-        List<Object[]> currentYearUpToMonth = currentYearMonthly.stream()
-                .filter(row -> ((Number) row[0]).intValue() <= month)
-                .toList();
-
-        if (currentYearUpToMonth.isEmpty()) {
-            return BigDecimal.ZERO;
-        }
-
-        BigDecimal currentYearAvg = calculateAverageFromMonthlyRows(currentYearUpToMonth);
-
-        List<Object[]> previousYearMonthly = monthlyExpensesForYear(userId, year - 1, monthlyExpensesByYear);
-
-        if (previousYearMonthly.isEmpty()) {
-            return BigDecimal.ZERO;
-        }
-
-        BigDecimal previousYearAvg = calculateAverageFromMonthlyRows(previousYearMonthly);
-
-        return currentYearAvg.subtract(previousYearAvg)
-                .divide(previousYearAvg, 10, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(100))
-                .setScale(1, RoundingMode.HALF_UP);
-    }
-
-    /**
-     * Returns non-transfer monthly expense totals for the given year, fetching them at most
-     * once per {@code getSummary} call (current and previous period usually share a year).
-     */
-    private List<Object[]> monthlyExpensesForYear(UUID userId, int year,
-                                                  Map<Integer, List<Object[]>> cache) {
-        return cache.computeIfAbsent(year,
-                y -> expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, y));
-    }
-
-    private BigDecimal calculateAverageFromMonthlyRows(List<Object[]> rows) {
-        BigDecimal total = rows.stream()
-                .map(row -> (BigDecimal) row[1])
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        return total.divide(BigDecimal.valueOf(rows.size()), 10, RoundingMode.HALF_UP);
-    }
-
-    /**
      * Calculates trends of indicators relative to the previous month.
      */
     private TrendsDto calculateTrends(UUID userId, int month, int year, PeriodAggregates current,
@@ -173,7 +124,7 @@ public class BudgetSummaryService {
 
         PeriodAggregates prev = periodAggregateService.buildPeriodAggregates(userId, prevMonth, prevYear);
 
-        BigDecimal prevInflation = calculatePersonalInflation(userId, prevMonth, prevYear, monthlyExpensesByYear);
+        BigDecimal prevInflation = personalInflationCalculator.calculate(userId, prevMonth, prevYear, monthlyExpensesByYear);
 
         return TrendsDto.builder()
                 .income(TrendFormatter.formatTrend(current.income(), prev.income()))

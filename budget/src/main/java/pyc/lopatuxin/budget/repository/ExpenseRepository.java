@@ -28,6 +28,41 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
     BigDecimal sumNonTransferByUserId(@Param("userId") UUID userId);
 
     /**
+     * Возвращает суммарные не-трансферные расходы пользователя с датой не позже указанной —
+     * накопительный итог на начало точки истории капитала. Записи с isTransfer=true исключаются.
+     *
+     * @param userId идентификатор пользователя
+     * @param date   дата, до которой (включительно) считается сумма
+     * @return сумма расходов (0 если записей нет)
+     */
+    @Query("SELECT COALESCE(SUM(e.amount), 0) FROM Expense e WHERE e.userId = :userId AND e.date <= :date AND e.isTransfer = false")
+    BigDecimal sumNonTransferByUserIdAndDateLessThanEqual(@Param("userId") UUID userId, @Param("date") LocalDate date);
+
+    /**
+     * Возвращает помесячные суммы не-трансферных расходов пользователя за произвольный диапазон дат
+     * (может охватывать несколько лет). Записи с isTransfer=true исключаются.
+     *
+     * @param userId    идентификатор пользователя
+     * @param startDate первый день диапазона (включительно)
+     * @param endDate   последний день диапазона (включительно)
+     * @return список массивов [year (Integer), month (Integer), сумма (BigDecimal)]
+     */
+    @Query("""
+            SELECT YEAR(e.date), MONTH(e.date), SUM(e.amount)
+            FROM Expense e
+            WHERE e.userId = :userId
+              AND e.date >= :startDate
+              AND e.date <= :endDate
+              AND e.isTransfer = false
+            GROUP BY YEAR(e.date), MONTH(e.date)
+            """)
+    List<Object[]> findMonthlyNonTransferExpenseByUserIdAndDateBetween(
+            @Param("userId") UUID userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    /**
      * Возвращает суммарные не-трансферные расходы пользователя за указанный диапазон дат.
      * Записи с isTransfer=true (инвестиции и переводы между активами) исключаются.
      *

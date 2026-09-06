@@ -53,6 +53,9 @@ class BudgetSummaryServiceUnitTest {
     @Mock
     private NormCalculationService normCalculationService;
 
+    @Mock
+    private PersonalInflationCalculator personalInflationCalculator;
+
     @InjectMocks
     private BudgetSummaryService budgetSummaryService;
 
@@ -61,9 +64,10 @@ class BudgetSummaryServiceUnitTest {
     @BeforeEach
     void setUp() {
         userId = UUID.randomUUID();
-        // Default lenient stubs for inflation calculation — return empty lists so inflation = 0
-        lenient().when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(eq(userId), anyInt()))
-                .thenReturn(Collections.emptyList());
+        // Default lenient stub for inflation — 0 unless a test overrides it (real calculation
+        // logic is covered by PersonalInflationCalculatorUnitTest, not here)
+        lenient().when(personalInflationCalculator.calculate(eq(userId), anyInt(), anyInt(), any()))
+                .thenReturn(BigDecimal.ZERO);
         // Default lenient stub for norm calculation — NO_HISTORY unless a test overrides it for
         // a specific amount (windowed repository queries default to empty lists when unstubbed).
         lenient().when(normCalculationService.calculateNorm(any(), any(), anyInt()))
@@ -177,11 +181,10 @@ class BudgetSummaryServiceUnitTest {
     }
 
     @Test
-    @DisplayName("Должен корректно рассчитать personalInflation на основе средних месячных расходов")
-    void shouldCalculatePersonalInflationCorrectly() {
-        // currentYearTotal = 99000 (3 месяца) → avg = 33000
-        // previousYearTotal = 360000 (12 месяцев) → avg = 30000
-        // inflation = (33000 - 30000) / 30000 * 100 = 10.0%
+    @DisplayName("Должен вернуть personalInflation, рассчитанный PersonalInflationCalculator, в сводке")
+    void shouldReturnPersonalInflationFromCalculator() {
+        // Arithmetic (average-of-months calculation) is covered by PersonalInflationCalculatorUnitTest;
+        // here we only check that the summary carries the calculator's result through.
         int month = 3;
         int year = 2024;
         LocalDate start = LocalDate.of(year, month, 1);
@@ -195,28 +198,9 @@ class BudgetSummaryServiceUnitTest {
 
         when(periodAggregateService.buildPeriodAggregates(userId, month, year)).thenReturn(current);
         when(periodAggregateService.buildPeriodAggregates(userId, 2, year)).thenReturn(prev);
-        // Override default lenient stub for the specific years needed
-        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year))
-                .thenReturn(List.of(
-                        new Object[]{1, new BigDecimal("33000")},
-                        new Object[]{2, new BigDecimal("33000")},
-                        new Object[]{3, new BigDecimal("33000")}
-                ));
-        when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndYear(userId, year - 1))
-                .thenReturn(List.of(
-                        new Object[]{1, new BigDecimal("30000")},
-                        new Object[]{2, new BigDecimal("30000")},
-                        new Object[]{3, new BigDecimal("30000")},
-                        new Object[]{4, new BigDecimal("30000")},
-                        new Object[]{5, new BigDecimal("30000")},
-                        new Object[]{6, new BigDecimal("30000")},
-                        new Object[]{7, new BigDecimal("30000")},
-                        new Object[]{8, new BigDecimal("30000")},
-                        new Object[]{9, new BigDecimal("30000")},
-                        new Object[]{10, new BigDecimal("30000")},
-                        new Object[]{11, new BigDecimal("30000")},
-                        new Object[]{12, new BigDecimal("30000")}
-                ));
+        // Override default lenient stub for the requested period
+        when(personalInflationCalculator.calculate(eq(userId), eq(month), eq(year), any()))
+                .thenReturn(new BigDecimal("10.0"));
         when(categoryRepository.findUserCategoriesByUserId(userId)).thenReturn(Collections.emptyList());
         when(expenseRepository.sumNonTransferAmountByCategoryForUserAndDateBetween(userId, start, end))
                 .thenReturn(Collections.emptyList());

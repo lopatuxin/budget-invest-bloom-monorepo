@@ -6,6 +6,16 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
+import pyc.lopatuxin.budget.service.OverviewPageService;
+import pyc.lopatuxin.shared.port.PortfolioCurrentValuation;
+import pyc.lopatuxin.shared.port.PortfolioValuation;
+import pyc.lopatuxin.shared.port.PortfolioValueAt;
+import pyc.lopatuxin.shared.port.PortfolioValueSeries;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
 
 /**
  * Standalone Spring Boot entry point for the budget module's own integration tests.
@@ -23,6 +33,10 @@ import org.springframework.transaction.PlatformTransactionManager;
  * bean name wired in the monolith's {@code BudgetPersistenceConfig}); the same bean is also
  * registered as the default {@code "transactionManager"} so repositories used directly by tests
  * (with no explicit qualifier) resolve it unambiguously.</p>
+ *
+ * <p>{@link PortfolioValuation} is implemented in the {@code investment} module, which is not a
+ * dependency of {@code budget} (only the other way around, same as {@code app} above) — so this
+ * context needs its own zero-valuation stub for {@link OverviewPageService} to wire against.</p>
  */
 @SpringBootApplication
 public class TestApplication {
@@ -34,5 +48,23 @@ public class TestApplication {
     @Bean(name = {"transactionManager", "budgetTransactionManager"})
     public PlatformTransactionManager budgetTransactionManager(EntityManagerFactory entityManagerFactory) {
         return new JpaTransactionManager(entityManagerFactory);
+    }
+
+    @Bean
+    public PortfolioValuation portfolioValuation() {
+        return new PortfolioValuation() {
+            @Override
+            public PortfolioCurrentValuation current(UUID userId) {
+                return new PortfolioCurrentValuation(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 0,
+                        BigDecimal.ZERO, null);
+            }
+
+            @Override
+            public PortfolioValueSeries valueAt(UUID userId, List<LocalDate> dates) {
+                return new PortfolioValueSeries(
+                        dates.stream().map(date -> new PortfolioValueAt(date, BigDecimal.ZERO)).toList(),
+                        false);
+            }
+        };
     }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { RetryErrorCard } from '@/components/RetryErrorCard';
 import { useToast } from '@/hooks/use-toast';
 import { useOperationDialog } from '@/components/operation/OperationDialogProvider';
 import { useBudgetSummary } from '@/hooks/useBudgetSummary';
@@ -12,22 +12,6 @@ import { BudgetCategoryGrid } from '@/pages/budget/BudgetCategoryGrid';
 import { BudgetOperationsFeed } from '@/pages/budget/BudgetOperationsFeed';
 import { BudgetCategoryDialog } from '@/pages/budget/BudgetCategoryDialog';
 import { getBudgetPeriodKind } from '@/pages/budget/budgetPeriod';
-
-function BudgetErrorCard({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <div className="glass-card p-6 flex flex-col items-center gap-3 text-center">
-      <p className="text-sm text-app-text-muted">{message}</p>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => onRetry()}
-        className="border-app-border-strong bg-app-surface text-app-text hover:bg-app-surface-2"
-      >
-        Повторить
-      </Button>
-    </div>
-  );
-}
 
 const Budget = () => {
   const { toast } = useToast();
@@ -117,7 +101,7 @@ const Budget = () => {
       {summaryLoading ? (
         <Skeleton className="h-[150px] bg-app-border" />
       ) : summaryError ? (
-        <BudgetErrorCard message="Не удалось загрузить сводку" onRetry={refetchSummary} />
+        <RetryErrorCard message="Не удалось загрузить сводку" onRetry={refetchSummary} />
       ) : summary ? (
         <BudgetSummaryStrip
           expenses={summary.expenses}
@@ -148,7 +132,7 @@ const Budget = () => {
         {operationsLoading ? (
           <Skeleton className="h-[420px] bg-app-border" />
         ) : operationsError ? (
-          <BudgetErrorCard message="Не удалось загрузить операции" onRetry={refetchOperations} />
+          <RetryErrorCard message="Не удалось загрузить операции" onRetry={refetchOperations} />
         ) : operations ? (
           <BudgetOperationsFeed
             operations={operations.items}

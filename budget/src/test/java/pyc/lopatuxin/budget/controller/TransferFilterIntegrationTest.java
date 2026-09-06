@@ -15,9 +15,6 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.comparesEqualTo;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -61,66 +58,15 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                 .build());
     }
 
-    // ─── Overview: виджет «Основные категории трат» ───────────────────────────
+    // ─── Overview: свободные деньги капитала (lifetime, non-transfer only) ────
+    // The overview page no longer has a categories widget or per-month income/expenses fields
+    // (redesigned into a capital page — see docs/plans/overview-page-redesign.md); transfer
+    // filtering on the overview endpoint is now checked through capital.freeMoney instead,
+    // which is the lifetime non-transfer income-minus-expenses total shown on that page.
 
     @Test
-    @DisplayName("Overview categories: transfer-расходы исключаются из виджета топ-категорий")
-    void overview_categoriesWidget_shouldExcludeTransferExpenses() throws Exception {
-        LocalDate date = LocalDate.of(2025, 3, 10);
-
-        // Обычный расход — должен попасть в виджет
-        expenseRepository.save(Expense.builder()
-                .userId(userId)
-                .category(userCategory)
-                .amount(new BigDecimal("15000.00"))
-                .date(date)
-                .isTransfer(false)
-                .build());
-
-        // Transfer-расход (покупка активов) — не должен попасть в виджет
-        expenseRepository.save(Expense.builder()
-                .userId(userId)
-                .category(systemInvestCategory)
-                .amount(new BigDecimal("50000.00"))
-                .date(date)
-                .isTransfer(true)
-                .build());
-
-        mockMvc.perform(post(OVERVIEW_URL)
-                        .content(buildOverviewRequest(userId, 3, 2025))
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                // Виджет categories содержит только обычный расход (категория «Продукты»)
-                .andExpect(jsonPath("$.body.categories", hasSize(1)))
-                .andExpect(jsonPath("$.body.categories[0].name", is("Продукты")));
-    }
-
-    @Test
-    @DisplayName("Overview categories: если все расходы transfer — виджет пустой")
-    void overview_categoriesWidget_shouldBeEmptyWhenAllExpensesAreTransfer() throws Exception {
-        LocalDate date = LocalDate.of(2025, 4, 5);
-
-        // Только transfer-расходы
-        expenseRepository.save(Expense.builder()
-                .userId(userId)
-                .category(systemInvestCategory)
-                .amount(new BigDecimal("100000.00"))
-                .date(date)
-                .isTransfer(true)
-                .build());
-
-        mockMvc.perform(post(OVERVIEW_URL)
-                        .content(buildOverviewRequest(userId, 4, 2025))
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.body.categories", empty()));
-    }
-
-    // ─── Overview: суммарные расходы месяца (expenses) ────────────────────────
-
-    @Test
-    @DisplayName("Overview expenses: transfer-расходы не учитываются в общей сумме расходов месяца")
-    void overview_expenses_shouldExcludeTransferFromMonthlyTotal() throws Exception {
+    @DisplayName("Overview capital.freeMoney: transfer-расходы не учитываются")
+    void overview_freeMoney_shouldExcludeTransferExpenses() throws Exception {
         LocalDate date = LocalDate.of(2025, 5, 15);
 
         // Non-transfer расход 20000
@@ -132,7 +78,7 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                 .isTransfer(false)
                 .build());
 
-        // Transfer-расход 80000 — не должен входить в expenses
+        // Transfer-расход 80000 — не должен входить в freeMoney
         expenseRepository.save(Expense.builder()
                 .userId(userId)
                 .category(systemInvestCategory)
@@ -151,20 +97,16 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                 .build());
 
         mockMvc.perform(post(OVERVIEW_URL)
-                        .content(buildOverviewRequest(userId, 5, 2025))
+                        .content(buildOverviewRequest(userId))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                // expenses = 20000 (без transfer)
-                .andExpect(jsonPath("$.body.expenses", comparesEqualTo(20000.0)))
-                // income = 50000 (без transfer)
-                .andExpect(jsonPath("$.body.income", comparesEqualTo(50000.0)))
-                // balance = 50000 - 20000 = 30000
-                .andExpect(jsonPath("$.body.balance", comparesEqualTo(30000.0)));
+                // freeMoney = 50000 - 20000 = 30000 (transfer-расход 80000 исключён)
+                .andExpect(jsonPath("$.body.capital.freeMoney", comparesEqualTo(30000.0)));
     }
 
     @Test
-    @DisplayName("Overview income: transfer-доходы не учитываются в общей сумме доходов месяца")
-    void overview_income_shouldExcludeTransferFromMonthlyTotal() throws Exception {
+    @DisplayName("Overview capital.freeMoney: transfer-доходы не учитываются")
+    void overview_freeMoney_shouldExcludeTransferIncome() throws Exception {
         LocalDate date = LocalDate.of(2025, 6, 10);
 
         // Non-transfer доход 100000
@@ -176,7 +118,7 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                 .isTransfer(false)
                 .build());
 
-        // Transfer-доход (продажа активов) 30000 — не должен входить в income
+        // Transfer-доход (продажа активов) 30000 — не должен входить в freeMoney
         incomeRepository.save(Income.builder()
                 .userId(userId)
                 .source(IncomeSource.INVESTMENTS)
@@ -186,10 +128,11 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                 .build());
 
         mockMvc.perform(post(OVERVIEW_URL)
-                        .content(buildOverviewRequest(userId, 6, 2025))
+                        .content(buildOverviewRequest(userId))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.body.income", comparesEqualTo(100000.0)));
+                // freeMoney = 100000 (transfer-доход 30000 исключён)
+                .andExpect(jsonPath("$.body.capital.freeMoney", comparesEqualTo(100000.0)));
     }
 
     // ─── BalanceService lifetime: transfer-записи НЕ учитываются (баг-фикс «Чистый капитал = -1.15M») ───
@@ -319,7 +262,7 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
-    private String buildOverviewRequest(UUID reqUserId, int month, int year) {
+    private String buildOverviewRequest(UUID reqUserId) {
         return """
                 {
                   "user": {
@@ -328,12 +271,9 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                     "role": "USER",
                     "sessionId": "%s"
                   },
-                  "data": {
-                    "month": %d,
-                    "year": %d
-                  }
+                  "data": {}
                 }
-                """.formatted(reqUserId, UUID.randomUUID(), month, year);
+                """.formatted(reqUserId, UUID.randomUUID());
     }
 
     private String buildLifetimeRequest(UUID reqUserId) {

@@ -13,21 +13,29 @@ import pyc.lopatuxin.investment.dto.response.SeriesResponseDto;
 import pyc.lopatuxin.investment.entity.Position;
 import pyc.lopatuxin.investment.entity.PriceHistory;
 import pyc.lopatuxin.investment.entity.Security;
+import pyc.lopatuxin.investment.entity.Transaction;
 import pyc.lopatuxin.investment.entity.enums.HistoryStatus;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
+import pyc.lopatuxin.investment.entity.enums.TransactionType;
 import pyc.lopatuxin.investment.repository.DividendRepository;
 import pyc.lopatuxin.investment.repository.PositionRepository;
 import pyc.lopatuxin.investment.repository.PriceHistoryRepository;
+import pyc.lopatuxin.investment.repository.TransactionRepository;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
+import pyc.lopatuxin.shared.port.PortfolioValueAt;
+import pyc.lopatuxin.shared.port.PortfolioValueSeries;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,6 +53,9 @@ class AnalyticsServiceTest {
 
     @Mock
     private DividendRepository dividendRepository;
+
+    @Mock
+    private TransactionRepository transactionRepository;
 
     @InjectMocks
     private AnalyticsService analyticsService;
@@ -211,6 +222,127 @@ class AnalyticsServiceTest {
         assertThat(result.getSeries()).hasSize(1);
         // value = 10 × 270 = 2700 (LKOH skipped — no price in lastKnownClose)
         assertThat(result.getSeries().get(0).getValue()).isEqualByComparingTo(new BigDecimal("2700.00"));
+    }
+
+    @Test
+    @DisplayName("valueAtDates — нет сделок вообще: все точки 0, historyPending = false")
+    void valueAtDates_noTransactions_allZero() {
+        when(transactionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of());
+
+        PortfolioValueSeries result = analyticsService.valueAtDates(
+                userId, List.of(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 2, 1)));
+
+        assertThat(result.historyPending()).isFalse();
+        assertThat(result.points()).hasSize(2);
+        result.points().forEach(p -> assertThat(p.value()).isEqualByComparingTo(BigDecimal.ZERO));
+    }
+
+    @Test
+    @DisplayName("valueAtDates — количество на дату из BUY/SELL: до первой сделки 0, после покупки полное количество, после продажи — за вычетом")
+    void valueAtDates_quantityFromBuysAndSells() {
+        Security sber = buildSecurity("SBER", HistoryStatus.READY);
+        LocalDate buyDate = LocalDate.of(2024, 1, 10);
+        LocalDate sellDate = LocalDate.of(2024, 1, 12);
+        Transaction buy = buildTransaction(sber, TransactionType.BUY, "10", instantAt(buyDate, 10, 0, 0));
+        Transaction sell = buildTransaction(sber, TransactionType.SELL, "3", instantAt(sellDate, 15, 0, 0));
+        when(transactionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(buy, sell));
+        when(priceHistoryRepository.findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(any(), any(), any()))
+                .thenReturn(List.of(
+                        buildPriceHistory("SBER", buyDate, "100.00"),
+                        buildPriceHistory("SBER", sellDate, "100.00")));
+
+        LocalDate beforeAnyTrade = buyDate.minusDays(1);
+        LocalDate betweenBuyAndSell = buyDate.plusDays(1);
+        PortfolioValueSeries result = analyticsService.valueAtDates(
+                userId, List.of(beforeAnyTrade, buyDate, betweenBuyAndSell, sellDate));
+
+        assertThat(result.historyPending()).isFalse();
+        assertThat(valueAt(result, beforeAnyTrade)).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(valueAt(result, buyDate)).isEqualByComparingTo(new BigDecimal("1000.00"));
+        assertThat(valueAt(result, betweenBuyAndSell)).isEqualByComparingTo(new BigDecimal("1000.00"));
+        assertThat(valueAt(result, sellDate)).isEqualByComparingTo(new BigDecimal("700.00"));
+    }
+
+    @Test
+    @DisplayName("valueAtDates — сделка в 23:59:59 дня d учитывается в d, но не в d-1 (граница конца дня)")
+    void valueAtDates_endOfDayBoundary() {
+        Security sber = buildSecurity("SBER", HistoryStatus.READY);
+        LocalDate tradeDate = LocalDate.of(2024, 3, 10);
+        Transaction buy = buildTransaction(sber, TransactionType.BUY, "4", instantAt(tradeDate, 23, 59, 59));
+        when(transactionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(buy));
+        when(priceHistoryRepository.findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(any(), any(), any()))
+                .thenReturn(List.of(buildPriceHistory("SBER", tradeDate, "50.00")));
+
+        LocalDate dayBefore = tradeDate.minusDays(1);
+        PortfolioValueSeries result = analyticsService.valueAtDates(userId, List.of(dayBefore, tradeDate));
+
+        assertThat(valueAt(result, dayBefore)).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(valueAt(result, tradeDate)).isEqualByComparingTo(new BigDecimal("200.00"));
+    }
+
+    @Test
+    @DisplayName("valueAtDates — цена берётся как последняя известная цена закрытия ≤ даты (forward fill)")
+    void valueAtDates_priceIsLastKnownCloseAtOrBeforeDate() {
+        Security sber = buildSecurity("SBER", HistoryStatus.READY);
+        LocalDate buyDate = LocalDate.of(2024, 4, 1);
+        Transaction buy = buildTransaction(sber, TransactionType.BUY, "2", instantAt(buyDate, 9, 0, 0));
+        when(transactionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(buy));
+        // Only one price point, before the requested date — must be forward-filled.
+        when(priceHistoryRepository.findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(any(), any(), any()))
+                .thenReturn(List.of(buildPriceHistory("SBER", buyDate, "300.00")));
+
+        LocalDate requestedDate = buyDate.plusDays(3);
+        PortfolioValueSeries result = analyticsService.valueAtDates(userId, List.of(requestedDate));
+
+        assertThat(valueAt(result, requestedDate)).isEqualByComparingTo(new BigDecimal("600.00"));
+    }
+
+    @Test
+    @DisplayName("valueAtDates — бумага с незагруженной историей цен исключена из расчёта, historyPending = true, дозагрузка запущена")
+    void valueAtDates_pendingHistorySecurity_excludedAndHistoryPendingTrue() {
+        Security pending = buildSecurity("LKOH", HistoryStatus.PENDING);
+        LocalDate tradeDate = LocalDate.of(2024, 2, 1);
+        Transaction buy = buildTransaction(pending, TransactionType.BUY, "5", instantAt(tradeDate, 10, 0, 0));
+        when(transactionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(buy));
+
+        PortfolioValueSeries result = analyticsService.valueAtDates(userId, List.of(tradeDate));
+
+        assertThat(result.historyPending()).isTrue();
+        assertThat(valueAt(result, tradeDate)).isEqualByComparingTo(BigDecimal.ZERO);
+        verify(marketDataService).triggerHistoryAsync("LKOH");
+    }
+
+    private BigDecimal valueAt(PortfolioValueSeries series, LocalDate date) {
+        return series.points().stream()
+                .filter(p -> p.date().equals(date))
+                .map(PortfolioValueAt::value)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private Security buildSecurity(String ticker, HistoryStatus historyStatus) {
+        return Security.builder()
+                .ticker(ticker)
+                .name(ticker)
+                .type(SecurityType.STOCK)
+                .historyStatus(historyStatus)
+                .build();
+    }
+
+    private Transaction buildTransaction(Security security, TransactionType type, String quantity, Instant executedAt) {
+        return Transaction.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .security(security)
+                .quantity(new BigDecimal(quantity))
+                .price(new BigDecimal("1.00"))
+                .type(type)
+                .executedAt(executedAt)
+                .build();
+    }
+
+    private Instant instantAt(LocalDate date, int hour, int minute, int second) {
+        return date.atTime(hour, minute, second).atZone(ZoneId.systemDefault()).toInstant();
     }
 
     private Position buildPosition(String ticker, String quantity) {

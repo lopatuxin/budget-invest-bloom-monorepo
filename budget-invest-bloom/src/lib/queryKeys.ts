@@ -4,8 +4,7 @@ export const qk = {
   // budget domain
   budget: {
     summary: (month: string, year: string) => ['budget-summary', month, year] as const,
-    overview: (month: string, year: string) => ['overview-summary', month, year] as const,
-    freeCapital: () => ['free-capital'] as const,
+    overviewPage: () => ['overview-page'] as const,
     categoryAnalytics: (name: string, year: number, month: number) =>
       ['category-analytics', name, year, month] as const,
     categoryAnalyticsAll: () => ['category-analytics'] as const,
@@ -39,8 +38,7 @@ export const qk = {
 export const invalidateBudgetCaches = (queryClient: QueryClient) => {
   queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
   queryClient.invalidateQueries({ queryKey: ['budget-operations'] });
-  queryClient.invalidateQueries({ queryKey: ['overview-summary'] });
-  queryClient.invalidateQueries({ queryKey: ['free-capital'] });
+  queryClient.invalidateQueries({ queryKey: ['overview-page'] });
   queryClient.invalidateQueries({ queryKey: ['category-analytics'] });
   queryClient.invalidateQueries({ queryKey: ['balance-metric'] });
   queryClient.invalidateQueries({ queryKey: ['capital-metric'] });
