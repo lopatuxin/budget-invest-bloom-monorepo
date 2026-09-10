@@ -3,7 +3,6 @@ package pyc.lopatuxin.investment.service.market;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import pyc.lopatuxin.investment.dto.response.MoexCandleDto;
-import pyc.lopatuxin.investment.dto.response.MoexDividendDto;
 import pyc.lopatuxin.investment.dto.response.MoexSecurityDto;
 import pyc.lopatuxin.investment.dto.response.MoexSnapshotDto;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
@@ -40,10 +39,6 @@ public final class MoexResponseParser {
 
     public static Map<String, MoexSnapshotDto> parseMarketData(JsonNode root) {
         return parseSafely("market data", "root", () -> doParseMarketData(root), Collections.emptyMap());
-    }
-
-    public static List<MoexDividendDto> parseDividends(JsonNode root) {
-        return parseSafely("dividends", "root", () -> doParseDividends(root), Collections.emptyList());
     }
 
     public static List<MoexSecurityDto> parseBoardSecurities(JsonNode root, SecurityType securityType) {
@@ -160,7 +155,7 @@ public final class MoexResponseParser {
 
         int secidIdx = table.columnIndex("SECID");
         int lastIdx  = table.columnIndex("LAST");
-        int prevIdx  = table.columnIndex("PREVPRICE");
+        Map<String, BigDecimal> previousCloseBySecid = parsePreviousClose(root);
 
         Map<String, MoexSnapshotDto> result = new HashMap<>();
         for (JsonNode row : (Iterable<JsonNode>) table.rows()::iterator) {
@@ -169,9 +164,9 @@ public final class MoexResponseParser {
                 continue;
             }
             BigDecimal last = IssTable.decimalAt(row, lastIdx);
-            BigDecimal prev = IssTable.decimalAt(row, prevIdx);
-            boolean lastEmpty = last == null || last.compareTo(BigDecimal.ZERO) == 0;
-            boolean prevEmpty = prev == null || prev.compareTo(BigDecimal.ZERO) == 0;
+            BigDecimal prev = previousCloseBySecid.get(secid);
+            boolean lastEmpty = isEmptyPrice(last);
+            boolean prevEmpty = isEmptyPrice(prev);
             if (lastEmpty && prevEmpty) {
                 continue;
             }
@@ -180,29 +175,35 @@ public final class MoexResponseParser {
         return result;
     }
 
-    private static List<MoexDividendDto> doParseDividends(JsonNode root) {
-        Optional<IssTable> tableOpt = IssTable.of(root, "dividends");
+    private static boolean isEmptyPrice(BigDecimal value) {
+        return value == null || value.compareTo(BigDecimal.ZERO) == 0;
+    }
+
+    // MOEX splits live quotes ("marketdata") and the security reference row ("securities")
+    // into separate tables; the previous session's close (PREVPRICE) is a securities column,
+    // not a marketdata one. Both tables list the same boards in the same order per ticker, so
+    // taking the last row per SECID here lines up with the board doParseMarketData settles on.
+    // A row with an empty PREVPRICE is skipped rather than overwriting the map, same as
+    // doParseMarketData skips an empty row — otherwise a security listed under a second
+    // trading mode with no PREVPRICE of its own would blank out the valid value already
+    // captured from its primary board.
+    private static Map<String, BigDecimal> parsePreviousClose(JsonNode root) {
+        Optional<IssTable> tableOpt = IssTable.of(root, "securities");
         if (tableOpt.isEmpty()) {
-            return Collections.emptyList();
+            return Collections.emptyMap();
         }
         IssTable table = tableOpt.get();
+        int secidIdx = table.columnIndex("SECID");
+        int prevIdx  = table.columnIndex("PREVPRICE");
 
-        int secidIdx    = table.columnIndex("secid");
-        int dateIdx     = table.columnIndex("registryclosedate");
-        int valueIdx    = table.columnIndex("value");
-        int currencyIdx = table.columnIndex("currencyid");
-
-        List<MoexDividendDto> result = new ArrayList<>();
+        Map<String, BigDecimal> result = new HashMap<>();
         for (JsonNode row : (Iterable<JsonNode>) table.rows()::iterator) {
-            MoexDividendDto dto = new MoexDividendDto();
-            dto.setSecid(IssTable.stringAt(row, secidIdx));
-            String recordDateStr = IssTable.stringAt(row, dateIdx);
-            if (recordDateStr != null) {
-                dto.setRegistryCloseDate(LocalDate.parse(recordDateStr));
+            String secid = IssTable.stringAt(row, secidIdx);
+            BigDecimal prev = IssTable.decimalAt(row, prevIdx);
+            if (secid == null || isEmptyPrice(prev)) {
+                continue;
             }
-            dto.setValue(IssTable.decimalAt(row, valueIdx));
-            dto.setCurrencyId(IssTable.stringAt(row, currencyIdx));
-            result.add(dto);
+            result.put(secid, prev);
         }
         return result;
     }

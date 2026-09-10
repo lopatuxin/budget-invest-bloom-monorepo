@@ -20,6 +20,7 @@ import type { Period } from '@/lib/periodDates';
 import { formatCurrency } from '@/lib/dateOptions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartCurrencyTooltip } from '@/components/ChartCurrencyTooltip';
+import { SecurityDividendsCard } from '@/pages/security/SecurityDividendsCard';
 
 const PERIODS: Period[] = ['1M', '3M', '1Y', 'MAX'];
 
@@ -212,34 +213,7 @@ const SecurityDetails = () => {
       </div>
 
       {/* Dividends history */}
-      <div className="glass-card p-5 animate-fade-slide-up" style={{ animationDelay: '180ms' }}>
-        <h3 className="text-sm font-semibold text-dashboard-text mb-4">История дивидендов</h3>
-        {dividendsLoading ? (
-          <div className="space-y-2">
-            {[...Array(3)].map((_, i) => (
-              <Skeleton key={i} className="h-10" />
-            ))}
-          </div>
-        ) : dividends.length === 0 ? (
-          <p className="text-dashboard-text-muted text-sm">Нет выплаченных дивидендов</p>
-        ) : (
-          <div className="space-y-2">
-            {dividends.map((div) => (
-              <div
-                key={`${div.recordDate}-${div.amountPerShare}`}
-                className="flex items-center justify-between p-3 bg-white/[0.03] rounded-lg"
-              >
-                <span className="text-sm text-dashboard-text-muted">
-                  {new Date(div.recordDate).toLocaleDateString('ru-RU')}
-                </span>
-                <span className="text-sm font-mono text-dashboard-text">
-                  {div.amountPerShare.toLocaleString('ru-RU')} {div.currency} на акцию
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <SecurityDividendsCard ticker={ticker ?? ''} dividends={dividends} isLoading={dividendsLoading} />
     </div>
   );
 };

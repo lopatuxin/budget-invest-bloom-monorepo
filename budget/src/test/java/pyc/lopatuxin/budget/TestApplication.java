@@ -63,7 +63,7 @@ public class TestApplication {
             public PortfolioValueSeries valueAt(UUID userId, List<LocalDate> dates) {
                 return new PortfolioValueSeries(
                         dates.stream().map(date -> new PortfolioValueAt(date, BigDecimal.ZERO)).toList(),
-                        false);
+                        false, false, List.of());
             }
         };
     }

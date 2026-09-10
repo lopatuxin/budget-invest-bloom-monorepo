@@ -12,7 +12,7 @@ import java.time.LocalDate;
 public interface MoexIssApi {
 
     @GetExchange("/securities/{ticker}.json")
-    JsonNode getSecurity(@PathVariable String ticker,
+    JsonNode getSecurity(@PathVariable("ticker") String ticker,
                          @RequestParam("iss.only") String only,
                          @RequestParam("iss.meta") String meta);
 
@@ -23,26 +23,21 @@ public interface MoexIssApi {
                               @RequestParam("iss.meta") String meta);
 
     @GetExchange("/engines/stock/markets/{market}/boards/{board}/securities.json")
-    JsonNode listBoardSecurities(@PathVariable String market, @PathVariable String board,
+    JsonNode listBoardSecurities(@PathVariable("market") String market, @PathVariable("board") String board,
                                  @RequestParam("iss.only") String only,
                                  @RequestParam("iss.meta") String meta,
                                  @RequestParam("securities.columns") String columns);
 
     @GetExchange("/engines/{engine}/markets/{market}/securities.json")
-    JsonNode getMarketData(@PathVariable String engine, @PathVariable String market,
+    JsonNode getMarketData(@PathVariable("engine") String engine, @PathVariable("market") String market,
                            @RequestParam("securities") String securities,
                            @RequestParam("iss.only") String only,
                            @RequestParam("iss.meta") String meta);
 
     @GetExchange("/history/engines/stock/markets/{market}/securities/{ticker}.json")
-    JsonNode getHistory(@PathVariable String market, @PathVariable String ticker,
+    JsonNode getHistory(@PathVariable("market") String market, @PathVariable("ticker") String ticker,
                         @RequestParam("from") LocalDate from, @RequestParam("till") LocalDate till,
                         @RequestParam("start") int start,
                         @RequestParam("iss.only") String only,
                         @RequestParam("iss.meta") String meta);
-
-    @GetExchange("/securities/{ticker}/dividends.json")
-    JsonNode getDividends(@PathVariable String ticker,
-                          @RequestParam("iss.only") String only,
-                          @RequestParam("iss.meta") String meta);
 }

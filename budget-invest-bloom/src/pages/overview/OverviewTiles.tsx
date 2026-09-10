@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import { formatCurrency } from '@/lib/dateOptions';
-import { formatDayMonth, formatSignedCurrency, formatSignedPercent, monthPrepositional, pluralSecurities } from '@/pages/overview/overviewFormat';
+import { formatCurrency, formatDayMonth, formatDividendAmount, formatSignedCurrency, formatSignedPercent, pluralSecurities } from '@/lib/dateOptions';
+import { monthPrepositional } from '@/pages/overview/overviewFormat';
 import type { NormStatus, OverviewPageResponse } from '@/types/budget';
 
 // Same four-status palette as BudgetNormBadge's "income" variant, but this
@@ -71,6 +71,15 @@ export function OverviewTiles({ data, hasNoRecords }: OverviewTilesProps) {
       ? 'в среднем за 12 месяцев'
       : `в среднем за 12 месяцев · в ${monthLabel} пока ${savings.currentMonthRate}%`;
 
+  // Payment date wins once T-Invest has announced one; otherwise fall back to
+  // the record cutoff date — see docs/plans/dividends-tinvest.md p.22.
+  const nextDividendSubtitle = portfolio.nextDividend
+    ? `ближайший — ${portfolio.nextDividend.securityName}, ${formatDividendAmount(portfolio.nextDividend.totalAmount, portfolio.nextDividend.currency)}, ` +
+      (portfolio.nextDividend.paymentDate
+        ? `выплата ${formatDayMonth(portfolio.nextDividend.paymentDate)}`
+        : `отсечка ${formatDayMonth(portfolio.nextDividend.recordDate)}`)
+    : 'ближайших выплат нет';
+
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 lg:gap-4">
       <OverviewTile label="Свободные деньги" value={formatCurrency(data.capital.freeMoney)} subtitle={freeMoneySubtitle} />
@@ -102,11 +111,7 @@ export function OverviewTiles({ data, hasNoRecords }: OverviewTilesProps) {
         <OverviewTile
           label="Дивиденды за 12 месяцев"
           value={formatCurrency(portfolio.dividends12m ?? 0)}
-          subtitle={
-            portfolio.nextDividend
-              ? `ближайший — ${portfolio.nextDividend.securityName}, ${formatCurrency(portfolio.nextDividend.totalAmount)} ${formatDayMonth(portfolio.nextDividend.paymentDate)}`
-              : 'ближайших выплат нет'
-          }
+          subtitle={nextDividendSubtitle}
         />
       )}
     </div>

@@ -14,6 +14,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 class PriceHistoryRepositoryIT extends AbstractIntegrationTest {
 
@@ -53,6 +54,35 @@ class PriceHistoryRepositoryIT extends AbstractIntegrationTest {
         assertThat(range).hasSize(2);
         assertThat(range).extracting(PriceHistory::getTradeDate)
                 .containsExactlyInAnyOrder(day1, day2);
+    }
+
+    @Test
+    @DisplayName("findLastBeforeDateForTickers — одна строка на тикер: только последняя дата до окна")
+    void findLastBeforeDateForTickers_returnsOnlyLastRowPerTickerBeforeDate() {
+        securityRepository.save(Security.builder()
+                .ticker("SBER").name("Сбербанк").type(SecurityType.STOCK)
+                .historyStatus(HistoryStatus.READY).build());
+        securityRepository.save(Security.builder()
+                .ticker("LKOH").name("ЛУКОЙЛ").type(SecurityType.STOCK)
+                .historyStatus(HistoryStatus.READY).build());
+
+        LocalDate windowStart = LocalDate.of(2024, 6, 1);
+        priceHistoryRepository.saveAll(List.of(
+                buildEntry("SBER", LocalDate.of(2024, 5, 1), "260.00", "260.00", "260.00", "260.00"),
+                buildEntry("SBER", LocalDate.of(2024, 5, 30), "270.00", "270.00", "270.00", "270.00"),
+                // Inside/after the window — must not be picked as the "last before" row.
+                buildEntry("SBER", LocalDate.of(2024, 6, 5), "290.00", "290.00", "290.00", "290.00"),
+                buildEntry("LKOH", LocalDate.of(2024, 4, 1), "6000.00", "6000.00", "6000.00", "6000.00")
+        ));
+
+        List<PriceHistory> result = priceHistoryRepository
+                .findLastBeforeDateForTickers(List.of("SBER", "LKOH"), windowStart);
+
+        assertThat(result).hasSize(2);
+        assertThat(result).extracting(PriceHistory::getTicker, PriceHistory::getTradeDate)
+                .containsExactlyInAnyOrder(
+                        tuple("SBER", LocalDate.of(2024, 5, 30)),
+                        tuple("LKOH", LocalDate.of(2024, 4, 1)));
     }
 
     private PriceHistory buildEntry(String ticker, LocalDate date,

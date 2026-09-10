@@ -12,6 +12,8 @@ public interface TransactionMapper {
 
     @Mapping(source = "security.ticker", target = "ticker")
     @Mapping(source = "security.name", target = "securityName")
+    @Mapping(target = "amount", expression = "java(transaction.getQuantity().multiply(transaction.getPrice())" +
+            ".setScale(2, java.math.RoundingMode.HALF_UP))")
     TransactionResponseDto toDto(Transaction transaction);
 
     List<TransactionResponseDto> toDtoList(List<Transaction> transactions);

@@ -76,7 +76,8 @@ class OverviewPageServiceUnitTest {
                 new PortfolioCurrentValuation(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 0, BigDecimal.ZERO, null));
         lenient().when(portfolioValuation.valueAt(eq(userId), any())).thenAnswer(invocation -> {
             List<LocalDate> dates = invocation.getArgument(1);
-            return new PortfolioValueSeries(dates.stream().map(date -> new PortfolioValueAt(date, BigDecimal.ZERO)).toList(), false);
+            return new PortfolioValueSeries(dates.stream().map(date -> new PortfolioValueAt(date, BigDecimal.ZERO)).toList(),
+                    false, false, List.of());
         });
         lenient().when(personalInflationCalculator.calculateOptional(eq(userId), anyInt(), anyInt(), any()))
                 .thenReturn(Optional.empty());
@@ -321,12 +322,30 @@ class OverviewPageServiceUnitTest {
     void shouldPropagatePortfolioHistoryPendingFlag() {
         when(portfolioValuation.valueAt(eq(userId), any())).thenAnswer(invocation -> {
             List<LocalDate> dates = invocation.getArgument(1);
-            return new PortfolioValueSeries(dates.stream().map(date -> new PortfolioValueAt(date, BigDecimal.ZERO)).toList(), true);
+            return new PortfolioValueSeries(
+                    dates.stream().map(date -> new PortfolioValueAt(date, BigDecimal.ZERO)).toList(), true, false, List.of());
         });
 
         OverviewPageResponseDto result = overviewPageService.getOverview(userId);
 
         assertThat(result.getCapital().getPortfolioHistoryPending()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Флаги pricesStale/staleTickers должны пробрасываться из порта отдельно от portfolioHistoryPending")
+    void shouldPropagatePricesStaleFlagSeparatelyFromHistoryPending() {
+        when(portfolioValuation.valueAt(eq(userId), any())).thenAnswer(invocation -> {
+            List<LocalDate> dates = invocation.getArgument(1);
+            return new PortfolioValueSeries(
+                    dates.stream().map(date -> new PortfolioValueAt(date, BigDecimal.ZERO)).toList(),
+                    false, true, List.of("SBER"));
+        });
+
+        OverviewPageResponseDto result = overviewPageService.getOverview(userId);
+
+        assertThat(result.getCapital().getPortfolioHistoryPending()).isFalse();
+        assertThat(result.getCapital().getPricesStale()).isTrue();
+        assertThat(result.getCapital().getStaleTickers()).containsExactly("SBER");
     }
 
     // ─── Portfolio tile ───────────────────────────────────────────────────────
@@ -354,10 +373,10 @@ class OverviewPageServiceUnitTest {
     }
 
     @Test
-    @DisplayName("Ближайшая выплата дивидендов должна пробрасываться из порта")
-    void shouldMapNextDividend() {
+    @DisplayName("Ближайшая выплата дивидендов без даты выплаты должна пробрасывать только дату отсечки")
+    void shouldMapNextDividendWithoutPaymentDate() {
         PortfolioNextDividend dividend = new PortfolioNextDividend(
-                "LKOH", "ЛУКОЙЛ", LocalDate.of(2026, 10, 3), new BigDecimal("4800.00"));
+                "LKOH", "ЛУКОЙЛ", LocalDate.of(2026, 10, 3), null, new BigDecimal("4800.00"), "RUB");
         when(portfolioValuation.current(userId)).thenReturn(new PortfolioCurrentValuation(
                 new BigDecimal("100000.00"), new BigDecimal("90000.00"), new BigDecimal("10000.00"), 5,
                 new BigDecimal("38200.00"), dividend));
@@ -366,7 +385,38 @@ class OverviewPageServiceUnitTest {
 
         assertThat(result.getPortfolio().getNextDividend().getTicker()).isEqualTo("LKOH");
         assertThat(result.getPortfolio().getNextDividend().getTotalAmount()).isEqualByComparingTo("4800.00");
+        assertThat(result.getPortfolio().getNextDividend().getRecordDate()).isEqualTo(LocalDate.of(2026, 10, 3));
+        assertThat(result.getPortfolio().getNextDividend().getPaymentDate()).isNull();
         assertThat(result.getPortfolio().getDividends12m()).isEqualByComparingTo("38200.00");
+    }
+
+    @Test
+    @DisplayName("Ближайшая выплата дивидендов с известной датой выплаты должна пробрасывать её из порта")
+    void shouldMapNextDividendWithPaymentDate() {
+        PortfolioNextDividend dividend = new PortfolioNextDividend(
+                "SBER", "Сбербанк", LocalDate.of(2026, 7, 18), LocalDate.of(2026, 8, 1), new BigDecimal("3484.00"), "RUB");
+        when(portfolioValuation.current(userId)).thenReturn(new PortfolioCurrentValuation(
+                new BigDecimal("100000.00"), new BigDecimal("90000.00"), new BigDecimal("10000.00"), 5,
+                new BigDecimal("38200.00"), dividend));
+
+        OverviewPageResponseDto result = overviewPageService.getOverview(userId);
+
+        assertThat(result.getPortfolio().getNextDividend().getRecordDate()).isEqualTo(LocalDate.of(2026, 7, 18));
+        assertThat(result.getPortfolio().getNextDividend().getPaymentDate()).isEqualTo(LocalDate.of(2026, 8, 1));
+    }
+
+    @Test
+    @DisplayName("Валюта ближайшей выплаты дивидендов должна пробрасываться в DTO страницы обзора")
+    void shouldMapNextDividendCurrency() {
+        PortfolioNextDividend dividend = new PortfolioNextDividend(
+                "AAPL", "Apple", LocalDate.of(2026, 10, 3), null, new BigDecimal("20.00"), "USD");
+        when(portfolioValuation.current(userId)).thenReturn(new PortfolioCurrentValuation(
+                new BigDecimal("100000.00"), new BigDecimal("90000.00"), new BigDecimal("10000.00"), 5,
+                new BigDecimal("38200.00"), dividend));
+
+        OverviewPageResponseDto result = overviewPageService.getOverview(userId);
+
+        assertThat(result.getPortfolio().getNextDividend().getCurrency()).isEqualTo("USD");
     }
 
     // ─── Personal inflation ───────────────────────────────────────────────────

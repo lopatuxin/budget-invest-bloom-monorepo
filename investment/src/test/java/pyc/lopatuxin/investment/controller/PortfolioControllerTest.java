@@ -80,6 +80,34 @@ class PortfolioControllerTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.status", is(404)));
     }
 
+    @Test
+    @DisplayName("POST /page без поля sort — сортировка по умолчанию WEIGHT, запрос успешен")
+    void shouldDefaultSortToWeightWhenAbsent() throws Exception {
+        mockMvc.perform(post(PORTFOLIO_URL + "/page")
+                        .content(buildPositionsRequest(userId))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.body.overview").exists());
+    }
+
+    @Test
+    @DisplayName("POST /page с sort=PNL — запрос успешен")
+    void shouldAcceptKnownSortValue() throws Exception {
+        mockMvc.perform(post(PORTFOLIO_URL + "/page")
+                        .content(buildPositionsRequestWithSort(userId, "PNL"))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("POST /page с неизвестным значением sort — 400")
+    void shouldReturn400ForUnknownSortValue() throws Exception {
+        mockMvc.perform(post(PORTFOLIO_URL + "/page")
+                        .content(buildPositionsRequestWithSort(userId, "GARBAGE"))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+    }
+
     private String buildCreateRequest(UUID reqUserId, String ticker, String quantity, String price) {
         return """
                 {
@@ -113,6 +141,22 @@ class PortfolioControllerTest extends AbstractIntegrationTest {
                   "data": {}
                 }
                 """.formatted(reqUserId, UUID.randomUUID());
+    }
+
+    private String buildPositionsRequestWithSort(UUID reqUserId, String sort) {
+        return """
+                {
+                  "user": {
+                    "userId": "%s",
+                    "email": "test@example.com",
+                    "role": "USER",
+                    "sessionId": "%s"
+                  },
+                  "data": {
+                    "sort": "%s"
+                  }
+                }
+                """.formatted(reqUserId, UUID.randomUUID(), sort);
     }
 
     private String buildByTickerRequest(UUID reqUserId, String ticker) {

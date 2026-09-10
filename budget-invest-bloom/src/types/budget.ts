@@ -154,13 +154,19 @@ export interface CapitalSection {
   change: Change;
   history: CapitalPoint[];
   portfolioHistoryPending: boolean;
+  // Optional so an old backend response (pre-rollout) still type-checks.
+  pricesStale?: boolean;
+  staleTickers?: string[];
 }
 
 export interface NextDividend {
   ticker: string;
   securityName: string;
-  paymentDate: string;
+  recordDate: string;
+  // Present once T-Invest has an announced payment date for this dividend.
+  paymentDate: string | null;
   totalAmount: number;
+  currency: string;
 }
 
 // Everything past `available` and `assetsCount` is missing from the response when the

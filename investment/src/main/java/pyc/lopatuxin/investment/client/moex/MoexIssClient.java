@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import pyc.lopatuxin.investment.dto.response.MoexCandleDto;
-import pyc.lopatuxin.investment.dto.response.MoexDividendDto;
 import pyc.lopatuxin.investment.dto.response.MoexSecurityDto;
 import pyc.lopatuxin.investment.dto.response.MoexSnapshotDto;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
@@ -30,7 +29,6 @@ public class MoexIssClient {
     private static final String ONLY_SECURITIES = "securities";
     private static final String ONLY_MARKETDATA_SECURITIES = "marketdata,securities";
     private static final String ONLY_HISTORY = "history,history.cursor";
-    private static final String ONLY_DIVIDENDS = "dividends";
     private static final String BOARD_COLUMNS = "SECID,BOARDID,SHORTNAME,STATUS";
     private static final int SEARCH_LIMIT = 20;
     private static final int MAX_HISTORY_ITERATIONS = 200;
@@ -76,11 +74,6 @@ public class MoexIssClient {
             }
             return result;
         });
-    }
-
-    public List<MoexDividendDto> fetchDividends(String ticker) {
-        return resilience.execute("fetchDividends",
-                () -> MoexResponseParser.parseDividends(api.getDividends(ticker, ONLY_DIVIDENDS, META_OFF)));
     }
 
     private List<MoexCandleDto> fetchHistoryFromMarket(String ticker, String market, LocalDate from, LocalDate to) {

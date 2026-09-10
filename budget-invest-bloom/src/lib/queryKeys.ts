@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
+import type { PortfolioSort } from '@/types/investment';
 
 export const qk = {
   // budget domain
@@ -20,7 +21,9 @@ export const qk = {
   },
   // investment domain
   investment: {
-    portfolio: () => ['investment-portfolio'] as const,
+    portfolio: (sort: PortfolioSort) => ['investment-portfolio', sort] as const,
+    // Prefix match invalidates the cached page for every sort order
+    portfolioAll: () => ['investment-portfolio'] as const,
     transactions: (ticker?: string) =>
       (ticker ? ['investment-transactions', ticker] : ['investment-transactions']) as const,
     portfolioValueHistory: () => ['portfolio-value-history'] as const,

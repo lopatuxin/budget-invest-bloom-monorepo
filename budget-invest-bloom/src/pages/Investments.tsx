@@ -1,40 +1,43 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { TrendingUp, PieChart, Coins, Trash2, BarChart2, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { BarChart2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { RetryErrorCard } from '@/components/RetryErrorCard';
 import AddAssetDialog from '@/components/AddAssetDialog';
 import EmptyState from '@/components/EmptyState';
-import { SecurityLogo } from '@/components/SecurityLogo';
-import { useInvestmentPortfolio } from '@/hooks/useInvestmentPortfolio';
-import { useTransactions } from '@/hooks/useTransactions';
-import { useDeleteTransaction } from '@/hooks/useDeleteTransaction';
 import { useToast } from '@/hooks/use-toast';
-import { getSectorEmoji } from '@/lib/sectorEmoji';
-import { SECURITY_TYPE_LABEL, SECURITY_TYPE_ORDER } from '@/lib/securityType';
-import { useCountUp } from '@/hooks/useCountUp';
-import { formatCurrency } from '@/lib/dateOptions';
-import { DONUT_COLORS } from '@/lib/chartColors';
-import { Skeleton } from '@/components/ui/skeleton';
-import type { SecurityType } from '@/types/investment';
+import { useInvestmentPortfolio } from '@/hooks/useInvestmentPortfolio';
+import { InvestmentsHeader } from '@/pages/investments/InvestmentsHeader';
+import { PortfolioValueCard } from '@/pages/investments/PortfolioValueCard';
+import { PortfolioAllocationCard } from '@/pages/investments/PortfolioAllocationCard';
+import { PortfolioGroups } from '@/pages/investments/PortfolioGroups';
+import { PortfolioTransactionsCard } from '@/pages/investments/PortfolioTransactionsCard';
+import { PortfolioDividendsCard } from '@/pages/investments/PortfolioDividendsCard';
+import type { PortfolioSort } from '@/types/investment';
 
-const pluralAssets = (n: number) => {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return `${n} актив`;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${n} актива`;
-  return `${n} активов`;
-};
+function InvestmentsLoadingSkeleton() {
+  return (
+    <div className="flex flex-col gap-4 lg:gap-5">
+      <Skeleton className="h-[220px] lg:h-[260px] bg-app-border" />
+      <Skeleton className="h-[80px] bg-app-border" />
+      <Skeleton className="h-[420px] bg-app-border" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
+        <Skeleton className="h-[280px] bg-app-border" />
+        <Skeleton className="h-[280px] bg-app-border" />
+      </div>
+    </div>
+  );
+}
 
 const Investments = () => {
   const { toast } = useToast();
-  const navigate = useNavigate();
-  const { data: portfolioData, isLoading } = useInvestmentPortfolio();
-  const { data: transactionsData } = useTransactions();
-  const { mutate: deleteTransaction } = useDeleteTransaction();
+  const [sort, setSort] = useState<PortfolioSort>('WEIGHT');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+  const { data, isLoading, error, refetch } = useInvestmentPortfolio(sort);
+  const portfolio = data?.body;
 
-  // Open add-asset dialog when navigated with ?action=add-asset
+  // Open add-transaction dialog when navigated with ?action=add-asset
   const actionParam = searchParams.get('action');
   useEffect(() => {
     if (actionParam === 'add-asset') {
@@ -43,454 +46,65 @@ const Investments = () => {
     }
   }, [actionParam, setSearchParams]);
 
-  const positions = portfolioData?.body?.positions ?? [];
-  const transactions = transactionsData?.body ?? [];
-  const overview = portfolioData?.body?.overview;
-  const upcomingDividends = portfolioData?.body?.upcomingDividends ?? [];
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: 'Ошибка загрузки',
+        description: error instanceof Error ? error.message : 'Не удалось загрузить портфель',
+        variant: 'destructive',
+      });
+    }
+  }, [error, toast]);
 
-  const animTotalValue = useCountUp(overview?.totalValue ?? 0);
-  const animTotalPnl = useCountUp(overview?.totalPnl ?? 0);
-
-  const totalCost = overview?.totalCost ?? 0;
-  // Use original totalPnl (not animated) for sign and percent to avoid mid-animation mismatch
-  const rawTotalPnl = overview?.totalPnl ?? 0;
-  const totalPnlPercent = totalCost > 0 && overview
-    ? ((overview.totalPnl / totalCost) * 100).toFixed(1)
-    : null;
-
-  // Build sector aggregation from positions (cost-based for consistent percentages)
-  const costBase = overview?.totalCost
-    ?? positions.reduce((sum, p) => sum + p.totalCost, 0);
-
-  const { sectorMap, positionsByTypeAndSector, totalCostByType } = useMemo(() => {
-    const sMap = positions.reduce<Record<string, number>>((acc, p) => {
-      const name = p.sector ?? 'Без сектора';
-      acc[name] = (acc[name] ?? 0) + p.totalCost;
-      return acc;
-    }, {});
-
-    const byTypeAndSector = positions.reduce<Partial<Record<SecurityType, Record<string, typeof positions>>>>(
-      (acc, p) => {
-        const type = p.securityType;
-        const sector = p.sector ?? 'Без сектора';
-        if (!acc[type]) acc[type] = {};
-        if (!acc[type]![sector]) acc[type]![sector] = [];
-        acc[type]![sector].push(p);
-        return acc;
-      },
-      {},
-    );
-
-    const costByType = positions.reduce<Partial<Record<SecurityType, number>>>((acc, p) => {
-      acc[p.securityType] = (acc[p.securityType] ?? 0) + p.totalCost;
-      return acc;
-    }, {});
-
-    return {
-      sectorMap: sMap,
-      positionsByTypeAndSector: byTypeAndSector,
-      totalCostByType: costByType,
-    };
-  }, [positions]);
-
-  const sectors = Object.entries(sectorMap).map(([name, value], index) => ({
-    name,
-    value,
-    percentage: costBase > 0 ? Math.round((value / costBase) * 100) : 0,
-    color: DONUT_COLORS[index % DONUT_COLORS.length],
-  }));
-
-  const handleDeleteTransaction = (id: string) => {
-    deleteTransaction({ id }, {
-      onSuccess: () => toast({ title: 'Сделка удалена' }),
-    });
-  };
-
-  const pnlColor = (overview?.totalPnl ?? 0) >= 0 ? '#10B981' : '#EF4444';
-
-  const kpiCards = [
-    {
-      label: 'СТОИМОСТЬ ПОРТФЕЛЯ',
-      value: isLoading ? null : formatCurrency(animTotalValue),
-      icon: PieChart,
-      color: '#3B82F6',
-      glow: 'rgba(59, 130, 246, 0.3)',
-    },
-    {
-      label: 'ОБЩАЯ ДОХОДНОСТЬ',
-      value: isLoading ? null : overview
-        ? `${rawTotalPnl >= 0 ? '+' : ''}${formatCurrency(animTotalPnl)}${totalPnlPercent !== null ? ` (${totalPnlPercent}%)` : ''}`
-        : '—',
-      icon: TrendingUp,
-      color: pnlColor,
-      glow: (overview?.totalPnl ?? 0) >= 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)',
-    },
-    {
-      label: 'ДИВИДЕНДЫ',
-      value: isLoading ? null : formatCurrency(overview?.dividends12m ?? 0),
-      icon: Coins,
-      color: '#F59E0B',
-      glow: 'rgba(245, 158, 11, 0.3)',
-    },
-  ];
-
-  // Skeleton while loading
-  if (isLoading) {
-    return (
-      <div className="space-y-6 pb-6">
-        <div className="grid grid-cols-2 xl:grid-cols-3 gap-5">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-28" />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <div className="lg:col-span-2 space-y-3">
-            <Skeleton className="h-10 w-48" />
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-16" />
-            ))}
-          </div>
-          <Skeleton className="h-72" />
-        </div>
-      </div>
-    );
-  }
-
-  // Empty state
-  if (positions.length === 0) {
-    return (
-      <div className="space-y-6 pb-6">
-        {/* Controlled dialog — opened via sidebar quick action or empty-state button */}
-        <AddAssetDialog open={dialogOpen} onOpenChange={setDialogOpen} />
-
-        {/* Page header */}
-        <div className="flex items-center justify-between animate-fade-slide-up">
-          <h1 className="text-lg font-semibold text-dashboard-text">Мои инвестиции</h1>
-          <Button variant="ghost" size="sm" className="gap-2" onClick={() => setDialogOpen(true)}>
-            <Plus className="w-4 h-4" />
-            Добавить актив
-          </Button>
-        </div>
-
-        <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:pb-0 hide-scrollbar">
-          {kpiCards.map((card, index) => {
-            const Icon = card.icon;
-            return (
-              <div
-                key={card.label}
-                className="glass-card p-5 flex items-start justify-between animate-fade-slide-up min-w-[260px] snap-start lg:min-w-0"
-                style={{ borderLeft: `3px solid ${card.color}`, animationDelay: `${index * 60}ms` }}
-              >
-                <div className="space-y-2">
-                  <p className="text-[11px] font-semibold tracking-widest text-dashboard-text-muted">{card.label}</p>
-                  <p className="text-2xl font-bold text-dashboard-text font-mono">
-                    {card.value ?? <Skeleton className="h-8 w-32 inline-block" />}
-                  </p>
-                </div>
-                <div
-                  className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: `${card.color}20`, boxShadow: `0 0 20px ${card.glow}` }}
-                >
-                  <Icon className="w-5 h-5" style={{ color: card.color }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="glass-card p-8 animate-fade-slide-up" style={{ animationDelay: '300ms' }}>
-          <EmptyState
-            icon={<BarChart2 className="w-12 h-12" />}
-            title="Портфель пуст"
-            description="Добавьте первую сделку, чтобы начать отслеживать инвестиции"
-            actionLabel="Добавить первую сделку"
-            onAction={() => setDialogOpen(true)}
-          />
-        </div>
-      </div>
-    );
-  }
+  const isEmpty = Boolean(portfolio && portfolio.overview.assetsCount === 0);
 
   return (
-    <div className="space-y-6 pb-6">
-
-      {/* Controlled dialog — opened via sidebar quick action or empty-state button */}
+    <div className="flex flex-col gap-4 lg:gap-5 pb-6">
       <AddAssetDialog open={dialogOpen} onOpenChange={setDialogOpen} />
 
-      {/* Page header */}
-      <div className="flex items-center justify-between animate-fade-slide-up">
-        <h1 className="text-lg font-semibold text-dashboard-text">Мои инвестиции</h1>
-        <Button variant="ghost" size="sm" className="gap-2" onClick={() => setDialogOpen(true)}>
-          <Plus className="w-4 h-4" />
-          Добавить актив
-        </Button>
-      </div>
+      <InvestmentsHeader
+        pricesAsOf={portfolio?.overview.pricesAsOf ?? null}
+        pricesStale={portfolio?.overview.pricesStale ?? false}
+        onAddTransaction={() => setDialogOpen(true)}
+      />
 
-      {/* KPI Cards */}
-      <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:pb-0 hide-scrollbar">
-        {kpiCards.map((card, index) => {
-          const Icon = card.icon;
-          const isPortfolioCard = card.label === 'СТОИМОСТЬ ПОРТФЕЛЯ';
-          const cardContent = (
-            <div
-              className={`glass-card p-5 flex items-start justify-between group transition-all duration-300 hover:scale-[1.02] animate-fade-slide-up min-w-[260px] snap-start lg:min-w-0${isPortfolioCard ? ' cursor-pointer hover:border-blue-500/40' : ''}`}
-              style={{ borderLeft: `3px solid ${card.color}`, animationDelay: `${index * 60}ms` }}
-            >
-              <div className="space-y-2">
-                <p className="text-[11px] font-semibold tracking-widest text-dashboard-text-muted">{card.label}</p>
-                <p className="text-2xl font-bold text-dashboard-text font-mono">
-                  {card.value ?? <Skeleton className="h-8 w-32 inline-block" />}
-                </p>
-              </div>
-              <div
-                className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-                style={{ backgroundColor: `${card.color}20`, boxShadow: `0 0 20px ${card.glow}` }}
-              >
-                <Icon className="w-5 h-5" style={{ color: card.color }} />
-              </div>
+      {isLoading ? (
+        <InvestmentsLoadingSkeleton />
+      ) : error || !portfolio ? (
+        <RetryErrorCard message="Не удалось загрузить портфель" onRetry={refetch} />
+      ) : (
+        <>
+          <PortfolioValueCard overview={portfolio.overview} isEmpty={isEmpty} onAddTransaction={() => setDialogOpen(true)} />
+
+          {isEmpty ? (
+            <div className="glass-card p-8">
+              <EmptyState
+                icon={<BarChart2 className="w-12 h-12" />}
+                title="Портфель пуст"
+                description="Добавьте первую сделку, чтобы начать отслеживать инвестиции"
+                actionLabel="Добавить сделку"
+                onAction={() => setDialogOpen(true)}
+              />
             </div>
-          );
-          return isPortfolioCard ? (
-            <Link key={card.label} to="/investments/analytics" className="contents">
-              {cardContent}
-            </Link>
           ) : (
-            <div key={card.label} className="contents">
-              {cardContent}
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Holdings + recent transactions */}
-        <div className="lg:col-span-2 space-y-5">
-
-          {/* My assets */}
-          <div className="glass-card p-5 animate-fade-slide-up" style={{ animationDelay: '300ms' }}>
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold text-dashboard-text">Мои активы</h3>
-            </div>
-            <div className="space-y-6 max-h-[400px] overflow-y-auto dashboard-scroll pr-1">
-              {SECURITY_TYPE_ORDER.filter((type) => positionsByTypeAndSector[type]).map((type, typeIdx) => {
-                const typeSectors = positionsByTypeAndSector[type]!;
-                const typeTotal = totalCostByType[type] ?? 0;
-                const typeAssetCount = Object.values(typeSectors).reduce((sum, arr) => sum + arr.length, 0);
-                const typePercentage = costBase > 0 ? ((typeTotal / costBase) * 100).toFixed(1) : '0.0';
-
-                return (
-                  <div
-                    key={type}
-                    className="space-y-4 animate-fade-slide-up"
-                    style={{ animationDelay: `${400 + typeIdx * 100}ms` }}
-                  >
-                    {/* Type-level header */}
-                    <div className="flex items-center justify-between border-b-2 border-white/20 pb-2">
-                      <h3 className="text-base font-bold text-dashboard-text">{SECURITY_TYPE_LABEL[type]}</h3>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-bold font-mono text-dashboard-text">
-                          {formatCurrency(typeTotal)}
-                        </span>
-                        <span className="text-xs font-mono text-dashboard-text-muted">
-                          {typePercentage}%
-                        </span>
-                        <span className="text-sm text-dashboard-text-muted">
-                          {pluralAssets(typeAssetCount)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Sector subgroups */}
-                    <div className="space-y-4 pl-0">
-                      {Object.entries(typeSectors).map(([sectorName, sectorPositions], sectorIdx) => {
-                        const sectorValue = sectorPositions.reduce((sum, p) => sum + p.totalCost, 0);
-                        const sectorPercentage = costBase > 0
-                          ? ((sectorValue / costBase) * 100).toFixed(1)
-                          : '0.0';
-
-                        return (
-                          <div
-                            key={sectorName}
-                            className="space-y-3 animate-fade-slide-up"
-                            style={{ animationDelay: `${460 + typeIdx * 100 + sectorIdx * 60}ms` }}
-                          >
-                            <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
-                              <h4 className="text-sm font-semibold text-dashboard-text-muted"><span className="mr-2">{getSectorEmoji(sectorName)}</span>{sectorName}</h4>
-                              <div className="flex items-center gap-3">
-                                <span className="text-xs font-medium font-mono text-dashboard-text-muted">
-                                  {sectorPercentage}%
-                                </span>
-                                <span className="text-xs text-dashboard-text-muted">
-                                  {pluralAssets(sectorPositions.length)}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="space-y-3">
-                              {sectorPositions.map((position) => {
-                                const pnlPositive = (position.pnl ?? 0) >= 0;
-                                return (
-                                  <div
-                                    key={position.id}
-                                    className="flex items-center justify-between p-3 bg-white/[0.03] rounded-lg hover:bg-white/[0.07] transition-all duration-200 cursor-pointer"
-                                    onClick={() => navigate(`/investments/security/${position.ticker}`)}
-                                  >
-                                    <div className="flex items-center space-x-4">
-                                      <SecurityLogo ticker={position.ticker} size={40} securityType={position.securityType} />
-                                      <div>
-                                        <div className="font-semibold text-dashboard-text">{position.ticker}</div>
-                                        <div className="text-sm text-dashboard-text-muted">{position.securityName}</div>
-                                        <div className="text-xs text-dashboard-text-muted font-mono">
-                                          {position.quantity} × {formatCurrency(position.averagePrice)}
-                                          {position.currentPrice !== null && (
-                                            <span className="ml-2 text-dashboard-text-muted">
-                                              Тек. цена: {formatCurrency(position.currentPrice)}
-                                            </span>
-                                          )}
-                                          {position.currentPrice === null && (
-                                            <span className="ml-2">Тек. цена: —</span>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div className="text-right">
-                                      <div className="font-semibold text-dashboard-text font-mono">
-                                        {formatCurrency(position.totalCost)}
-                                      </div>
-                                      {position.pnl !== null && (
-                                        <div className={`text-xs font-mono ${pnlPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                                          {pnlPositive ? '+' : ''}{formatCurrency(position.pnl)}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Recent transactions (top 5) */}
-          {transactions.length > 0 && (
-            <div className="glass-card p-5 animate-fade-slide-up" style={{ animationDelay: '480ms' }}>
-              <h3 className="text-sm font-semibold text-dashboard-text mb-4">Последние сделки</h3>
-              <div className="space-y-2">
-                {transactions.slice(0, 5).map((tx) => (
-                  <div
-                    key={tx.id}
-                    className="flex items-center justify-between p-3 bg-white/[0.03] rounded-lg hover:bg-white/[0.07] transition-all duration-200"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={`text-xs font-bold px-2 py-0.5 rounded font-mono ${
-                          tx.type === 'BUY'
-                            ? 'bg-emerald-500/10 text-emerald-400'
-                            : 'bg-red-500/10 text-red-400'
-                        }`}
-                      >
-                        {tx.type}
-                      </span>
-                      <div>
-                        <span className="font-semibold text-dashboard-text text-sm">{tx.ticker}</span>
-                        <span className="text-dashboard-text-muted text-xs ml-2 font-mono">
-                          {tx.quantity} × {formatCurrency(tx.price)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-dashboard-text-muted">
-                        {new Date(tx.executedAt).toLocaleDateString('ru-RU')}
-                      </span>
-                      <button
-                        onClick={() => handleDeleteTransaction(tx.id)}
-                        className="text-dashboard-text-muted hover:text-red-400 transition-colors p-1 rounded"
-                        aria-label="Удалить сделку"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+            <>
+              <PortfolioAllocationCard allocation={portfolio.allocation} />
+              <PortfolioGroups groups={portfolio.groups} sort={sort} onSortChange={setSort} onAddTransaction={() => setDialogOpen(true)} />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5 items-start">
+                <PortfolioTransactionsCard recentTransactions={portfolio.recentTransactions} transactionsTotal={portfolio.transactionsTotal} />
+                <PortfolioDividendsCard
+                  upcomingDividends={portfolio.upcomingDividends}
+                  recentDividends={portfolio.recentDividends}
+                  dividends12m={portfolio.overview.dividends12m}
+                  dividendYieldPercent={portfolio.overview.dividendYieldPercent}
+                  dividendTaxRatePercent={portfolio.overview.dividendTaxRatePercent}
+                  dividendsSourceConfigured={portfolio.overview.dividendsSourceConfigured}
+                />
               </div>
-            </div>
+            </>
           )}
-        </div>
-
-        <div className="space-y-5">
-          {/* Sector allocation */}
-          <div className="glass-card p-5 animate-fade-slide-up" style={{ animationDelay: '380ms' }}>
-            <h3 className="text-sm font-semibold text-dashboard-text mb-4">Распределение по секторам</h3>
-            <div className="space-y-4">
-              {sectors.map((sector, index) => (
-                <div key={sector.name} className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: sector.color }} />
-                      <span className="font-medium text-sm text-dashboard-text"><span className="mr-2">{getSectorEmoji(sector.name)}</span>{sector.name}</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-semibold text-sm text-dashboard-text font-mono">
-                        {sector.percentage}%
-                      </div>
-                      <div className="text-xs text-dashboard-text-muted font-mono">
-                        {formatCurrency(sector.value)}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="w-full bg-white/5 rounded-full h-2">
-                    <div
-                      className="h-2 rounded-full animate-progress-grow"
-                      style={{
-                        width: `${sector.percentage}%`,
-                        backgroundColor: sector.color,
-                        animationDelay: `${500 + index * 80}ms`,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Upcoming dividends */}
-          <div className="glass-card p-5 animate-fade-slide-up" style={{ animationDelay: '440ms' }}>
-            <h3 className="text-sm font-semibold text-dashboard-text mb-4">Предстоящие дивиденды</h3>
-            {upcomingDividends.length === 0 ? (
-              <p className="text-sm text-dashboard-text-muted">Нет одобренных выплат</p>
-            ) : (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto dashboard-scroll pr-1">
-                {upcomingDividends.map((d) => (
-                  <div key={`${d.ticker}-${d.recordDate}`} className="flex items-center justify-between p-3 bg-white/[0.03] rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <SecurityLogo ticker={d.ticker} size={32} />
-                      <div>
-                        <div className="font-semibold text-sm text-dashboard-text">{d.ticker}</div>
-                        <div className="text-xs text-dashboard-text-muted">
-                          {new Date(d.recordDate).toLocaleDateString('ru-RU')}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-semibold text-sm text-dashboard-text font-mono">
-                        {formatCurrency(d.totalAmount)}
-                      </div>
-                      <div className="text-xs text-dashboard-text-muted font-mono">
-                        {d.amountPerShare} × {d.quantity}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 };

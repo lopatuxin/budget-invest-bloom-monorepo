@@ -12,8 +12,8 @@ import pyc.lopatuxin.investment.dto.request.DateRangeDto;
 import pyc.lopatuxin.investment.dto.request.ProjectionRequestDto;
 import pyc.lopatuxin.investment.dto.request.SecurityHistoryRequestDto;
 import pyc.lopatuxin.investment.dto.request.SecurityTickerRequestDto;
-import pyc.lopatuxin.investment.dto.response.PaidDividendDto;
-import pyc.lopatuxin.investment.dto.response.PortfolioValuePointDto;
+import pyc.lopatuxin.investment.dto.response.SecurityDividendDto;
+import pyc.lopatuxin.investment.dto.response.PortfolioValueSeriesResponseDto;
 import pyc.lopatuxin.investment.dto.response.PricePointDto;
 import pyc.lopatuxin.investment.dto.response.ProjectionResultDto;
 import pyc.lopatuxin.investment.dto.response.SeriesResponseDto;
@@ -37,13 +37,13 @@ public class AnalyticsController {
     private final ProjectionService projectionService;
 
     @PostMapping("/portfolio/value-history")
-    public ResponseApi<SeriesResponseDto<PortfolioValuePointDto>> portfolioValueHistory(
+    public ResponseApi<PortfolioValueSeriesResponseDto> portfolioValueHistory(
             @RequestBody @Valid ApiRequest<DateRangeDto> request) {
         DateRangeDto dto = request.getData();
         LocalDate from = dto.getFrom() != null ? dto.getFrom() : LocalDate.now().minusYears(1);
         LocalDate to = dto.getTo() != null ? dto.getTo() : LocalDate.now();
         validateDateRange(from, to);
-        SeriesResponseDto<PortfolioValuePointDto> result = analyticsService.portfolioValueHistory(
+        PortfolioValueSeriesResponseDto result = analyticsService.portfolioValueHistory(
                 request.getUser().getUserId(), from, to);
         return ResponseApi.success("История стоимости портфеля", result);
     }
@@ -60,10 +60,10 @@ public class AnalyticsController {
     }
 
     @PostMapping("/security/dividends-history")
-    public ResponseApi<List<PaidDividendDto>> securityDividendsHistory(
+    public ResponseApi<List<SecurityDividendDto>> securityDividendsHistory(
             @RequestBody @Valid ApiRequest<SecurityTickerRequestDto> request) {
         return ResponseApi.success("История дивидендов",
-                analyticsService.securityDividendsHistory(request.getData().getTicker()));
+                analyticsService.securityDividendsHistory(request.getUser().getUserId(), request.getData().getTicker()));
     }
 
     @PostMapping("/projection")

@@ -1,0 +1,46 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/013-add-tinvest-columns.yml
+  - changeSet:
+      id: 013-add-tinvest-columns
+      author: investment
+      changes:
+        - addColumn:
+            tableName: securities
+            columns:
+              - column:
+                  name: tinvest_uid
+                  type: varchar(64)
+              - column:
+                  name: tinvest_class_code
+                  type: varchar(20)
+              - column:
+                  name: dividends_synced_at
+                  type: timestamp
+        - addColumn:
+            tableName: dividends
+            columns:
+              - column:
+                  name: source
+                  type: varchar(16)
+                  defaultValue: MOEX
+                  constraints:
+                    nullable: false
+        - sql:
+            sql: |
+              ALTER TABLE dividends ADD CONSTRAINT chk_dividends_source CHECK (source IN ('MOEX', 'TINVEST', 'MANUAL'));
+      rollback:
+        - sql:
+            sql: |
+              ALTER TABLE dividends DROP CONSTRAINT chk_dividends_source;
+        - dropColumn:
+            tableName: dividends
+            columnName: source
+        - dropColumn:
+            tableName: securities
+            columnName: tinvest_uid
+        - dropColumn:
+            tableName: securities
+            columnName: tinvest_class_code
+        - dropColumn:
+            tableName: securities
+            columnName: dividends_synced_at

@@ -3,7 +3,6 @@ package pyc.lopatuxin.budget.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.budget.dto.common.ChangeDto;
 import pyc.lopatuxin.budget.dto.response.CapitalPointDto;
 import pyc.lopatuxin.budget.dto.response.CapitalSectionDto;
@@ -42,10 +41,18 @@ import java.util.stream.IntStream;
  * 12-month trajectory, four tiles, monthly income bars and 12-month totals against the
  * previous 12 months. All calculations run here so the frontend needs a single request.
  */
+// Not wrapped in a class-level @Transactional: loadCurrentPortfolio below crosses into the
+// investment module (PortfolioValuation.current), which hits the exchange over the network
+// before it is done with the database. The monolith's single Hikari pool has only 5
+// connections (see app/src/main/resources/application.yml) shared across budget and
+// investment — a transaction spanning this whole method would pin one of those connections
+// for as long as MOEX takes to answer, and a couple of concurrent page loads during a slow
+// exchange response could exhaust the pool. Each repository call below still runs in its own
+// short Spring Data transaction, same as PortfolioValuationAdapter/PortfolioService already do
+// on the investment side for the same reason.
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(value = "budgetTransactionManager", readOnly = true)
 public class OverviewPageService {
 
     private final IncomeRepository incomeRepository;
@@ -151,6 +158,8 @@ public class OverviewPageService {
                 .change(yoy.change())
                 .history(points)
                 .portfolioHistoryPending(portfolioHistory.historyPending())
+                .pricesStale(portfolioHistory.pricesStale())
+                .staleTickers(portfolioHistory.staleTickers())
                 .build();
     }
 
@@ -215,10 +224,10 @@ public class OverviewPageService {
             Map<LocalDate, BigDecimal> valueByDate = series.points().stream()
                     .collect(Collectors.toMap(PortfolioValueAt::date,
                             point -> point.value() == null ? BigDecimal.ZERO : point.value()));
-            return new PortfolioHistoryResult(valueByDate, series.historyPending());
+            return new PortfolioHistoryResult(valueByDate, series.historyPending(), series.pricesStale(), series.staleTickers());
         } catch (RuntimeException e) {
             log.warn("Не удалось получить историю стоимости портфеля для userId={}: {}", userId, e.getMessage());
-            return new PortfolioHistoryResult(Map.of(), false);
+            return new PortfolioHistoryResult(Map.of(), false, false, List.of());
         }
     }
 
@@ -249,8 +258,10 @@ public class OverviewPageService {
         return NextDividendDto.builder()
                 .ticker(dividend.ticker())
                 .securityName(dividend.securityName())
+                .recordDate(dividend.recordDate())
                 .paymentDate(dividend.paymentDate())
                 .totalAmount(money(dividend.totalAmount()))
+                .currency(dividend.currency())
                 .build();
     }
 
@@ -387,7 +398,8 @@ public class OverviewPageService {
     private record PortfolioSnapshot(boolean available, PortfolioCurrentValuation valuation) {
     }
 
-    private record PortfolioHistoryResult(Map<LocalDate, BigDecimal> valueByDate, boolean historyPending) {
+    private record PortfolioHistoryResult(Map<LocalDate, BigDecimal> valueByDate, boolean historyPending,
+                                          boolean pricesStale, List<String> staleTickers) {
     }
 
     private record YearOverYearChange(BigDecimal yearAgo, BigDecimal changeAbs, ChangeDto change) {

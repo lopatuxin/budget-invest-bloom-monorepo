@@ -2,9 +2,7 @@ package pyc.lopatuxin.investment.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-import pyc.lopatuxin.investment.dto.response.PortfolioOverviewDto;
-import pyc.lopatuxin.investment.dto.response.PortfolioPageResponseDto;
+import pyc.lopatuxin.investment.dto.response.PortfolioSummaryDto;
 import pyc.lopatuxin.investment.dto.response.UpcomingDividendDto;
 import pyc.lopatuxin.shared.port.PortfolioCurrentValuation;
 import pyc.lopatuxin.shared.port.PortfolioNextDividend;
@@ -18,12 +16,16 @@ import java.util.UUID;
 
 /**
  * In-process implementation of the {@link PortfolioValuation} port on the investment side.
- * {@link #current} reads the same snapshot as the investment page ({@link PortfolioService#getPortfolioPage}),
+ * {@link #current} reads the same underlying data as the investment page, through the light
+ * summary path ({@link PortfolioService#getPortfolioSummary}) that skips the groups/allocation/
+ * recent-transactions assembly the "capital" page port does not need.
  * {@link #valueAt} delegates to {@link AnalyticsService#valueAtDates}.
+ * Not wrapped in a transaction: {@link PortfolioService#getPortfolioSummary} hits the exchange
+ * over the network before it is done with the database, so a transaction spanning this whole
+ * adapter method would hold a Hikari connection for as long as MOEX takes to answer.
  */
 @Component
 @RequiredArgsConstructor
-@Transactional(value = "investmentTransactionManager", readOnly = true)
 public class PortfolioValuationAdapter implements PortfolioValuation {
 
     private final PortfolioService portfolioService;
@@ -31,15 +33,20 @@ public class PortfolioValuationAdapter implements PortfolioValuation {
 
     @Override
     public PortfolioCurrentValuation current(UUID userId) {
-        PortfolioPageResponseDto page = portfolioService.getPortfolioPage(userId);
-        PortfolioOverviewDto overview = page.getOverview();
+        PortfolioSummaryDto summary = portfolioService.getPortfolioSummary(userId);
+        // Reuses the "today" PortfolioService already used to decide which dividends belong in
+        // upcomingDividends (plan point 3), instead of calling LocalDate.now() again here: a
+        // second, later "today" could disagree with the first across a midnight rollover between
+        // the two calls, making effectiveDate(today) return null for an entry whose recordDate is
+        // yesterday relative to the new "today" and has no paymentDate — NPE in the comparator
+        // below.
         return new PortfolioCurrentValuation(
-                overview.getTotalValue(),
-                overview.getTotalCost(),
-                overview.getTotalPnl(),
-                overview.getAssetsCount(),
-                overview.getDividends12m(),
-                findNextDividend(page.getUpcomingDividends())
+                summary.totalValue(),
+                summary.totalCost(),
+                summary.totalPnl(),
+                summary.assetsCount(),
+                summary.dividends12m(),
+                findNextDividend(summary.upcomingDividends(), summary.today())
         );
     }
 
@@ -48,18 +55,23 @@ public class PortfolioValuationAdapter implements PortfolioValuation {
         return analyticsService.valueAtDates(userId, dates);
     }
 
-    private PortfolioNextDividend findNextDividend(List<UpcomingDividendDto> upcomingDividends) {
+    private PortfolioNextDividend findNextDividend(List<UpcomingDividendDto> upcomingDividends, LocalDate today) {
         if (upcomingDividends == null || upcomingDividends.isEmpty()) {
             return null;
         }
+        // Same "soonest by record date, falling back to payment date" rule PortfolioService
+        // itself sorts upcomingDividends by (plan point 21) — recomputed here rather than
+        // relying on the caller's list order, so this adapter's result does not depend on it.
         UpcomingDividendDto earliest = upcomingDividends.stream()
-                .min(Comparator.comparing(UpcomingDividendDto::getPaymentDate))
+                .min(Comparator.comparing(d -> d.effectiveDate(today)))
                 .orElseThrow();
         return new PortfolioNextDividend(
                 earliest.getTicker(),
                 earliest.getSecurityName(),
+                earliest.getRecordDate(),
                 earliest.getPaymentDate(),
-                earliest.getTotalAmount()
+                earliest.getTotalAmount(),
+                earliest.getCurrency()
         );
     }
 }

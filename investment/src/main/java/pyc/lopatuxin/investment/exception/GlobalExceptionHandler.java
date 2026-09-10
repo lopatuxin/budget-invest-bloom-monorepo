@@ -74,6 +74,15 @@ public class GlobalExceptionHandler {
                 .body(ResponseApi.error(HttpStatus.NOT_FOUND.value(), ex.getMessage()));
     }
 
+    @ExceptionHandler(DividendAlreadyExistsException.class)
+    public ResponseEntity<ResponseApi<Map<String, String>>> handleDividendAlreadyExists(
+            DividendAlreadyExistsException ex) {
+        log.warn("Дивиденд уже существует: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ResponseApi.error(HttpStatus.CONFLICT.value(), ex.getMessage(), Map.of("code", "DIVIDEND_EXISTS")));
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ResponseApi<Object>> handleDataIntegrityViolation(
             DataIntegrityViolationException ex) {

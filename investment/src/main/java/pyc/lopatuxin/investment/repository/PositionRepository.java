@@ -15,9 +15,16 @@ public interface PositionRepository extends JpaRepository<Position, UUID> {
 
     Optional<Position> findByUserIdAndSecurity_Ticker(UUID userId, String ticker);
 
+    boolean existsByUserIdAndSecurity_Ticker(UUID userId, String ticker);
+
     @Query("select distinct p.security.ticker from Position p")
     List<String> findActiveTickers();
 
     @Query("SELECT p FROM Position p JOIN FETCH p.security WHERE p.userId = :userId")
     List<Position> findByUserIdWithSecurity(@Param("userId") UUID userId);
+
+    // Eagerly fetches security so PortfolioService.getByTicker can map it without an outer
+    // transaction (see that method: no transaction wraps the MOEX call it makes afterward).
+    @Query("SELECT p FROM Position p JOIN FETCH p.security WHERE p.userId = :userId AND p.security.ticker = :ticker")
+    Optional<Position> findByUserIdAndTickerWithSecurity(@Param("userId") UUID userId, @Param("ticker") String ticker);
 }

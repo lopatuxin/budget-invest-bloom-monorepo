@@ -24,6 +24,7 @@ public class TransactionResponseDto {
     private TransactionType type;
     private BigDecimal quantity;
     private BigDecimal price;
+    private BigDecimal amount;
     private Instant executedAt;
     private Instant createdAt;
 }

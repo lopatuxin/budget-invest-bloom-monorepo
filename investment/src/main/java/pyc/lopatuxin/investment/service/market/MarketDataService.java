@@ -5,7 +5,10 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.investment.client.moex.MoexIssClient;
 import pyc.lopatuxin.investment.client.moex.MoexUnavailableException;
@@ -24,6 +27,7 @@ import pyc.lopatuxin.investment.repository.PriceSnapshotRepository;
 import pyc.lopatuxin.investment.repository.SecurityRepository;
 import pyc.lopatuxin.investment.dto.response.SnapshotResult;
 
+import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -35,10 +39,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 public class MarketDataService {
+
+    // Slack around the expected three-year backfill start: MOEX has no trades on a given
+    // calendar date around weekends/holidays, so the earliest saved row is never expected to
+    // land exactly on "now minus three years".
+    private static final int HISTORY_FRONT_GAP_TOLERANCE_DAYS = 10;
 
     private final MoexIssClient moexIssClient;
     private final SecurityRepository securityRepository;
@@ -119,7 +129,7 @@ public class MarketDataService {
             Map<String, MoexSnapshotDto> fetched = moexIssClient.fetchSnapshots(List.of(ticker));
             MoexSnapshotDto dto = fetched.get(ticker);
             if (dto != null) {
-                PriceSnapshot snapshot = upsertSnapshot(ticker, dto);
+                PriceSnapshot snapshot = upsertSnapshotRetrying(ticker, dto);
                 if (snapshot != null) {
                     return toSnapshotResult(snapshot, false);
                 }
@@ -137,21 +147,48 @@ public class MarketDataService {
         if (tickers.isEmpty()) {
             return Collections.emptyMap();
         }
+        Map<String, PriceSnapshot> dbSnapshotByTicker = priceSnapshotRepository.findAllById(tickers).stream()
+                .collect(Collectors.toMap(PriceSnapshot::getTicker, s -> s));
+
         Map<String, SnapshotResult> result = new HashMap<>();
+        List<String> staleTickers = new ArrayList<>();
+        for (String ticker : tickers) {
+            PriceSnapshot snapshot = dbSnapshotByTicker.get(ticker);
+            if (snapshot != null && !isStale(snapshot)) {
+                result.put(ticker, toSnapshotResult(snapshot, false));
+            } else {
+                staleTickers.add(ticker);
+            }
+        }
+        fetchAndUpsertInto(result, staleTickers);
+        return result;
+    }
+
+    // Forces a MOEX round-trip and upsert for every given ticker, ignoring the DB snapshot's
+    // TTL — used only by the scheduled refresh (see MarketDataRefreshScheduler). That job's
+    // own cron period equals the TTL, so a snapshot upserted seconds into one run is still
+    // "fresh" by isStale's clock when the next run starts exactly one period later; going
+    // through getSnapshots there would silently skip it and quotes would only actually change
+    // every other run instead of every run.
+    public Map<String, SnapshotResult> refreshSnapshots(Collection<String> tickers) {
+        if (tickers.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<String, SnapshotResult> result = new HashMap<>();
+        fetchAndUpsertInto(result, new ArrayList<>(tickers));
+        return result;
+    }
+
+    private void fetchAndUpsertInto(Map<String, SnapshotResult> result, List<String> tickers) {
+        if (tickers.isEmpty()) {
+            return;
+        }
         try {
             Map<String, MoexSnapshotDto> fetched = moexIssClient.fetchSnapshots(tickers);
             for (String ticker : tickers) {
                 MoexSnapshotDto dto = fetched.get(ticker);
-                if (dto != null) {
-                    PriceSnapshot snapshot = upsertSnapshot(ticker, dto);
-                    if (snapshot != null) {
-                        result.put(ticker, toSnapshotResult(snapshot, false));
-                    } else {
-                        result.put(ticker, resolveFromDbOrStale(ticker));
-                    }
-                } else {
-                    result.put(ticker, resolveFromDbOrStale(ticker));
-                }
+                PriceSnapshot snapshot = dto != null ? upsertSnapshotRetrying(ticker, dto) : null;
+                result.put(ticker, snapshot != null ? toSnapshotResult(snapshot, false) : resolveFromDbOrStale(ticker));
             }
         } catch (MoexUnavailableException e) {
             log.warn("MOEX unavailable for batch snapshots");
@@ -159,7 +196,6 @@ public class MarketDataService {
                 result.put(ticker, resolveFromDbOrStale(ticker));
             }
         }
-        return result;
     }
 
     @Cacheable(value = "moexSecurities", key = "'list:' + (#category != null ? #category.name() : 'ALL')")
@@ -211,11 +247,36 @@ public class MarketDataService {
             return;
         }
         Security security = secOpt.get();
-        if (security.getHistoryStatus() == HistoryStatus.READY && priceHistoryRepository.existsByTicker(ticker)) {
-            return;
-        }
-        LocalDate from = LocalDate.now().minusYears(3);
+        LocalDate from = resolveHistoryFrom(ticker, security);
         LocalDate to = LocalDate.now();
+        if (!from.isAfter(to)) {
+            loadHistory(ticker, from, to);
+        }
+    }
+
+    // READY tickers that already have a full three-year history only need the candles saved
+    // after their last trade date (nightly catch-up); everything else (a brand-new ticker, a
+    // READY one without a history row yet, or a READY one whose earliest saved row does not
+    // reach back far enough — a hole left by an earlier incomplete backfill) gets the full
+    // three-year range, so a front gap is closed instead of being permanently stuck before the
+    // earliest saved date.
+    private LocalDate resolveHistoryFrom(String ticker, Security security) {
+        LocalDate expectedFrom = LocalDate.now().minusYears(3);
+        if (security.getHistoryStatus() == HistoryStatus.READY) {
+            Optional<LocalDate> lastSaved = priceHistoryRepository.findFirstByTickerOrderByTradeDateDesc(ticker)
+                    .map(PriceHistory::getTradeDate);
+            Optional<LocalDate> earliestSaved = priceHistoryRepository.findFirstByTickerOrderByTradeDateAsc(ticker)
+                    .map(PriceHistory::getTradeDate);
+            boolean coversFullRange = earliestSaved.isPresent()
+                    && !earliestSaved.get().isAfter(expectedFrom.plusDays(HISTORY_FRONT_GAP_TOLERANCE_DAYS));
+            if (lastSaved.isPresent() && coversFullRange) {
+                return lastSaved.get().plusDays(1);
+            }
+        }
+        return expectedFrom;
+    }
+
+    private void loadHistory(String ticker, LocalDate from, LocalDate to) {
         try {
             List<MoexCandleDto> candles = moexIssClient.fetchHistory(ticker, from, to);
             List<PriceHistory> records = candles.stream()
@@ -231,13 +292,19 @@ public class MarketDataService {
                     .toList();
             self.saveHistoryAndUpdateStatus(ticker, records);
         } catch (MoexUnavailableException e) {
-            log.warn("MOEX unavailable for history {}, status remains PENDING", ticker);
+            log.warn("MOEX unavailable for history {} ({} — {})", ticker, from, to);
         }
     }
 
     @Transactional("investmentTransactionManager")
     public void saveHistoryAndUpdateStatus(String ticker, List<PriceHistory> records) {
         priceHistoryRepository.saveAll(records);
+        if (records.isEmpty() && !priceHistoryRepository.existsByTicker(ticker)) {
+            // MOEX returned nothing at all for this ticker, so it still has no history — it must
+            // not be marked READY (that would tell self-healing/the page it is fine); leave it
+            // for the next self-healing pass to retry.
+            return;
+        }
         securityRepository.findById(ticker).ifPresent(s -> {
             s.setHistoryStatus(HistoryStatus.READY);
             securityRepository.save(s);
@@ -267,19 +334,76 @@ public class MarketDataService {
     }
 
     private Security buildReadySecurity(String ticker, MoexSecurityDto dto) {
+        Security security = Security.builder().ticker(ticker).historyStatus(HistoryStatus.READY).build();
+        applyMoexInfo(security, ticker, dto);
+        return security;
+    }
+
+    // Fills the security dictionary fields (name, type, sector, board, currency) from a MOEX
+    // response; shared by first-time creation (buildReadySecurity) and PENDING self-healing.
+    private void applyMoexInfo(Security security, String ticker, MoexSecurityDto dto) {
         // If MOEX did not return a sector, resolve from local dictionary
         String sector = dto.sector() != null
                 ? dto.sector()
                 : SectorDefaults.resolveSector(ticker, dto.securityType());
-        return Security.builder()
-                .ticker(ticker)
-                .boardId(dto.boardId())
-                .name(dto.name() != null ? dto.name() : ticker)
-                .type(dto.securityType())
-                .sector(sector)
-                .currency(dto.currency())
-                .historyStatus(HistoryStatus.READY)
-                .build();
+        security.setBoardId(dto.boardId());
+        security.setName(dto.name() != null ? dto.name() : ticker);
+        security.setType(dto.securityType());
+        security.setSector(sector);
+        security.setCurrency(dto.currency());
+    }
+
+    // Self-healing for securities saved as PENDING while MOEX was unavailable: re-fetches
+    // the dictionary entry and history so a bad first attempt does not stay broken forever.
+    public void healPendingSecurities() {
+        List<Security> pending = securityRepository.findAllByHistoryStatus(HistoryStatus.PENDING);
+        if (pending.isEmpty()) {
+            return;
+        }
+        log.info("Самолечение PENDING: найдено {} бумаг", pending.size());
+        int healed = 0;
+        for (Security security : pending) {
+            String ticker = security.getTicker();
+            try {
+                if (healPendingSecurity(ticker)) {
+                    healed++;
+                }
+            } catch (Exception e) {
+                log.warn("Самолечение {} завершилось ошибкой: {}", ticker, e.getMessage());
+            }
+        }
+        log.info("Самолечение PENDING завершено: восстановлено {} из {}", healed, pending.size());
+    }
+
+    // Counts a security as healed only once it actually reached READY: applyHealedSecurityInfo
+    // fills the dictionary fields but leaves the status alone, and ensureHistory below can
+    // still bail out on MoexUnavailableException, leaving the security PENDING.
+    private boolean healPendingSecurity(String ticker) {
+        Optional<MoexSecurityDto> moexDto;
+        try {
+            moexDto = moexIssClient.fetchSecurity(ticker);
+        } catch (MoexUnavailableException e) {
+            log.warn("MOEX недоступна, самолечение {} отложено", ticker);
+            return false;
+        }
+        if (moexDto.isEmpty() || !self.applyHealedSecurityInfo(ticker, moexDto.get())) {
+            return false;
+        }
+        ensureHistory(ticker);
+        return securityRepository.findById(ticker)
+                .map(s -> s.getHistoryStatus() == HistoryStatus.READY)
+                .orElse(false);
+    }
+
+    @Transactional("investmentTransactionManager")
+    public boolean applyHealedSecurityInfo(String ticker, MoexSecurityDto dto) {
+        Security security = securityRepository.findById(ticker).orElse(null);
+        if (security == null || security.getHistoryStatus() != HistoryStatus.PENDING) {
+            return false;
+        }
+        applyMoexInfo(security, ticker, dto);
+        securityRepository.save(security);
+        return true;
     }
 
     private Security buildPendingSecurity(String ticker, SecurityType fallbackType) {
@@ -292,16 +416,67 @@ public class MarketDataService {
                 .build();
     }
 
-    private PriceSnapshot upsertSnapshot(String ticker, MoexSnapshotDto dto) {
+    // Own transaction, independent of the caller: none of the getSnapshot(s) callers hold a
+    // surrounding transaction any more (it would pin a Hikari connection for as long as MOEX
+    // takes to answer), so most calls here have no outer transaction to join at all. REQUIRES_NEW
+    // still matters: it commits the upsert on its own regardless of what (if anything) called
+    // it, and saveAndFlush forces the INSERT/UPDATE to run — and any constraint violation to
+    // surface — synchronously here, instead of at commit time after the method has already
+    // returned, so upsertSnapshotRetrying below can actually catch it.
+    @Transactional(value = "investmentTransactionManager", propagation = Propagation.REQUIRES_NEW)
+    public PriceSnapshot upsertSnapshot(String ticker, MoexSnapshotDto dto) {
         if (!securityRepository.existsById(ticker)) {
             return null;
         }
-        PriceSnapshot snapshot = priceSnapshotRepository.findById(ticker)
-                .orElseGet(() -> PriceSnapshot.builder().ticker(ticker).build());
+        Optional<PriceSnapshot> existing = priceSnapshotRepository.findById(ticker);
+        // LAST is genuinely absent outside trading hours, on weekends and for illiquid papers.
+        // An existing snapshot's lastPrice is the market's last real trade and must not be
+        // wiped just because this particular poll came back empty — leaving it untouched is
+        // more honest than persisting null over a known price. previousClose and fetchedAt are
+        // still updated when MOEX did return a previousClose: a ticker that stops trading for a
+        // while keeps getting a fresh previousClose (the prior session's close shifts forward
+        // even without a new trade) and a fresh fetchedAt, so isStale below does not flag an
+        // otherwise healthy, responsive poll as stale just because LAST stayed empty. last_price
+        // is nullable for exactly this case (see the 012-price-snapshots-last-price-nullable
+        // changelog).
+        if (dto.lastPrice() == null) {
+            if (dto.previousClose() == null) {
+                return null;
+            }
+            PriceSnapshot snapshot = existing.orElseGet(() -> PriceSnapshot.builder().ticker(ticker).build());
+            snapshot.setPreviousClose(dto.previousClose());
+            snapshot.setFetchedAt(Instant.now());
+            return priceSnapshotRepository.saveAndFlush(snapshot);
+        }
+        PriceSnapshot snapshot = existing.orElseGet(() -> PriceSnapshot.builder().ticker(ticker).build());
         snapshot.setLastPrice(dto.lastPrice());
         snapshot.setPreviousClose(dto.previousClose());
         snapshot.setFetchedAt(Instant.now());
-        return priceSnapshotRepository.save(snapshot);
+        return priceSnapshotRepository.saveAndFlush(snapshot);
+    }
+
+    // upsertSnapshot is check-then-act (findById, then insert/update) with no locking, so two
+    // concurrent requests upserting the same brand-new ticker can both pass the check and race
+    // on the primary key; the loser's INSERT fails a unique-constraint violation. Postgres
+    // aborts that transaction outright, so the retry must be a fresh REQUIRES_NEW call (a new
+    // connection, a new attempt against the row the winner just committed) rather than a second
+    // attempt inside the same failed one. Only that specific race is worth retrying: any other
+    // constraint violation (e.g. a NOT NULL check) fails the exact same way a second time, so
+    // it is rethrown instead of being retried uselessly.
+    private PriceSnapshot upsertSnapshotRetrying(String ticker, MoexSnapshotDto dto) {
+        try {
+            return self.upsertSnapshot(ticker, dto);
+        } catch (DataIntegrityViolationException e) {
+            if (!isDuplicateKeyViolation(e)) {
+                throw e;
+            }
+            return self.upsertSnapshot(ticker, dto);
+        }
+    }
+
+    private boolean isDuplicateKeyViolation(DataIntegrityViolationException e) {
+        Throwable rootCause = e.getRootCause();
+        return rootCause instanceof SQLException sqlException && "23505".equals(sqlException.getSQLState());
     }
 
     private SnapshotResult resolveFromDbOrStale(String ticker) {
@@ -320,7 +495,24 @@ public class MarketDataService {
         return new SnapshotResult(snapshot.getLastPrice(), snapshot.getPreviousClose(), snapshot.getFetchedAt(), stale);
     }
 
+    // Runs on the same background executor the nightly job uses for history loading, so
+    // application startup does not block on MOEX round-trips (or timeouts, while the exchange
+    // is unreachable); each step is guarded on its own so one failure cannot skip the other.
+    @Async("historyLoaderExecutor")
     @EventListener(ApplicationReadyEvent.class)
+    public void onApplicationReady() {
+        try {
+            self.healPendingSecurities();
+        } catch (Exception e) {
+            log.warn("Самолечение PENDING на старте не выполнено: {}", e.getMessage());
+        }
+        try {
+            self.backfillMissingSectors();
+        } catch (Exception e) {
+            log.warn("Донастройка секторов на старте не выполнена: {}", e.getMessage());
+        }
+    }
+
     @Transactional("investmentTransactionManager")
     public void backfillMissingSectors() {
         List<Security> missing = securityRepository.findBySectorIsNull();

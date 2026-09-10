@@ -41,16 +41,35 @@ moex:
     max-connections: 50
     max-connections-per-route: 20
 
+tinvest:
+  token: ${TINVEST_TOKEN:}
+  base-url: ${TINVEST_BASE_URL:https://invest-public-api.tbank.ru/rest}
+  connect-timeout-ms: 3000
+  timeout-ms: 10000
+
+dividend-tax:
+  rate: ${DIVIDEND_TAX_RATE:0.13}
+
 resilience4j:
   circuitbreaker:
     instances:
       moex:
         failureRateThreshold: 50
         slidingWindowSize: 10
+        minimumNumberOfCalls: 10
         waitDurationInOpenState: 30s
         permittedNumberOfCallsInHalfOpenState: 3
         ignoreExceptions:
           - pyc.lopatuxin.investment.client.moex.MoexNotFoundException
+      tinvest:
+        failureRateThreshold: 50
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 10
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        ignoreExceptions:
+          - pyc.lopatuxin.investment.client.tinvest.TinvestUnauthorizedException
+          - pyc.lopatuxin.investment.client.tinvest.TinvestRateLimitedException
   retry:
     instances:
       moex:
@@ -62,6 +81,25 @@ resilience4j:
         randomizedWaitFactor: 0.3
         ignoreExceptions:
           - pyc.lopatuxin.investment.client.moex.MoexNotFoundException
+          # Retry wraps the circuit breaker, so an OPEN breaker's rejection would
+          # otherwise be retried three times with backoff — ~1.5s of pure waiting
+          # on a call that never reaches the network. Fail fast instead.
+          - io.github.resilience4j.circuitbreaker.CallNotPermittedException
+      tinvest:
+        maxAttempts: 3
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        enableRandomizedWait: true
+        randomizedWaitFactor: 0.3
+        ignoreExceptions:
+          - pyc.lopatuxin.investment.client.tinvest.TinvestUnauthorizedException
+          # The 429 pause is driven by a response header (see TinvestResilience), not by this
+          # fixed backoff — ignored here so it is retried exactly once, with the source's own wait.
+          - pyc.lopatuxin.investment.client.tinvest.TinvestRateLimitedException
+          # 4xx other than 429/401 are HttpClientErrorException too; none of them are worth a retry.
+          - org.springframework.web.client.HttpClientErrorException
+          - io.github.resilience4j.circuitbreaker.CallNotPermittedException
 
 server:
   port: 8082

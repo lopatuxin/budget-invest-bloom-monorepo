@@ -2,6 +2,8 @@ package pyc.lopatuxin.config;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -14,6 +16,7 @@ import org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfigur
 import org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -28,6 +31,10 @@ import pyc.lopatuxin.budget.dto.request.InvestmentEntryRequestDto;
 import pyc.lopatuxin.budget.dto.response.InvestmentEntryResponseDto;
 import pyc.lopatuxin.budget.service.InvestmentEntryService;
 import pyc.lopatuxin.shared.port.EntryType;
+import pyc.lopatuxin.shared.port.PortfolioCurrentValuation;
+import pyc.lopatuxin.shared.port.PortfolioValuation;
+import pyc.lopatuxin.shared.port.PortfolioValueAt;
+import pyc.lopatuxin.shared.port.PortfolioValueSeries;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -92,5 +99,29 @@ class InvestmentBudgetCrossTransactionManagerIT {
     @Import({SchemaInitializerConfig.class, BudgetPersistenceConfig.class, InvestmentPersistenceConfig.class})
     @ComponentScan(basePackages = {"pyc.lopatuxin.budget.service", "pyc.lopatuxin.budget.mapper"})
     static class TestApp {
+
+        // pyc.lopatuxin.budget.service.OverviewPageService (picked up by the component scan above)
+        // needs a PortfolioValuation bean. In the real app it's pyc.lopatuxin.investment.service
+        // .PortfolioValuationAdapter, wired in via the full pyc.lopatuxin component scan; that
+        // package is out of scope for this narrow transaction-manager test, so a zero-valuation
+        // stub is provided instead, same as pyc.lopatuxin.budget.TestApplication does for the
+        // budget module's own standalone tests.
+        @Bean
+        PortfolioValuation portfolioValuation() {
+            return new PortfolioValuation() {
+                @Override
+                public PortfolioCurrentValuation current(UUID userId) {
+                    return new PortfolioCurrentValuation(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 0,
+                            BigDecimal.ZERO, null);
+                }
+
+                @Override
+                public PortfolioValueSeries valueAt(UUID userId, List<LocalDate> dates) {
+                    return new PortfolioValueSeries(
+                            dates.stream().map(date -> new PortfolioValueAt(date, BigDecimal.ZERO)).toList(),
+                            false, false, List.of());
+                }
+            };
+        }
     }
 }

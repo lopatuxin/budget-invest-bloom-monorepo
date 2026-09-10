@@ -16,4 +16,6 @@ public interface SecurityRepository extends JpaRepository<Security, String> {
     List<Security> findBySectorIsNull();
 
     List<Security> findByTypeAndSector(SecurityType type, String sector);
+
+    boolean existsByDividendsSyncedAtIsNotNull();
 }

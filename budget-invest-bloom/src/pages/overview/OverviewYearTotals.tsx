@@ -1,6 +1,5 @@
 import { BudgetNormBadge } from '@/pages/budget/BudgetNormBadge';
-import { formatCurrency } from '@/lib/dateOptions';
-import { formatSignedPercent } from '@/pages/overview/overviewFormat';
+import { formatCurrency, formatSignedPercent } from '@/lib/dateOptions';
 import type { Totals12m, TotalsLine } from '@/types/budget';
 
 interface TotalsRowProps {

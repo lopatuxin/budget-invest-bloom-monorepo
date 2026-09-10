@@ -2,6 +2,7 @@ package pyc.lopatuxin.investment.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import pyc.lopatuxin.investment.entity.enums.DividendSource;
 import pyc.lopatuxin.investment.entity.enums.DividendStatus;
 
 import java.math.BigDecimal;
@@ -40,4 +41,8 @@ public class Dividend {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private DividendStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private DividendSource source;
 }

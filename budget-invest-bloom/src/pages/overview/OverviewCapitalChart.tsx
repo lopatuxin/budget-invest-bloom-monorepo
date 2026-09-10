@@ -1,6 +1,6 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { formatCurrency } from '@/lib/dateOptions';
-import { formatCompact, monthShortLabel, OVERVIEW_CHART_COLORS } from '@/pages/overview/overviewFormat';
+import { formatCompact, formatCurrency } from '@/lib/dateOptions';
+import { monthShortLabel, OVERVIEW_CHART_COLORS } from '@/pages/overview/overviewFormat';
 import type { CapitalPoint } from '@/types/budget';
 
 type CapitalChartPoint = CapitalPoint & { label: string };

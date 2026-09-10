@@ -9,24 +9,23 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.ApplicationArguments;
-import org.springframework.transaction.support.TransactionTemplate;
-import pyc.lopatuxin.investment.client.BudgetClient;
+import org.springframework.transaction.PlatformTransactionManager;
 import pyc.lopatuxin.investment.entity.Security;
 import pyc.lopatuxin.investment.entity.Transaction;
 import pyc.lopatuxin.investment.entity.enums.HistoryStatus;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
 import pyc.lopatuxin.investment.entity.enums.TransactionType;
 import pyc.lopatuxin.investment.repository.TransactionRepository;
+import pyc.lopatuxin.shared.port.EntryType;
+import pyc.lopatuxin.shared.port.InvestmentBudgetSync;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-import java.util.function.Consumer;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -40,10 +39,10 @@ class InvestmentBudgetMigrationRunnerTest {
     private TransactionRepository transactionRepository;
 
     @Mock
-    private BudgetClient budgetClient;
+    private InvestmentBudgetSync investmentBudgetSync;
 
     @Mock
-    private TransactionTemplate transactionTemplate;
+    private PlatformTransactionManager investmentTransactionManager;
 
     @Mock
     private ApplicationArguments appArgs;
@@ -61,14 +60,6 @@ class InvestmentBudgetMigrationRunnerTest {
                 .type(SecurityType.STOCK)
                 .historyStatus(HistoryStatus.PENDING)
                 .build();
-
-        // TransactionTemplate delegates to the consumer immediately in tests.
-        // Using lenient() because some tests never reach executeWithoutResult (empty orphan list).
-        lenient().doAnswer(invocation -> {
-            Consumer<Object> action = invocation.getArgument(0);
-            action.accept(null);
-            return null;
-        }).when(transactionTemplate).executeWithoutResult(any());
     }
 
     @Test
@@ -78,12 +69,12 @@ class InvestmentBudgetMigrationRunnerTest {
 
         runner.run(appArgs);
 
-        verify(budgetClient, never()).createInvestmentEntry(any(), any(), any(), any());
+        verify(investmentBudgetSync, never()).createEntry(any(), any(), any(), any());
         verify(transactionRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("run(): для каждой orphan-транзакции вызывается budgetClient.createInvestmentEntry и сохраняется entryId")
+    @DisplayName("run(): для каждой orphan-транзакции вызывается investmentBudgetSync.createEntry и сохраняется entryId")
     void run_shouldSyncOrphans_andSaveBudgetEntryId() throws Exception {
         UUID userId = UUID.randomUUID();
         Instant executedAt = Instant.ofEpochSecond(1000);
@@ -101,14 +92,14 @@ class InvestmentBudgetMigrationRunnerTest {
                 .build();
 
         when(transactionRepository.findAllByBudgetEntryIdIsNull()).thenReturn(List.of(orphan));
-        when(budgetClient.createInvestmentEntry(
-                eq(userId), eq(TransactionType.BUY), eq(new BigDecimal("2500.00")), eq(executedAt)))
+        when(investmentBudgetSync.createEntry(
+                eq(userId), eq(EntryType.BUY), eq(new BigDecimal("2500.00")), eq(executedAt)))
                 .thenReturn(budgetEntryId);
         when(transactionRepository.save(any())).thenReturn(orphan);
 
         runner.run(appArgs);
 
-        verify(budgetClient).createInvestmentEntry(userId, TransactionType.BUY, new BigDecimal("2500.00"), executedAt);
+        verify(investmentBudgetSync).createEntry(userId, EntryType.BUY, new BigDecimal("2500.00"), executedAt);
 
         ArgumentCaptor<Transaction> captor = ArgumentCaptor.forClass(Transaction.class);
         verify(transactionRepository).save(captor.capture());
@@ -137,26 +128,26 @@ class InvestmentBudgetMigrationRunnerTest {
         when(transactionRepository.findAllByBudgetEntryIdIsNull()).thenReturn(List.of(orphan1, orphan2));
 
         // Первая orphan — падает
-        when(budgetClient.createInvestmentEntry(
-                eq(userId), eq(TransactionType.BUY), eq(new BigDecimal("500.00")), eq(executedAt)))
+        when(investmentBudgetSync.createEntry(
+                eq(userId), eq(EntryType.BUY), eq(new BigDecimal("500.00")), eq(executedAt)))
                 .thenThrow(new RuntimeException("503 Budget unavailable"));
 
         // Вторая orphan — успешно
-        when(budgetClient.createInvestmentEntry(
-                eq(userId), eq(TransactionType.SELL), eq(new BigDecimal("360.00")), eq(executedAt)))
+        when(investmentBudgetSync.createEntry(
+                eq(userId), eq(EntryType.SELL), eq(new BigDecimal("360.00")), eq(executedAt)))
                 .thenReturn(budgetEntryId2);
         when(transactionRepository.save(any())).thenReturn(orphan2);
 
         runner.run(appArgs);
 
         // Оба вызова были сделаны
-        verify(budgetClient, times(2)).createInvestmentEntry(any(), any(), any(), any());
+        verify(investmentBudgetSync, times(2)).createEntry(any(), any(), any(), any());
         // Сохранили только вторую (успешную)
         verify(transactionRepository, times(1)).save(any());
     }
 
     @Test
-    @DisplayName("run(): повторный запуск после успешной миграции — 0 вызовов budgetClient")
+    @DisplayName("run(): повторный запуск после успешной миграции — 0 вызовов investmentBudgetSync")
     void run_shouldCallBudgetClientZeroTimes_afterSuccessfulMigration() throws Exception {
         // После миграции все транзакции имеют budgetEntryId — список orphan пустой
         when(transactionRepository.findAllByBudgetEntryIdIsNull()).thenReturn(List.of());
@@ -164,6 +155,6 @@ class InvestmentBudgetMigrationRunnerTest {
         runner.run(appArgs);
         runner.run(appArgs);
 
-        verify(budgetClient, never()).createInvestmentEntry(any(), any(), any(), any());
+        verify(investmentBudgetSync, never()).createEntry(any(), any(), any(), any());
     }
 }

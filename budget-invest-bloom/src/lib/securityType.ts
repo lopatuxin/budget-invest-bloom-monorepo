@@ -16,5 +16,11 @@ export const SECURITY_TYPE_LABEL_SINGULAR: Record<SecurityType, string> = {
   ETF: 'ETF',
 };
 
-// Display order for type groups in holdings list
-export const SECURITY_TYPE_ORDER: SecurityType[] = ['STOCK', 'BOND', 'OFZ', 'ETF'];
+// Fallback for a position whose security type the exchange never classified —
+// the backend buckets it under a null key (groupPreservingOrder) instead of
+// dropping it, so it still needs a label here. Mirrors NO_SECTOR_LABEL.
+export const NO_SECURITY_TYPE_LABEL = 'Другое';
+
+export function securityTypeLabel(securityType: SecurityType | null): string {
+  return securityType === null ? NO_SECURITY_TYPE_LABEL : SECURITY_TYPE_LABEL[securityType];
+}

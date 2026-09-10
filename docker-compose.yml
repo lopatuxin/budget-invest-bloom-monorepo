@@ -66,6 +66,8 @@ services:
       JWT_COOKIE_SECURE: ${JWT_COOKIE_SECURE:-false}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8080}
       MOEX_ISS_BASE_URL: ${MOEX_ISS_BASE_URL:-https://iss.moex.com/iss}
+      TINVEST_TOKEN: ${TINVEST_TOKEN:-}
+      DIVIDEND_TAX_RATE: ${DIVIDEND_TAX_RATE:-0.13}
     ports:
       - "${APP_PORT:-8082}:8082"
     depends_on:

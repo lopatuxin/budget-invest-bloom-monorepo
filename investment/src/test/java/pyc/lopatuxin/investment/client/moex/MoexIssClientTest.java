@@ -64,16 +64,21 @@ class MoexIssClientTest extends AbstractMoexClientTest {
     @Test
     @DisplayName("fetchSnapshots — возвращает Map с lastPrice для SBER")
     void fetchSnapshots_returnsMapWithLastPrice() throws Exception {
+        // PREVPRICE is a "securities" column on MOEX, not "marketdata" — see MoexResponseParser.
         JsonNode sharesResponse = MAPPER.readTree("""
                 {
                   "marketdata": {
-                    "columns": ["SECID","LAST","PREVPRICE"],
-                    "data": [["SBER","310.50","308.00"]]
+                    "columns": ["SECID","LAST"],
+                    "data": [["SBER","310.50"]]
+                  },
+                  "securities": {
+                    "columns": ["SECID","PREVPRICE"],
+                    "data": [["SBER","308.00"]]
                   }
                 }
                 """);
         JsonNode bondsResponse = MAPPER.readTree("""
-                {"marketdata":{"columns":["SECID","LAST","PREVPRICE"],"data":[]}}
+                {"marketdata":{"columns":["SECID","LAST"],"data":[]},"securities":{"columns":["SECID","PREVPRICE"],"data":[]}}
                 """);
         when(api.getMarketData(anyString(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(sharesResponse)

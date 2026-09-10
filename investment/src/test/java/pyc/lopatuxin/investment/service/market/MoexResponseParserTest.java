@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import pyc.lopatuxin.investment.dto.response.MoexCandleDto;
-import pyc.lopatuxin.investment.dto.response.MoexDividendDto;
 import pyc.lopatuxin.investment.dto.response.MoexSnapshotDto;
 
 import java.math.BigDecimal;
@@ -189,10 +188,17 @@ class MoexResponseParserTest {
         JsonNode root = MAPPER.readTree("""
                 {
                   "marketdata": {
-                    "columns": ["SECID","LAST","PREVPRICE"],
+                    "columns": ["SECID","LAST"],
                     "data": [
-                      ["ZERO","0","0"],
-                      ["SBER","310.50","308.00"]
+                      ["ZERO","0"],
+                      ["SBER","310.50"]
+                    ]
+                  },
+                  "securities": {
+                    "columns": ["SECID","PREVPRICE"],
+                    "data": [
+                      ["ZERO","0"],
+                      ["SBER","308.00"]
                     ]
                   }
                 }
@@ -210,8 +216,12 @@ class MoexResponseParserTest {
         JsonNode root = MAPPER.readTree("""
                 {
                   "marketdata": {
-                    "columns": ["SECID","LAST","PREVPRICE"],
-                    "data": [["SBER",null,"308.00"]]
+                    "columns": ["SECID","LAST"],
+                    "data": [["SBER",null]]
+                  },
+                  "securities": {
+                    "columns": ["SECID","PREVPRICE"],
+                    "data": [["SBER","308.00"]]
                   }
                 }
                 """);
@@ -223,43 +233,83 @@ class MoexResponseParserTest {
         assertThat(result.get("SBER").previousClose()).isEqualByComparingTo(new BigDecimal("308.00"));
     }
 
-    // ------------------------------------------------------------------
-    // parseDividends
-    // ------------------------------------------------------------------
-
     @Test
-    @DisplayName("parseDividends — два валидных дивиденда → список из двух элементов")
-    void parseDividends_returnsList() throws Exception {
+    @DisplayName("parseMarketData — PREVPRICE лежит в блоке securities, а не marketdata, как в настоящем ответе биржи")
+    void parseMarketData_readsPreviousCloseFromSecuritiesBlock_realMoexResponseShape() throws Exception {
+        // Trimmed capture of a real MOEX /engines/stock/markets/shares/securities.json response
+        // for SBER (iss.only=marketdata,securities): PREVPRICE is a "securities" column, absent
+        // from "marketdata" entirely. Two boards are listed (SPEQ, TQBR) for the same SECID in
+        // both tables in the same order — TQBR is the tradeable board and comes last.
         JsonNode root = MAPPER.readTree("""
                 {
-                  "dividends": {
-                    "columns": ["secid","registryclosedate","value","currencyid"],
+                  "marketdata": {
+                    "columns": ["SECID","BOARDID","LAST","TRADINGSTATUS"],
                     "data": [
-                      ["SBER","2023-05-15",25.0,"RUB"],
-                      ["SBER","2022-05-20",18.7,"RUB"]
+                      ["SBER","SPEQ",null,"T"],
+                      ["SBER","TQBR",278.83,"T"]
+                    ]
+                  },
+                  "securities": {
+                    "columns": ["SECID","BOARDID","SHORTNAME","PREVPRICE","STATUS"],
+                    "data": [
+                      ["SBER","SPEQ","Сбербанк",315.28,"A"],
+                      ["SBER","TQBR","Сбербанк",280.68,"A"]
                     ]
                   }
                 }
                 """);
 
-        List<MoexDividendDto> result = MoexResponseParser.parseDividends(root);
+        Map<String, MoexSnapshotDto> result = MoexResponseParser.parseMarketData(root);
 
-        assertThat(result).hasSize(2);
-        assertThat(result.get(0).getSecid()).isEqualTo("SBER");
-        assertThat(result.get(0).getRegistryCloseDate()).isEqualTo(LocalDate.of(2023, 5, 15));
-        assertThat(result.get(0).getValue()).isEqualByComparingTo(new BigDecimal("25.0"));
-        assertThat(result.get(0).getCurrencyId()).isEqualTo("RUB");
-        assertThat(result.get(1).getRegistryCloseDate()).isEqualTo(LocalDate.of(2022, 5, 20));
+        assertThat(result).containsKey("SBER");
+        assertThat(result.get("SBER").lastPrice()).isEqualByComparingTo(new BigDecimal("278.83"));
+        assertThat(result.get("SBER").previousClose()).isEqualByComparingTo(new BigDecimal("280.68"));
     }
 
     @Test
-    @DisplayName("parseDividends — блок dividends отсутствует → пустой список")
-    void parseDividends_returnsEmpty_whenBlockMissing() throws Exception {
-        JsonNode root = MAPPER.readTree("{}");
+    @DisplayName("parseMarketData — блок securities отсутствует: LAST уцелевает, previousClose = null, без падения")
+    void parseMarketData_securitiesBlockMissing_lastPriceSurvivesPreviousCloseNull() throws Exception {
+        JsonNode root = MAPPER.readTree("""
+                {
+                  "marketdata": {
+                    "columns": ["SECID","LAST"],
+                    "data": [["SBER",278.83]]
+                  }
+                }
+                """);
 
-        List<MoexDividendDto> result = MoexResponseParser.parseDividends(root);
+        Map<String, MoexSnapshotDto> result = MoexResponseParser.parseMarketData(root);
 
-        assertThat(result).isEmpty();
+        assertThat(result).containsKey("SBER");
+        assertThat(result.get("SBER").lastPrice()).isEqualByComparingTo(new BigDecimal("278.83"));
+        assertThat(result.get("SBER").previousClose()).isNull();
+    }
+
+    @Test
+    @DisplayName("parseMarketData — второй режим торгов без PREVPRICE не затирает корректное значение из первого")
+    void parseMarketData_secondBoardWithEmptyPrevPrice_doesNotOverwriteValidOne() throws Exception {
+        JsonNode root = MAPPER.readTree("""
+                {
+                  "marketdata": {
+                    "columns": ["SECID","BOARDID","LAST"],
+                    "data": [
+                      ["SBER","TQBR",278.83],
+                      ["SBER","SPEQ",279.00]
+                    ]
+                  },
+                  "securities": {
+                    "columns": ["SECID","BOARDID","PREVPRICE"],
+                    "data": [
+                      ["SBER","TQBR",280.68],
+                      ["SBER","SPEQ",0]
+                    ]
+                  }
+                }
+                """);
+
+        Map<String, MoexSnapshotDto> result = MoexResponseParser.parseMarketData(root);
+
+        assertThat(result.get("SBER").previousClose()).isEqualByComparingTo(new BigDecimal("280.68"));
     }
 
     // ------------------------------------------------------------------

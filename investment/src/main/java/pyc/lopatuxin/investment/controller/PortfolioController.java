@@ -10,8 +10,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import pyc.lopatuxin.investment.dto.request.EmptyRequestDto;
 import pyc.lopatuxin.investment.dto.request.GetPositionByTickerDto;
+import pyc.lopatuxin.investment.dto.request.PortfolioPageRequestDto;
+import pyc.lopatuxin.investment.dto.request.PortfolioSort;
 import pyc.lopatuxin.investment.dto.response.PortfolioPageResponseDto;
 import pyc.lopatuxin.investment.dto.response.PositionResponseDto;
 import pyc.lopatuxin.investment.service.PortfolioService;
@@ -30,9 +31,10 @@ public class PortfolioController {
     @PostMapping("/page")
     @ResponseStatus(HttpStatus.OK)
     public ResponseApi<PortfolioPageResponseDto> getPortfolioPage(
-            @RequestBody @Valid ApiRequest<EmptyRequestDto> request) {
+            @RequestBody @Valid ApiRequest<PortfolioPageRequestDto> request) {
+        PortfolioSort sort = request.getData().getSort() != null ? request.getData().getSort() : PortfolioSort.WEIGHT;
         PortfolioPageResponseDto page = portfolioService.getPortfolioPage(
-                request.getUser().getUserId()
+                request.getUser().getUserId(), sort
         );
         return ResponseApi.success("Страница портфеля", page);
     }

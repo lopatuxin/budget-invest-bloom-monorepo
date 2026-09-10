@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -59,7 +60,14 @@ public class WebClientConfig {
                             MediaType.TEXT_HTML,
                             new MediaType("application", "*+json")
                     ));
-                    converters.removeIf(c -> c instanceof MappingJackson2HttpMessageConverter);
+                    // Spring's default JSON converter is the Jackson 3-based JacksonJsonHttpMessageConverter
+                    // (tools.jackson) whenever it is on the classpath, and it is added ahead of any
+                    // MappingJackson2HttpMessageConverter we add below. It cannot deserialize the classic
+                    // com.fasterxml.jackson.databind.JsonNode returned by MoexIssApi (that type is unrelated
+                    // to its own tree model), so it must be removed too, or every MOEX call fails with
+                    // "Type definition error: [simple type, class com.fasterxml.jackson.databind.JsonNode]".
+                    converters.removeIf(c -> c instanceof MappingJackson2HttpMessageConverter
+                            || c instanceof JacksonJsonHttpMessageConverter);
                     converters.add(jackson);
                 })
                 .defaultStatusHandler(HttpStatusCode::is4xxClientError, (req, res) -> {

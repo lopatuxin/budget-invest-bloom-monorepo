@@ -29,9 +29,15 @@ public class NextDividendDto {
     @Schema(description = "Название бумаги", example = "ЛУКОЙЛ")
     private String securityName;
 
-    @Schema(description = "Дата выплаты", example = "2026-10-03")
+    @Schema(description = "Дата отсечки реестра", example = "2026-10-03")
+    private LocalDate recordDate;
+
+    @Schema(description = "Дата выплаты, если источник её предоставил", example = "2026-10-17")
     private LocalDate paymentDate;
 
     @Schema(description = "Сумма выплаты", example = "4800.00")
     private BigDecimal totalAmount;
+
+    @Schema(description = "Код валюты суммы выплаты", example = "RUB")
+    private String currency;
 }

@@ -19,7 +19,7 @@ export function useDeleteTransaction() {
     onSuccess: (_data, variables) => {
       // Backend removes BUY/SELL from budget, so invalidate both domains
       invalidateBudgetCaches(queryClient);
-      queryClient.invalidateQueries({ queryKey: qk.investment.portfolio() });
+      queryClient.invalidateQueries({ queryKey: qk.investment.portfolioAll() });
       queryClient.invalidateQueries({ queryKey: qk.investment.transactions() });
       queryClient.invalidateQueries({ queryKey: qk.investment.portfolioValueHistory() });
       if (variables.ticker) {

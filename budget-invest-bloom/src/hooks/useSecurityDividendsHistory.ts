@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiPost } from '@/lib/api';
 import { qk } from '@/lib/queryKeys';
-import type { ApiResponse, PaidDividend } from '@/types/investment';
+import type { ApiResponse, SecurityDividend } from '@/types/investment';
 
 export function useSecurityDividendsHistory(ticker: string | null) {
   return useQuery({
@@ -9,7 +9,7 @@ export function useSecurityDividendsHistory(ticker: string | null) {
       ? qk.investment.securityDividends(ticker)
       : ['security-dividends-history', null],
     queryFn: () =>
-      apiPost<ApiResponse<PaidDividend[]>>('/api/investment/analytics/security/dividends-history', { ticker }),
+      apiPost<ApiResponse<SecurityDividend[]>>('/api/investment/analytics/security/dividends-history', { ticker }),
     enabled: !!ticker,
     staleTime: 5 * 60 * 1000,
   });

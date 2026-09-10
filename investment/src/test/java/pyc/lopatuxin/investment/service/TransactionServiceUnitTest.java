@@ -9,7 +9,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import pyc.lopatuxin.investment.client.BudgetClient;
 import pyc.lopatuxin.investment.dto.request.CreateTransactionDto;
 import pyc.lopatuxin.investment.dto.response.TransactionResponseDto;
 import pyc.lopatuxin.investment.entity.Position;
@@ -25,6 +24,8 @@ import pyc.lopatuxin.investment.repository.SecurityRepository;
 import pyc.lopatuxin.investment.repository.TransactionRepository;
 import pyc.lopatuxin.investment.service.market.DividendSyncService;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
+import pyc.lopatuxin.shared.port.EntryType;
+import pyc.lopatuxin.shared.port.InvestmentBudgetSync;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -67,7 +68,7 @@ class TransactionServiceUnitTest {
     private DividendRepository dividendRepository;
 
     @Mock
-    private BudgetClient budgetClient;
+    private InvestmentBudgetSync investmentBudgetSync;
 
     @InjectMocks
     private TransactionService transactionService;
@@ -315,7 +316,7 @@ class TransactionServiceUnitTest {
 
         assertThatThrownBy(() -> transactionService.delete(userId, txId))
                 .isInstanceOf(EntityNotFoundException.class)
-                .hasMessageContaining("Transaction not found");
+                .hasMessageContaining("Сделка не найдена");
     }
 
     @Test
@@ -358,7 +359,7 @@ class TransactionServiceUnitTest {
     // --- BudgetClient integration ---
 
     @Test
-    @DisplayName("create(BUY): вызывает budgetClient.createInvestmentEntry с правильными аргументами и сохраняет budgetEntryId")
+    @DisplayName("create(BUY): вызывает investmentBudgetSync.createEntry с правильными аргументами и сохраняет budgetEntryId")
     void create_buy_shouldCallBudgetClientAndSaveBudgetEntryId() {
         Instant executedAt = Instant.ofEpochSecond(1000);
         UUID budgetEntryId = UUID.randomUUID();
@@ -384,8 +385,8 @@ class TransactionServiceUnitTest {
         when(transactionRepository.save(any(Transaction.class)))
                 .thenReturn(firstSaved)
                 .thenReturn(secondSaved);
-        when(budgetClient.createInvestmentEntry(
-                eq(userId), eq(TransactionType.BUY), eq(new BigDecimal("2500.00")), eq(executedAt)))
+        when(investmentBudgetSync.createEntry(
+                eq(userId), eq(EntryType.BUY), eq(new BigDecimal("2500.00")), eq(executedAt)))
                 .thenReturn(budgetEntryId);
         when(transactionRepository.findByUserIdAndSecurity_Ticker(userId, "SBER"))
                 .thenReturn(List.of(firstSaved));
@@ -397,7 +398,7 @@ class TransactionServiceUnitTest {
 
         transactionService.create(userId, dto);
 
-        verify(budgetClient).createInvestmentEntry(userId, TransactionType.BUY, new BigDecimal("2500.00"), executedAt);
+        verify(investmentBudgetSync).createEntry(userId, EntryType.BUY, new BigDecimal("2500.00"), executedAt);
 
         ArgumentCaptor<Transaction> txCaptor = ArgumentCaptor.forClass(Transaction.class);
         verify(transactionRepository, org.mockito.Mockito.times(2)).save(txCaptor.capture());
@@ -407,7 +408,7 @@ class TransactionServiceUnitTest {
     }
 
     @Test
-    @DisplayName("create(SELL): вызывает budgetClient.createInvestmentEntry с типом SELL")
+    @DisplayName("create(SELL): вызывает investmentBudgetSync.createEntry с типом SELL")
     void create_sell_shouldCallBudgetClientWithSellType() {
         Instant t1 = Instant.ofEpochSecond(1000);
         Instant t2 = Instant.ofEpochSecond(2000);
@@ -432,8 +433,8 @@ class TransactionServiceUnitTest {
 
         when(marketDataService.ensureSecurity("SBER", SecurityType.STOCK)).thenReturn(security);
         when(transactionRepository.save(any(Transaction.class))).thenReturn(sellTx);
-        when(budgetClient.createInvestmentEntry(
-                eq(userId), eq(TransactionType.SELL), eq(new BigDecimal("1500.00")), eq(t2)))
+        when(investmentBudgetSync.createEntry(
+                eq(userId), eq(EntryType.SELL), eq(new BigDecimal("1500.00")), eq(t2)))
                 .thenReturn(budgetEntryId);
         when(transactionRepository.findByUserIdAndSecurity_Ticker(userId, "SBER"))
                 .thenReturn(List.of(existingBuy, sellTx));
@@ -445,7 +446,7 @@ class TransactionServiceUnitTest {
 
         transactionService.create(userId, dto);
 
-        verify(budgetClient).createInvestmentEntry(userId, TransactionType.SELL, new BigDecimal("1500.00"), t2);
+        verify(investmentBudgetSync).createEntry(userId, EntryType.SELL, new BigDecimal("1500.00"), t2);
     }
 
     @Test
@@ -466,7 +467,7 @@ class TransactionServiceUnitTest {
 
         when(marketDataService.ensureSecurity("SBER", SecurityType.STOCK)).thenReturn(security);
         when(transactionRepository.save(any(Transaction.class))).thenReturn(firstSaved);
-        when(budgetClient.createInvestmentEntry(any(), any(), any(), any()))
+        when(investmentBudgetSync.createEntry(any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("503 Service Unavailable"));
 
         assertThatThrownBy(() -> transactionService.create(userId, dto))
@@ -478,7 +479,7 @@ class TransactionServiceUnitTest {
     }
 
     @Test
-    @DisplayName("delete(): tx.budgetEntryId != null — вызывает budgetClient.deleteInvestmentEntry")
+    @DisplayName("delete(): tx.budgetEntryId != null — вызывает investmentBudgetSync.deleteEntry")
     void delete_shouldCallBudgetClientWhenBudgetEntryIdPresent() {
         UUID txId = UUID.randomUUID();
         UUID budgetEntryId = UUID.randomUUID();
@@ -500,12 +501,12 @@ class TransactionServiceUnitTest {
 
         transactionService.delete(userId, txId);
 
-        verify(budgetClient).deleteInvestmentEntry(userId, budgetEntryId, TransactionType.BUY);
+        verify(investmentBudgetSync).deleteEntry(userId, budgetEntryId, EntryType.BUY);
         verify(transactionRepository).delete(tx);
     }
 
     @Test
-    @DisplayName("delete(): tx.budgetEntryId == null — budgetClient не вызывается")
+    @DisplayName("delete(): tx.budgetEntryId == null — investmentBudgetSync не вызывается")
     void delete_shouldNotCallBudgetClientWhenBudgetEntryIdIsNull() {
         UUID txId = UUID.randomUUID();
         Instant t1 = Instant.ofEpochSecond(1000);
@@ -526,7 +527,7 @@ class TransactionServiceUnitTest {
 
         transactionService.delete(userId, txId);
 
-        verify(budgetClient, never()).deleteInvestmentEntry(any(), any(), any());
+        verify(investmentBudgetSync, never()).deleteEntry(any(), any(), any());
         verify(transactionRepository).delete(tx);
     }
 }

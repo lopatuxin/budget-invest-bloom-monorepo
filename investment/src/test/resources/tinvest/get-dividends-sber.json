@@ -1,0 +1,135 @@
+{
+  "dividends": [{
+    "dividendNet": {
+      "currency": "rub",
+      "units": "37",
+      "nano": 640000000
+    },
+    "paymentDate": "2026-08-04T00:00:00Z",
+    "declaredDate": "2026-07-18T00:00:00Z",
+    "lastBuyDate": "2026-07-17T00:00:00Z",
+    "dividendType": "",
+    "recordDate": "2026-07-20T00:00:00Z",
+    "regularity": "Annual",
+    "closePrice": {
+      "currency": "rub",
+      "units": "277",
+      "nano": 230000000
+    },
+    "yieldValue": {
+      "units": "13",
+      "nano": 490000000
+    },
+    "createdAt": "2026-08-03T23:41:32.515407Z"
+  }, {
+    "dividendNet": {
+      "currency": "rub",
+      "units": "34",
+      "nano": 840000000
+    },
+    "paymentDate": "2025-08-01T00:00:00Z",
+    "declaredDate": "2025-07-16T00:00:00Z",
+    "lastBuyDate": "2025-07-17T00:00:00Z",
+    "dividendType": "",
+    "recordDate": "2025-07-18T00:00:00Z",
+    "regularity": "Annual",
+    "closePrice": {
+      "currency": "rub",
+      "units": "325",
+      "nano": 920000000
+    },
+    "yieldValue": {
+      "units": "10",
+      "nano": 830000000
+    },
+    "createdAt": "2025-07-18T23:43:17.698231Z"
+  }, {
+    "dividendNet": {
+      "currency": "rub",
+      "units": "33",
+      "nano": 300000000
+    },
+    "paymentDate": "2024-07-21T00:00:00Z",
+    "declaredDate": "2024-07-01T00:00:00Z",
+    "lastBuyDate": "2024-07-10T00:00:00Z",
+    "dividendType": "",
+    "recordDate": "2024-07-11T00:00:00Z",
+    "regularity": "Quarter",
+    "closePrice": {
+      "currency": "rub",
+      "units": "315",
+      "nano": 500000000
+    },
+    "yieldValue": {
+      "units": "10",
+      "nano": 440000000
+    },
+    "createdAt": "2024-04-23T09:45:22.287573Z"
+  }, {
+    "dividendNet": {
+      "currency": "rub",
+      "units": "25",
+      "nano": 0
+    },
+    "paymentDate": "2023-06-16T00:00:00Z",
+    "declaredDate": "2023-04-21T00:00:00Z",
+    "lastBuyDate": "2023-05-10T00:00:00Z",
+    "dividendType": "",
+    "recordDate": "2023-05-11T00:00:00Z",
+    "regularity": "",
+    "closePrice": {
+      "currency": "rub",
+      "units": "238",
+      "nano": 900000000
+    },
+    "yieldValue": {
+      "units": "10",
+      "nano": 460000000
+    },
+    "createdAt": "2023-05-11T07:03:30.109944Z"
+  }, {
+    "dividendNet": {
+      "currency": "rub",
+      "units": "18",
+      "nano": 700000000
+    },
+    "paymentDate": "2021-05-26T00:00:00Z",
+    "declaredDate": "2021-03-19T00:00:00Z",
+    "lastBuyDate": "2021-05-11T00:00:00Z",
+    "dividendType": "",
+    "recordDate": "2021-05-12T00:00:00Z",
+    "regularity": "Annual",
+    "closePrice": {
+      "currency": "rub",
+      "units": "319",
+      "nano": 970000000
+    },
+    "yieldValue": {
+      "units": "5",
+      "nano": 840000000
+    },
+    "createdAt": "2021-07-28T10:50:31.391457Z"
+  }, {
+    "dividendNet": {
+      "currency": "rub",
+      "units": "18",
+      "nano": 700000000
+    },
+    "paymentDate": "2020-10-19T00:00:00Z",
+    "declaredDate": "2020-03-17T00:00:00Z",
+    "lastBuyDate": "2020-10-02T00:00:00Z",
+    "dividendType": "",
+    "recordDate": "2020-10-05T00:00:00Z",
+    "regularity": "Annual",
+    "closePrice": {
+      "currency": "rub",
+      "units": "228",
+      "nano": 850000000
+    },
+    "yieldValue": {
+      "units": "8",
+      "nano": 170000000
+    },
+    "createdAt": "2021-07-28T10:50:31.391457Z"
+  }]
+}

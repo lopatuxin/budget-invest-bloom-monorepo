@@ -39,4 +39,12 @@ public class Security {
     private HistoryStatus historyStatus;
 
     private Instant lastPriceUpdatedAt;
+
+    @Column(length = 64)
+    private String tinvestUid;
+
+    @Column(length = 20)
+    private String tinvestClassCode;
+
+    private Instant dividendsSyncedAt;
 }

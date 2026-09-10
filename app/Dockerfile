@@ -48,6 +48,14 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
+# T-Invest API (invest-public-api.tbank.ru) serves a TLS cert chain rooted at the
+# Russian national CA (Minister of Digital Development), which is not in the JRE's
+# default cacerts. Trust for it is scoped to the T-Invest HttpClient alone, built at
+# startup from vendored PEM certs (see investment/src/main/resources/tinvest-certs/
+# and TinvestClientConfig) — not imported into this JRE's own cacerts, which stays
+# untouched so it keeps governing every other outgoing TLS connection the monolith
+# makes (MOEX, etc.).
+
 # Run as a non-root user; /app must be writable so the JVM can create the CDS archive.
 RUN groupadd -r app && useradd -r -g app app && chown app:app /app
 USER app

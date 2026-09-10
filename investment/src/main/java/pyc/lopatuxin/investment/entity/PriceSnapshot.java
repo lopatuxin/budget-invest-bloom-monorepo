@@ -18,7 +18,9 @@ public class PriceSnapshot {
     @Id
     private String ticker;
 
-    @Column(nullable = false, precision = 15, scale = 2)
+    // Null when MOEX has no last-trade price yet (e.g. a security added in the evening or on a
+    // weekend) — see MarketDataService#upsertSnapshot.
+    @Column(precision = 15, scale = 2)
     private BigDecimal lastPrice;
 
     @Column(precision = 15, scale = 2)

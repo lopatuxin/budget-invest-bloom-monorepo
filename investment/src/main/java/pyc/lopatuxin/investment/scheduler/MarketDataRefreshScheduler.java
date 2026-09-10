@@ -27,7 +27,10 @@ public class MarketDataRefreshScheduler {
         if (tickers.isEmpty()) return;
         log.debug("Refreshing snapshots for {} tickers", tickers.size());
         try {
-            marketDataService.getSnapshots(tickers);
+            // Forces the MOEX round-trip regardless of the DB snapshot's TTL: this job's cron
+            // period equals that TTL (see MarketDataService.refreshSnapshots), so getSnapshots
+            // here would silently skip a snapshot upserted moments into the previous run.
+            marketDataService.refreshSnapshots(tickers);
         } catch (MoexUnavailableException e) {
             log.warn("MOEX unavailable during snapshot refresh: {}", e.getMessage());
         } catch (Exception e) {
@@ -38,16 +41,31 @@ public class MarketDataRefreshScheduler {
     // daily at 20:30 MSK
     @Scheduled(cron = "0 30 20 * * *", zone = "Europe/Moscow")
     public void refreshHistoryAndDividends() {
+        try {
+            marketDataService.healPendingSecurities();
+        } catch (Exception e) {
+            log.warn("Самолечение PENDING в ночном задании не выполнено: {}", e.getMessage());
+        }
         List<String> tickers = positionRepository.findActiveTickers();
-        if (tickers.isEmpty()) return;
-        log.info("Nightly refresh for {} tickers", tickers.size());
-        for (String ticker : tickers) {
-            try {
-                marketDataService.triggerHistoryAsync(ticker);
-                dividendSyncService.syncDividends(ticker);
-            } catch (Exception e) {
-                log.warn("Nightly refresh failed for {}: {}", ticker, e.getMessage());
+        if (!tickers.isEmpty()) {
+            log.info("Nightly refresh for {} tickers", tickers.size());
+            for (String ticker : tickers) {
+                try {
+                    marketDataService.triggerHistoryAsync(ticker);
+                } catch (Exception e) {
+                    log.warn("Nightly refresh failed for {}: {}", ticker, e.getMessage());
+                }
             }
+        }
+        try {
+            dividendSyncService.syncNightly();
+        } catch (Exception e) {
+            log.warn("Ночная синхронизация дивидендов T-Invest не выполнена: {}", e.getMessage());
+        }
+        try {
+            dividendSyncService.markPastRecordDatesAsPaid();
+        } catch (Exception e) {
+            log.warn("Перевод дивидендов из ANNOUNCED в PAID в ночном задании не выполнен: {}", e.getMessage());
         }
     }
 }

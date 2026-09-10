@@ -32,3 +32,6 @@ docs/*
 
 # Docker
 .env.docker.local
+
+# TypeScript incremental build cache
+*.tsbuildinfo

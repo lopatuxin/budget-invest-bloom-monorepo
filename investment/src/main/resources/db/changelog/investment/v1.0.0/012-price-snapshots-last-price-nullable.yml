@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/012-price-snapshots-last-price-nullable.yml
+  - changeSet:
+      id: 012-price-snapshots-last-price-nullable
+      author: investment
+      changes:
+        - dropNotNullConstraint:
+            tableName: price_snapshots
+            columnName: last_price
+            columnDataType: decimal(15,2)
+      rollback:
+        - addNotNullConstraint:
+            tableName: price_snapshots
+            columnName: last_price
+            columnDataType: decimal(15,2)
+            # Rows with no current price (upsertSnapshot preserves a null last_price for a
+            # ticker that has stopped trading) must not make the rollback fail — they are
+            # substituted with 0 before the constraint is added back.
+            defaultNullValue: "0"

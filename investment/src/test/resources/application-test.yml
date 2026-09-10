@@ -5,4 +5,17 @@ spring:
     show-sql: false
   liquibase:
     enabled: true
-    change-log: classpath:db/changelog/db.changelog-master.yml
+    change-log: classpath:db/changelog/investment/db.changelog-master.yml
+
+# The investment module has no application.yml of its own — MoexProperties/TinvestProperties are
+# normally bound from the app module's config (their base-url is @NotBlank). This isolated test
+# context needs the same defaults so the Spring context can start standalone. tinvest.token is
+# left unset (blank) on purpose — no test here has a real token, so DividendSyncService skips
+# every sync as it does in production with an empty TINVEST_TOKEN, and AbstractIntegrationTest
+# needs no TinvestApi mock as a result.
+moex:
+  iss:
+    base-url: https://iss.moex.com/iss
+
+tinvest:
+  base-url: https://invest-public-api.tbank.ru/rest

@@ -15,6 +15,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -37,30 +38,30 @@ class MarketDataRefreshSchedulerTest {
     private MarketDataRefreshScheduler scheduler;
 
     @Test
-    @DisplayName("refreshActiveSnapshots — тикеры есть → getSnapshots вызван с этим списком")
-    void refreshActiveSnapshots_callsGetSnapshots_whenTickersPresent() {
+    @DisplayName("refreshActiveSnapshots — тикеры есть → refreshSnapshots вызван с этим списком (принудительно, минуя TTL)")
+    void refreshActiveSnapshots_callsRefreshSnapshots_whenTickersPresent() {
         when(positionRepository.findActiveTickers()).thenReturn(List.of("SBER"));
 
         scheduler.refreshActiveSnapshots();
 
-        verify(marketDataService).getSnapshots(List.of("SBER"));
+        verify(marketDataService).refreshSnapshots(List.of("SBER"));
     }
 
     @Test
-    @DisplayName("refreshActiveSnapshots — пустой список тикеров → getSnapshots не вызывается")
+    @DisplayName("refreshActiveSnapshots — пустой список тикеров → refreshSnapshots не вызывается")
     void refreshActiveSnapshots_doesNothing_whenNoTickers() {
         when(positionRepository.findActiveTickers()).thenReturn(List.of());
 
         scheduler.refreshActiveSnapshots();
 
-        verify(marketDataService, never()).getSnapshots(anyList());
+        verify(marketDataService, never()).refreshSnapshots(anyList());
     }
 
     @Test
-    @DisplayName("refreshActiveSnapshots — getSnapshots бросает MoexUnavailableException → метод не падает")
+    @DisplayName("refreshActiveSnapshots — refreshSnapshots бросает MoexUnavailableException → метод не падает")
     void refreshActiveSnapshots_doesNotThrow_whenMoexUnavailable() {
         when(positionRepository.findActiveTickers()).thenReturn(List.of("SBER"));
-        when(marketDataService.getSnapshots(anyList()))
+        when(marketDataService.refreshSnapshots(anyList()))
                 .thenThrow(new MoexUnavailableException("MOEX unavailable"));
 
         assertThatCode(() -> scheduler.refreshActiveSnapshots())
@@ -68,14 +69,14 @@ class MarketDataRefreshSchedulerTest {
     }
 
     @Test
-    @DisplayName("refreshHistoryAndDividends — тикер GAZP → triggerHistoryAsync и syncDividends вызваны")
+    @DisplayName("refreshHistoryAndDividends — тикер GAZP → triggerHistoryAsync и syncNightly вызваны")
     void refreshHistoryAndDividends_callsBothServices() {
         when(positionRepository.findActiveTickers()).thenReturn(List.of("GAZP"));
 
         scheduler.refreshHistoryAndDividends();
 
         verify(marketDataService).triggerHistoryAsync("GAZP");
-        verify(dividendSyncService).syncDividends("GAZP");
+        verify(dividendSyncService).syncNightly();
     }
 
     @Test
@@ -90,6 +91,76 @@ class MarketDataRefreshSchedulerTest {
 
         // second ticker must still be processed
         verify(marketDataService).triggerHistoryAsync("GAZP");
-        verify(dividendSyncService).syncDividends("GAZP");
+        verify(dividendSyncService).syncNightly();
+    }
+
+    @Test
+    @DisplayName("refreshHistoryAndDividends — самолечение PENDING-бумаг вызывается в начале")
+    void refreshHistoryAndDividends_healsPendingSecuritiesFirst() {
+        when(positionRepository.findActiveTickers()).thenReturn(List.of("GAZP"));
+
+        scheduler.refreshHistoryAndDividends();
+
+        verify(marketDataService).healPendingSecurities();
+    }
+
+    @Test
+    @DisplayName("refreshHistoryAndDividends — healPendingSecurities падает → syncNightly и markPastRecordDatesAsPaid всё равно вызываются")
+    void refreshHistoryAndDividends_healPendingSecuritiesThrows_restOfJobStillRuns() {
+        when(positionRepository.findActiveTickers()).thenReturn(List.of("GAZP"));
+        doThrow(new RuntimeException("db unavailable")).when(marketDataService).healPendingSecurities();
+
+        assertThatCode(() -> scheduler.refreshHistoryAndDividends())
+                .doesNotThrowAnyException();
+
+        verify(marketDataService).triggerHistoryAsync("GAZP");
+        verify(dividendSyncService).syncNightly();
+        verify(dividendSyncService).markPastRecordDatesAsPaid();
+    }
+
+    @Test
+    @DisplayName("refreshHistoryAndDividends — перевод дивидендов в статус «выплачено» вызывается даже без активных тикеров")
+    void refreshHistoryAndDividends_marksPastRecordDatesAsPaid_evenWhenNoTickers() {
+        when(positionRepository.findActiveTickers()).thenReturn(List.of());
+
+        scheduler.refreshHistoryAndDividends();
+
+        verify(dividendSyncService).markPastRecordDatesAsPaid();
+        verify(marketDataService, never()).triggerHistoryAsync(anyString());
+    }
+
+    @Test
+    @DisplayName("refreshHistoryAndDividends — тикеры есть → markPastRecordDatesAsPaid вызывается в конце")
+    void refreshHistoryAndDividends_marksPastRecordDatesAsPaid_whenTickersPresent() {
+        when(positionRepository.findActiveTickers()).thenReturn(List.of("GAZP"));
+
+        scheduler.refreshHistoryAndDividends();
+
+        verify(dividendSyncService).markPastRecordDatesAsPaid();
+    }
+
+    @Test
+    @DisplayName("refreshHistoryAndDividends — syncNightly падает → markPastRecordDatesAsPaid всё равно вызывается")
+    void refreshHistoryAndDividends_syncNightlyThrows_markPastRecordDatesAsPaidStillRuns() {
+        when(positionRepository.findActiveTickers()).thenReturn(List.of("GAZP"));
+        doThrow(new RuntimeException("T-Invest unavailable")).when(dividendSyncService).syncNightly();
+
+        assertThatCode(() -> scheduler.refreshHistoryAndDividends())
+                .doesNotThrowAnyException();
+
+        verify(dividendSyncService).markPastRecordDatesAsPaid();
+    }
+
+    @Test
+    @DisplayName("refreshHistoryAndDividends — markPastRecordDatesAsPaid падает → метод не падает (симметрично самолечению PENDING)")
+    void refreshHistoryAndDividends_markPastRecordDatesAsPaidThrows_doesNotFailJob() {
+        when(positionRepository.findActiveTickers()).thenReturn(List.of("GAZP"));
+        doThrow(new RuntimeException("db unavailable")).when(dividendSyncService).markPastRecordDatesAsPaid();
+
+        assertThatCode(() -> scheduler.refreshHistoryAndDividends())
+                .doesNotThrowAnyException();
+
+        verify(marketDataService).triggerHistoryAsync("GAZP");
+        verify(dividendSyncService).syncNightly();
     }
 }

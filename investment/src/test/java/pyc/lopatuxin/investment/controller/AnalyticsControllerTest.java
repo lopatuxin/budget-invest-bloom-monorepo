@@ -7,8 +7,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import pyc.lopatuxin.investment.AbstractIntegrationTest;
 import pyc.lopatuxin.investment.dto.response.PortfolioValuePointDto;
+import pyc.lopatuxin.investment.dto.response.PortfolioValueSeriesResponseDto;
 import pyc.lopatuxin.investment.dto.response.PricePointDto;
+import pyc.lopatuxin.investment.dto.response.SecurityDividendDto;
 import pyc.lopatuxin.investment.dto.response.SeriesResponseDto;
+import pyc.lopatuxin.investment.entity.enums.DividendSource;
+import pyc.lopatuxin.investment.entity.enums.DividendStatus;
 import pyc.lopatuxin.investment.service.AnalyticsService;
 
 import java.math.BigDecimal;
@@ -48,7 +52,7 @@ class AnalyticsControllerTest extends AbstractIntegrationTest {
                 PortfolioValuePointDto.builder().date(LocalDate.of(2024, 1, 15)).value(new BigDecimal("2700.00")).build(),
                 PortfolioValuePointDto.builder().date(LocalDate.of(2024, 1, 16)).value(new BigDecimal("2750.00")).build()
         );
-        SeriesResponseDto<PortfolioValuePointDto> mockResult = new SeriesResponseDto<>(series, false, List.of());
+        PortfolioValueSeriesResponseDto mockResult = new PortfolioValueSeriesResponseDto(series, false, List.of(), false, List.of());
         when(analyticsService.portfolioValueHistory(any(UUID.class), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(mockResult);
 
@@ -81,6 +85,32 @@ class AnalyticsControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("POST /security/dividends-history — расширенный ответ с id/status/source, возвращает 200")
+    void securityDividendsHistory_returnsOk() throws Exception {
+        List<SecurityDividendDto> history = List.of(
+                SecurityDividendDto.builder()
+                        .id(UUID.randomUUID())
+                        .recordDate(LocalDate.of(2026, 7, 18))
+                        .paymentDate(LocalDate.of(2026, 8, 4))
+                        .amountPerShare(new BigDecimal("37.64"))
+                        .currency("RUB")
+                        .status(DividendStatus.PAID)
+                        .source(DividendSource.TINVEST)
+                        .build());
+        when(analyticsService.securityDividendsHistory(any(UUID.class), anyString())).thenReturn(history);
+
+        mockMvc.perform(post(BASE_URL + "/security/dividends-history")
+                        .content(buildTickerRequest(userId, "SBER"))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is(200)))
+                .andExpect(jsonPath("$.body", hasSize(1)))
+                .andExpect(jsonPath("$.body[0].source", is("TINVEST")))
+                .andExpect(jsonPath("$.body[0].status", is("PAID")))
+                .andExpect(jsonPath("$.body[0].paymentDate", is("2026-08-04")));
+    }
+
+    @Test
     @DisplayName("POST /portfolio/value-history — from после to возвращает 400")
     void portfolioValueHistory_invalidRange_returnsBadRequest() throws Exception {
         mockMvc.perform(post(BASE_URL + "/portfolio/value-history")
@@ -105,6 +135,22 @@ class AnalyticsControllerTest extends AbstractIntegrationTest {
                   }
                 }
                 """.formatted(reqUserId, UUID.randomUUID(), from, to);
+    }
+
+    private String buildTickerRequest(UUID reqUserId, String ticker) {
+        return """
+                {
+                  "user": {
+                    "userId": "%s",
+                    "email": "test@example.com",
+                    "role": "USER",
+                    "sessionId": "%s"
+                  },
+                  "data": {
+                    "ticker": "%s"
+                  }
+                }
+                """.formatted(reqUserId, UUID.randomUUID(), ticker);
     }
 
     private String buildSecurityHistoryRequest(UUID reqUserId, String ticker, String from, String to) {

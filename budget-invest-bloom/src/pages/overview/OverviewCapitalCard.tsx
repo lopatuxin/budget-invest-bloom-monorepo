@@ -2,8 +2,7 @@ import { TrendingUp } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
 import { BudgetNormBadge } from '@/pages/budget/BudgetNormBadge';
 import { OverviewCapitalChart } from '@/pages/overview/OverviewCapitalChart';
-import { formatCurrency } from '@/lib/dateOptions';
-import { formatSignedCurrency } from '@/pages/overview/overviewFormat';
+import { formatCurrency, formatSignedCurrency } from '@/lib/dateOptions';
 import type { CapitalSection } from '@/types/budget';
 
 interface OverviewCapitalCardProps {
@@ -53,6 +52,11 @@ export function OverviewCapitalCard({ capital, portfolioAvailable, hasNoRecords,
           {capital.portfolioHistoryPending && (
             <span className="text-app-text-dim text-[11px]">
               история цен части бумаг ещё загружается, линия может измениться
+            </span>
+          )}
+          {capital.pricesStale && (
+            <span className="text-app-text-dim text-[11px]">
+              по части бумаг портфеля нет свежих цен, капитал посчитан по последним известным
             </span>
           )}
         </div>

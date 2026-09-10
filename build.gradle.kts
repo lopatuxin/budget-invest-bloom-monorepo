@@ -35,6 +35,7 @@ subprojects {
     // to the platform default (windows-1251 on Windows) or those literals get corrupted.
     tasks.withType<JavaCompile> {
         options.encoding = "UTF-8"
+        options.compilerArgs.add("-parameters")
     }
 
     tasks.withType<Test> {

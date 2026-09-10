@@ -84,9 +84,9 @@ public class TransactionService {
     @Transactional("investmentTransactionManager")
     public void delete(UUID userId, UUID id) {
         Transaction tx = transactionRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("Сделка не найдена: " + id));
         if (!tx.getUserId().equals(userId)) {
-            throw new EntityNotFoundException("Transaction not found: " + id);
+            throw new EntityNotFoundException("Сделка не найдена: " + id);
         }
         String ticker = tx.getSecurity().getTicker();
         if (tx.getBudgetEntryId() != null) {

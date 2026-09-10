@@ -22,4 +22,19 @@ public class UpcomingDividendDto {
     private BigDecimal quantity;
     private BigDecimal totalAmount;
     private String currency;
+
+    // The date this row is shown and sorted by: the record date while it has not passed yet
+    // (labeled "отсечка"), the payment date once it has (labeled "выплата") — see
+    // PortfolioService.buildUpcomingDividends and PortfolioValuationAdapter.findNextDividend,
+    // both of which pick the soonest upcoming dividend by this same rule (plan point 21).
+    // Takes "today" as an argument instead of calling LocalDate.now() itself, so a whole page
+    // build (which can call this once per comparison in a sort) judges every row against the
+    // same "today" rather than risking a different one for each call around a midnight rollover
+    // (plan point 3).
+    public LocalDate effectiveDate(LocalDate today) {
+        if (recordDate != null && !recordDate.isBefore(today)) {
+            return recordDate;
+        }
+        return paymentDate;
+    }
 }

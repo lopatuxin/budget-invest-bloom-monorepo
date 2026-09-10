@@ -49,4 +49,11 @@ public class CapitalSectionDto {
     @Schema(description = "История цен части бумаг ещё не загружена — прошлые точки могут измениться",
             example = "false")
     private Boolean portfolioHistoryPending;
+
+    @Schema(description = "У части бумаг в портфеле нет актуальной цены — траектория может измениться",
+            example = "false")
+    private Boolean pricesStale;
+
+    @Schema(description = "Тикеры бумаг без актуальной цены")
+    private List<String> staleTickers;
 }
