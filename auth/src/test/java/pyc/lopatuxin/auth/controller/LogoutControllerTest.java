@@ -47,7 +47,7 @@ class LogoutControllerTest extends AbstractIntegrationTest {
                 .data(logoutRequest)
                 .build();
 
-        mockMvc.perform(post("/api/auth/logout")
+        mockMvc.perform(post("/auth/api/auth/logout")
                         .header("Authorization", "Bearer " + jwtToken)
                         .cookie(new Cookie("refreshToken", rawRefreshToken))
                         .header("User-Agent", "Test-Agent")
@@ -85,7 +85,7 @@ class LogoutControllerTest extends AbstractIntegrationTest {
                 .data(logoutRequest)
                 .build();
 
-        mockMvc.perform(post("/api/auth/logout")
+        mockMvc.perform(post("/auth/api/auth/logout")
                         .header("Authorization", "Bearer " + jwtToken)
                         .header("User-Agent", "Test-Agent")
                         .header("X-Forwarded-For", "127.0.0.1")
@@ -121,7 +121,7 @@ class LogoutControllerTest extends AbstractIntegrationTest {
                 .data(logoutRequest)
                 .build();
 
-        mockMvc.perform(post("/api/auth/logout")
+        mockMvc.perform(post("/auth/api/auth/logout")
                         .header("Authorization", "Bearer " + jwtToken)
                         .header("User-Agent", "Test-Agent")
                         .header("X-Forwarded-For", "127.0.0.1")
@@ -160,7 +160,7 @@ class LogoutControllerTest extends AbstractIntegrationTest {
                 .data(logoutRequest)
                 .build();
 
-        mockMvc.perform(post("/api/auth/logout")
+        mockMvc.perform(post("/auth/api/auth/logout")
                         .header("Authorization", "Bearer " + jwtToken)
                         .cookie(new Cookie("refreshToken", rawRefreshToken))
                         .header("User-Agent", "Test-Agent")
@@ -169,7 +169,7 @@ class LogoutControllerTest extends AbstractIntegrationTest {
                         .content(objectMapper.writeValueAsString(apiRequest)))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(post("/api/auth/logout")
+        mockMvc.perform(post("/auth/api/auth/logout")
                         .header("Authorization", "Bearer " + jwtToken)
                         .cookie(new Cookie("refreshToken", rawRefreshToken))
                         .header("User-Agent", "Test-Agent")
@@ -192,7 +192,7 @@ class LogoutControllerTest extends AbstractIntegrationTest {
                 .data(logoutRequest)
                 .build();
 
-        mockMvc.perform(post("/api/auth/logout")
+        mockMvc.perform(post("/auth/api/auth/logout")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(apiRequest)))
                 .andExpect(status().isUnauthorized());
@@ -210,7 +210,7 @@ class LogoutControllerTest extends AbstractIntegrationTest {
                 .data(logoutRequest)
                 .build();
 
-        mockMvc.perform(post("/api/auth/logout")
+        mockMvc.perform(post("/auth/api/auth/logout")
                         .header("Authorization", "Bearer invalid.jwt.token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(apiRequest)))
@@ -235,7 +235,7 @@ class LogoutControllerTest extends AbstractIntegrationTest {
                 .data(logoutRequest)
                 .build();
 
-        mockMvc.perform(post("/api/auth/logout")
+        mockMvc.perform(post("/auth/api/auth/logout")
                         .header("Authorization", "Bearer " + jwtToken)
                         .cookie(new Cookie("refreshToken", nonExistentRefreshToken))
                         .header("User-Agent", "Test-Agent")
@@ -264,7 +264,7 @@ class LogoutControllerTest extends AbstractIntegrationTest {
                 .data(logoutRequest)
                 .build();
 
-        mockMvc.perform(post("/api/auth/logout")
+        mockMvc.perform(post("/auth/api/auth/logout")
                         .header("Authorization", "Bearer " + jwtToken)
                         .header("User-Agent", "Test-Agent")
                         .header("X-Forwarded-For", "127.0.0.1")

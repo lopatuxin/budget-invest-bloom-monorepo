@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -30,16 +31,17 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ResponseApi<Object>> handleValidationException(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
+        Map<String, String> fields = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
             String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
+            fields.put(fieldName, errorMessage);
         });
-        
-        log.warn("Ошибки валидации: {}", errors);
+
+        log.warn("Ошибки валидации: {}", fields);
         return ResponseEntity.badRequest()
-                .body(ResponseApi.error("Validation failed", errors));
+                .body(ResponseApi.error(HttpStatus.BAD_REQUEST.value(), "Validation failed",
+                        Map.of("code", "MISSING_REQUIRED_FIELDS", "fields", fields)));
     }
 
     @ExceptionHandler(EntityNotFoundException.class)
@@ -71,11 +73,39 @@ public class GlobalExceptionHandler {
                 .body(ResponseApi.error(message));
     }
 
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<ResponseApi<Object>> handleAccountLockedException(AccountLockedException ex) {
+        log.warn("Доступ запрещен: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ResponseApi.error(HttpStatus.FORBIDDEN.value(), ex.getMessage(), Map.of("code", "ACCOUNT_LOCKED")));
+    }
+
+    @ExceptionHandler(AccountInactiveException.class)
+    public ResponseEntity<ResponseApi<Object>> handleAccountInactiveException(AccountInactiveException ex) {
+        log.warn("Доступ запрещен: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ResponseApi.error(HttpStatus.FORBIDDEN.value(), ex.getMessage(), Map.of("code", "ACCOUNT_INACTIVE")));
+    }
+
+    @ExceptionHandler(RefreshTokenReusedException.class)
+    public ResponseEntity<ResponseApi<Object>> handleRefreshTokenReusedException(RefreshTokenReusedException ex) {
+        log.warn("Доступ запрещен: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ResponseApi.error(HttpStatus.FORBIDDEN.value(), ex.getMessage(), Map.of("code", "REFRESH_TOKEN_REUSED")));
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ResponseApi<Object>> handleAccessDeniedException(AccessDeniedException ex) {
         log.warn("Доступ запрещен: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ResponseApi.error(HttpStatus.FORBIDDEN.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ResponseApi<Object>> handleBadCredentialsException(BadCredentialsException ex) {
+        log.warn("Аутентификация не удалась: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ResponseApi.error(HttpStatus.UNAUTHORIZED.value(), ex.getMessage(), Map.of("code", "INVALID_CREDENTIALS")));
     }
 
     @ExceptionHandler(AuthenticationException.class)

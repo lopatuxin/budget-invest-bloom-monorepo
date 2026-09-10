@@ -39,7 +39,7 @@ class RegisterControllerTest extends AbstractIntegrationTest {
                 .data(registerRequest)
                 .build();
 
-        mockMvc.perform(post("/api/register")
+        mockMvc.perform(post("/auth/api/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(apiRequest)))
                 .andExpect(status().isCreated())
@@ -64,7 +64,7 @@ class RegisterControllerTest extends AbstractIntegrationTest {
                 .data(firstRequest)
                 .build();
 
-        mockMvc.perform(post("/api/register")
+        mockMvc.perform(post("/auth/api/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(firstApiRequest)))
                 .andExpect(status().isCreated());
@@ -80,7 +80,7 @@ class RegisterControllerTest extends AbstractIntegrationTest {
                 .data(duplicateRequest)
                 .build();
 
-        mockMvc.perform(post("/api/register")
+        mockMvc.perform(post("/auth/api/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(duplicateApiRequest)))
                 .andExpect(status().isConflict())
@@ -105,7 +105,7 @@ class RegisterControllerTest extends AbstractIntegrationTest {
                 .data(registerRequest)
                 .build();
 
-        mockMvc.perform(post("/api/register")
+        mockMvc.perform(post("/auth/api/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(apiRequest)))
                 .andExpect(status().isCreated());
@@ -130,7 +130,7 @@ class RegisterControllerTest extends AbstractIntegrationTest {
                 .data(registerRequest)
                 .build();
 
-        mockMvc.perform(post("/api/register")
+        mockMvc.perform(post("/auth/api/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(apiRequest)))
                 .andExpect(status().isBadRequest())

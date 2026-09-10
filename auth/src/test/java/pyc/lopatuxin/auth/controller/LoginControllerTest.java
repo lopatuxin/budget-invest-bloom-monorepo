@@ -1,12 +1,17 @@
 package pyc.lopatuxin.auth.controller;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import pyc.lopatuxin.auth.AbstractIntegrationTest;
 import pyc.lopatuxin.auth.dto.request.ApiRequest;
 import pyc.lopatuxin.auth.dto.request.LoginRequest;
@@ -22,6 +27,31 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class LoginControllerTest extends AbstractIntegrationTest {
+
+    private static final String WRONG_PASSWORD_TEST_EMAIL = "wrong-password-test@example.com";
+    private static final String LOCKED_ACCOUNT_TEST_EMAIL = "locked-response-test@example.com";
+
+    @Autowired
+    @Qualifier("authTransactionManager")
+    private PlatformTransactionManager transactionManager;
+
+    // Not @Transactional: handleFailedLogin() now runs in its own REQUIRES_NEW transaction, which
+    // cannot see a user row inserted by an uncommitted outer test transaction. This test performs
+    // a real HTTP login against a committed user and cleans up manually afterwards, exactly like
+    // LoginLockoutIT.
+    @AfterEach
+    void cleanUpWrongPasswordTestUser() {
+        new TransactionTemplate(transactionManager).executeWithoutResult(status ->
+                userRepository.findUserByEmail(WRONG_PASSWORD_TEST_EMAIL).ifPresent(user -> {
+                    refreshTokenRepository.deleteAllByUser(user);
+                    userRepository.delete(user);
+                }));
+        new TransactionTemplate(transactionManager).executeWithoutResult(status ->
+                userRepository.findUserByEmail(LOCKED_ACCOUNT_TEST_EMAIL).ifPresent(user -> {
+                    refreshTokenRepository.deleteAllByUser(user);
+                    userRepository.delete(user);
+                }));
+    }
 
     @Test
     @Transactional
@@ -39,7 +69,7 @@ class LoginControllerTest extends AbstractIntegrationTest {
                 .data(loginRequest)
                 .build();
 
-        mockMvc.perform(post("/api/login")
+        mockMvc.perform(post("/auth/api/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(apiRequest)))
                 .andExpect(status().isOk())
@@ -67,24 +97,25 @@ class LoginControllerTest extends AbstractIntegrationTest {
                 .data(loginRequest)
                 .build();
 
-        mockMvc.perform(post("/api/login")
+        mockMvc.perform(post("/auth/api/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(apiRequest)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(401))
-                .andExpect(jsonPath("$.message").value("Неверный email или пароль"));
+                .andExpect(jsonPath("$.message").value("Неверный email или пароль"))
+                .andExpect(jsonPath("$.body.code").value("INVALID_CREDENTIALS"));
     }
 
     @Test
-    @Transactional
     @DisplayName("Должен возвращать ошибку 401 при неверном пароле")
     void shouldReturnUnauthorizedWhenPasswordIsIncorrect() throws Exception {
         User user = createUser();
+        user.setEmail(WRONG_PASSWORD_TEST_EMAIL);
         userRepository.save(user);
 
         LoginRequest loginRequest = LoginRequest.builder()
-                .email("test@example.com")
+                .email(WRONG_PASSWORD_TEST_EMAIL)
                 .password("wrongPassword")
                 .build();
 
@@ -92,13 +123,14 @@ class LoginControllerTest extends AbstractIntegrationTest {
                 .data(loginRequest)
                 .build();
 
-        mockMvc.perform(post("/api/login")
+        mockMvc.perform(post("/auth/api/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(apiRequest)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(401))
-                .andExpect(jsonPath("$.message").value("Неверный email или пароль"));
+                .andExpect(jsonPath("$.message").value("Неверный email или пароль"))
+                .andExpect(jsonPath("$.body.code").value("INVALID_CREDENTIALS"));
     }
 
     @Test
@@ -119,13 +151,14 @@ class LoginControllerTest extends AbstractIntegrationTest {
                 .data(loginRequest)
                 .build();
 
-        mockMvc.perform(post("/api/login")
+        mockMvc.perform(post("/auth/api/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(apiRequest)))
                 .andExpect(status().isForbidden())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(403))
-                .andExpect(jsonPath("$.message").value("Пользователь не активирован"));
+                .andExpect(jsonPath("$.message").value("Пользователь не активирован"))
+                .andExpect(jsonPath("$.body.code").value("ACCOUNT_INACTIVE"));
     }
 
     @ParameterizedTest
@@ -141,12 +174,13 @@ class LoginControllerTest extends AbstractIntegrationTest {
                 .data(loginRequest)
                 .build();
 
-        mockMvc.perform(post("/api/login")
+        mockMvc.perform(post("/auth/api/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(apiRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value(400));
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.body.code").value("MISSING_REQUIRED_FIELDS"));
     }
 
     private static Stream<Arguments> invalidLoginRequestData() {
@@ -163,100 +197,22 @@ class LoginControllerTest extends AbstractIntegrationTest {
         );
     }
 
+    // Not @Transactional, same reasoning as shouldReturnUnauthorizedWhenPasswordIsIncorrect above:
+    // this checks the full response contract (status, message, code) for an already-locked
+    // account, which LoginLockoutIT's loginToLockedAccountIsRejected does not assert (it only
+    // checks status and code). Kept here against a real committed user with manual cleanup so the
+    // response assertions are not shielded by a shared test/service transaction.
     @Test
-    @Transactional
-    @DisplayName("Должен увеличивать счетчик неудачных попыток при неверном пароле")
-    void shouldIncrementFailedAttemptsOnWrongPassword() throws Exception {
-        User user = createUser();
-        userRepository.save(user);
-
-        LoginRequest loginRequest = LoginRequest.builder()
-                .email("test@example.com")
-                .password("wrongPassword")
-                .build();
-
-        ApiRequest<LoginRequest> apiRequest = ApiRequest.<LoginRequest>builder()
-                .data(loginRequest)
-                .build();
-
-        mockMvc.perform(post("/api/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(apiRequest)))
-                .andExpect(status().isUnauthorized());
-
-        User updatedUser = userRepository.findUserByEmail("test@example.com").orElseThrow();
-        assertThat(updatedUser.getFailedLoginAttempts()).isEqualTo(1);
-    }
-
-    @Test
-    @Transactional
-    @DisplayName("Должен постепенно увеличивать счетчик при множественных неудачных попытках")
-    void shouldIncrementFailedAttemptsProgressively() throws Exception {
-        User user = createUser();
-        userRepository.save(user);
-
-        LoginRequest loginRequest = LoginRequest.builder()
-                .email("test@example.com")
-                .password("wrongPassword")
-                .build();
-
-        ApiRequest<LoginRequest> apiRequest = ApiRequest.<LoginRequest>builder()
-                .data(loginRequest)
-                .build();
-
-        for (int i = 1; i <= 4; i++) {
-            mockMvc.perform(post("/api/login")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(apiRequest)))
-                    .andExpect(status().isUnauthorized());
-
-            User updatedUser = userRepository.findUserByEmail("test@example.com").orElseThrow();
-            assertThat(updatedUser.getFailedLoginAttempts()).isEqualTo(i);
-            assertThat(updatedUser.getLockedUntil()).isNull();
-        }
-    }
-
-    @Test
-    @Transactional
-    @DisplayName("Должен блокировать аккаунт после 5 неудачных попыток")
-    void shouldLockAccountAfterFiveFailedAttempts() throws Exception {
-        User user = createUser();
-        userRepository.save(user);
-
-        LoginRequest loginRequest = LoginRequest.builder()
-                .email("test@example.com")
-                .password("wrongPassword")
-                .build();
-
-        ApiRequest<LoginRequest> apiRequest = ApiRequest.<LoginRequest>builder()
-                .data(loginRequest)
-                .build();
-
-        for (int i = 0; i < 5; i++) {
-            mockMvc.perform(post("/api/login")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(apiRequest)))
-                    .andExpect(status().isUnauthorized());
-        }
-
-        User updatedUser = userRepository.findUserByEmail("test@example.com").orElseThrow();
-        assertThat(updatedUser.getFailedLoginAttempts()).isEqualTo(5);
-        assertThat(updatedUser.getLockedUntil()).isNotNull();
-        assertThat(updatedUser.getLockedUntil()).isAfter(LocalDateTime.now());
-    }
-
-    @Test
-    @Transactional
     @DisplayName("Должен возвращать ошибку 403 при попытке входа в заблокированный аккаунт")
     void shouldReturnForbiddenWhenAccountIsLocked() throws Exception {
         User lockedUser = createUser();
-        lockedUser.setEmail("locked@example.com");
+        lockedUser.setEmail(LOCKED_ACCOUNT_TEST_EMAIL);
         lockedUser.setLockedUntil(LocalDateTime.now().plusMinutes(15));
         lockedUser.setFailedLoginAttempts(5);
         userRepository.save(lockedUser);
 
         LoginRequest loginRequest = LoginRequest.builder()
-                .email("locked@example.com")
+                .email(LOCKED_ACCOUNT_TEST_EMAIL)
                 .password(TEST_PASSWORD)
                 .build();
 
@@ -264,104 +220,13 @@ class LoginControllerTest extends AbstractIntegrationTest {
                 .data(loginRequest)
                 .build();
 
-        mockMvc.perform(post("/api/login")
+        mockMvc.perform(post("/auth/api/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(apiRequest)))
                 .andExpect(status().isForbidden())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(403))
-                .andExpect(jsonPath("$.message").value("Аккаунт заблокирован до " + lockedUser.getLockedUntil()));
-    }
-
-    @Test
-    @Transactional
-    @DisplayName("Должен разблокировать аккаунт и сбросить счетчик после истечения времени блокировки")
-    void shouldUnlockAccountAfterLockPeriodExpires() throws Exception {
-        User user = createUser();
-        user.setFailedLoginAttempts(5);
-        user.setLockedUntil(LocalDateTime.now().minusMinutes(1));
-        userRepository.save(user);
-
-        LoginRequest loginRequest = LoginRequest.builder()
-                .email("test@example.com")
-                .password(TEST_PASSWORD)
-                .build();
-
-        ApiRequest<LoginRequest> apiRequest = ApiRequest.<LoginRequest>builder()
-                .data(loginRequest)
-                .build();
-
-        mockMvc.perform(post("/api/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(apiRequest)))
-                .andExpect(status().isOk());
-
-        User updatedUser = userRepository.findUserByEmail("test@example.com").orElseThrow();
-        assertThat(updatedUser.getFailedLoginAttempts()).isZero();
-        assertThat(updatedUser.getLockedUntil()).isNull();
-    }
-
-    @Test
-    @Transactional
-    @DisplayName("Должен сбрасывать счетчик неудачных попыток после успешного входа")
-    void shouldResetFailedAttemptsAfterSuccessfulLogin() throws Exception {
-        User user = createUser();
-        user.setFailedLoginAttempts(3);
-        userRepository.save(user);
-
-        LoginRequest loginRequest = LoginRequest.builder()
-                .email("test@example.com")
-                .password(TEST_PASSWORD)
-                .build();
-
-        ApiRequest<LoginRequest> apiRequest = ApiRequest.<LoginRequest>builder()
-                .data(loginRequest)
-                .build();
-
-        mockMvc.perform(post("/api/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(apiRequest)))
-                .andExpect(status().isOk());
-
-        User updatedUser = userRepository.findUserByEmail("test@example.com").orElseThrow();
-        assertThat(updatedUser.getFailedLoginAttempts()).isZero();
-    }
-
-    @Test
-    @Transactional
-    @DisplayName("Должен блокировать аккаунт ровно на 15 минут после 5 неудачных попыток")
-    void shouldLockAccountForExactly15MinutesAfterFiveFailedAttempts() throws Exception {
-        User user = createUser();
-        user.setFailedLoginAttempts(4);
-        userRepository.save(user);
-
-        LoginRequest loginRequest = LoginRequest.builder()
-                .email("test@example.com")
-                .password("wrongPassword")
-                .build();
-
-        ApiRequest<LoginRequest> apiRequest = ApiRequest.<LoginRequest>builder()
-                .data(loginRequest)
-                .build();
-
-        java.time.LocalDateTime beforeAttempt = java.time.LocalDateTime.now();
-
-        mockMvc.perform(post("/api/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(apiRequest)))
-                .andExpect(status().isUnauthorized());
-
-        java.time.LocalDateTime afterAttempt = java.time.LocalDateTime.now();
-
-        User updatedUser = userRepository.findUserByEmail("test@example.com").orElseThrow();
-        assertThat(updatedUser.getFailedLoginAttempts()).isEqualTo(5);
-        assertThat(updatedUser.getLockedUntil()).isNotNull();
-
-        LocalDateTime expectedLockTime = beforeAttempt.plusMinutes(15);
-        LocalDateTime actualLockTime = updatedUser.getLockedUntil();
-
-        assertThat(actualLockTime)
-                .isAfter(expectedLockTime.minusSeconds(5))
-                .isBefore(afterAttempt.plusMinutes(15).plusSeconds(5));
+                .andExpect(jsonPath("$.message").value("Аккаунт заблокирован"))
+                .andExpect(jsonPath("$.body.code").value("ACCOUNT_LOCKED"));
     }
 }

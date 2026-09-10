@@ -122,14 +122,6 @@ const Login = () => {
           });
           break;
 
-        case 'RATE_LIMIT_EXCEEDED':
-          toast({
-            title: "Слишком много попыток",
-            description: "Слишком много попыток входа. Попробуйте через несколько минут",
-            variant: "destructive",
-          });
-          break;
-
         case 'MISSING_REQUIRED_FIELDS':
           toast({
             title: "Ошибка",

@@ -1,0 +1,41 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/changelog-v1.0.0.yml
+  - changeSet:
+      id: 009-dedupe-refresh-tokens-token-hash
+      author: system
+      comment: >
+        Removes leftover duplicate token_hash rows minted before the jti fix (see
+        JwtService.generateRefreshToken), keeping only the most recently created row per hash.
+        Same precedent as 008's DELETE FROM refresh_tokens: refresh-token rows are disposable
+        session state, not data worth reconciling by hand, and the addUniqueConstraint changeset
+        right after this one requires token_hash to already be unique.
+      changes:
+        - sql:
+            sql: >
+              DELETE FROM refresh_tokens rt
+              USING refresh_tokens newer
+              WHERE rt.token_hash = newer.token_hash
+                AND (rt.created_at, rt.id) < (newer.created_at, newer.id);
+      rollback:
+        - sql:
+            sql: "-- no rollback for data deletion"
+
+  - changeSet:
+      id: 009-uq-refresh-tokens-token-hash
+      author: system
+      comment: >
+        Refresh tokens now carry a random jti claim (see JwtService.generateRefreshToken), so two
+        tokens can no longer hash to the same value even when minted for the same user in the same
+        second — token_hash is safe to enforce as unique going forward. Pre-existing duplicates
+        minted before the jti fix are removed by the changeset above first, so this one always
+        either applies for real or fails loudly — never silently marked ran with no constraint
+        created, which would make the dropUniqueConstraint rollback below fail too.
+      changes:
+        - addUniqueConstraint:
+            tableName: refresh_tokens
+            columnNames: token_hash
+            constraintName: uq_refresh_tokens_token_hash
+      rollback:
+        - dropUniqueConstraint:
+            tableName: refresh_tokens
+            constraintName: uq_refresh_tokens_token_hash

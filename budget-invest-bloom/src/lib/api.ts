@@ -171,7 +171,9 @@ export async function apiRequest<T = unknown>(
       try {
         const errorBody = await response.json();
         serverMessage = errorBody?.message;
-        serverErrorCode = errorBody?.error;
+        // ResponseApi never carries a top-level "error" field — the code lives
+        // in body.code (see e.g. GlobalExceptionHandler's DIVIDEND_EXISTS/CATEGORY_HAS_EXPENSES).
+        serverErrorCode = errorBody?.body?.code;
         serverBody = errorBody?.body;
       } catch {
         // Response body is not valid JSON — fall back to statusText

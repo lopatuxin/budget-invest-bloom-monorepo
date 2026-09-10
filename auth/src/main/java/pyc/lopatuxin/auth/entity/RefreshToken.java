@@ -47,6 +47,7 @@ public class RefreshToken {
     /**
      * Хэш токена
      */
+    @Column(unique = true)
     private String tokenHash;
 
     /**

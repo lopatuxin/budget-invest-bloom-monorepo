@@ -227,6 +227,60 @@ class JwtServiceUnitTest {
         assertThat(jwtService.isTokenValid(token2, testUser.getEmail())).isTrue();
     }
 
+    // Builds two refresh tokens with a manually fixed, shared issuedAt instead of relying on two
+    // real calls to generateRefreshToken() landing in the same wall-clock second — a wait-for-luck
+    // loop over that would still be able to run out and fail on a slow or loaded machine. Forcing
+    // the shared iat deterministically tests the exact same guarantee (jti still tells the tokens
+    // apart when everything else, iat included, matches) with no dependency on timing.
+    @Test
+    @DisplayName("Два refresh токена с одинаковым iat всё равно различаются благодаря claim jti")
+    void shouldGenerateDifferentRefreshTokensForTheSameIssuedAtSecond() {
+        SecretKey key = Keys.hmacShaKeyFor(TEST_SECRET.getBytes(StandardCharsets.UTF_8));
+        Date sharedIssuedAt = new Date();
+        Date expiration = new Date(sharedIssuedAt.getTime() + REFRESH_TOKEN_EXPIRATION);
+
+        String token1 = buildRefreshTokenWithFixedIssuedAt(key, sharedIssuedAt, expiration);
+        String token2 = buildRefreshTokenWithFixedIssuedAt(key, sharedIssuedAt, expiration);
+
+        Claims claims1 = parseToken(token1);
+        Claims claims2 = parseToken(token2);
+
+        assertThat(claims1.getIssuedAt()).isEqualTo(claims2.getIssuedAt());
+        assertThat(token1).isNotEqualTo(token2);
+        assertThat(claims1.get("jti", String.class)).isNotBlank();
+        assertThat(claims1.get("jti", String.class)).isNotEqualTo(claims2.get("jti", String.class));
+    }
+
+    private String buildRefreshTokenWithFixedIssuedAt(SecretKey key, Date issuedAt, Date expiration) {
+        return Jwts.builder()
+                .claim("userId", testUser.getId().toString())
+                .claim("type", "refresh")
+                .claim("jti", UUID.randomUUID().toString())
+                .subject(testUser.getEmail())
+                .issuedAt(issuedAt)
+                .expiration(expiration)
+                .signWith(key, Jwts.SIG.HS256)
+                .compact();
+    }
+
+    @Test
+    @DisplayName("Уже выпущенный refresh токен без claim jti по-прежнему валиден — при валидации jti не проверяется")
+    void refreshTokenWithoutJtiClaim_isStillValid() {
+        SecretKey key = Keys.hmacShaKeyFor(TEST_SECRET.getBytes(StandardCharsets.UTF_8));
+        Date now = new Date();
+        String legacyToken = Jwts.builder()
+                .claim("userId", testUser.getId().toString())
+                .claim("type", "refresh")
+                .subject(testUser.getEmail())
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + REFRESH_TOKEN_EXPIRATION))
+                .signWith(key, Jwts.SIG.HS256)
+                .compact();
+
+        assertThat(jwtService.isTokenValid(legacyToken, testUser.getEmail())).isTrue();
+        assertThat(jwtService.extractUserId(legacyToken)).isEqualTo(testUser.getId());
+    }
+
     @Test
     @DisplayName("Должен генерировать разные токены для разных пользователей")
     void shouldGenerateDifferentTokensForDifferentUsers() {
@@ -258,6 +312,26 @@ class JwtServiceUnitTest {
 
         assertThatThrownBy(() -> jwtService.extractEmail(expiredToken))
                 .isInstanceOf(ExpiredJwtException.class);
+    }
+
+    @Test
+    @DisplayName("Должен бросать понятную ошибку при генерации access токена для пользователя без ролей")
+    void shouldThrowMeaningfulExceptionWhenUserHasNoRoles() {
+        testUser.setRoles(List.of());
+
+        assertThatThrownBy(() -> jwtService.generateAccessToken(testUser))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(testUser.getId().toString());
+    }
+
+    @Test
+    @DisplayName("Должен бросать понятную ошибку при генерации access токена, если список ролей null")
+    void shouldThrowMeaningfulExceptionWhenRolesIsNull() {
+        testUser.setRoles(null);
+
+        assertThatThrownBy(() -> jwtService.generateAccessToken(testUser))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(testUser.getId().toString());
     }
 
     /**

@@ -12,11 +12,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import pyc.lopatuxin.auth.config.JwtConfig;
 import pyc.lopatuxin.auth.entity.User;
+import pyc.lopatuxin.auth.entity.UserRole;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
@@ -30,6 +32,7 @@ import java.util.function.Function;
 public class JwtService {
 
     private static final String CLAIM_USER_ID = "userId";
+    private static final String CLAIM_JTI = "jti";
     private final JwtConfig jwtConfig;
 
     /**
@@ -39,11 +42,20 @@ public class JwtService {
      * @return JWT access токен
      */
     public String generateAccessToken(User user) {
+        List<UserRole> roles = user.getRoles();
+        if (roles == null || roles.isEmpty()) {
+            // findUserByEmail's LEFT JOIN FETCH u.roles guarantees roles is loaded (never lazy),
+            // so an empty list here means the user genuinely has no role row — a data-integrity
+            // problem, not something a client request can cause. Fail loudly with the user's id
+            // instead of letting List.getFirst() throw a bare NoSuchElementException.
+            throw new IllegalStateException("У пользователя " + user.getId() + " нет ни одной роли");
+        }
+
         Map<String, Object> claims = new HashMap<>();
         claims.put(CLAIM_USER_ID, user.getId().toString());
         claims.put("email", user.getEmail());
         claims.put("username", user.getUsername());
-        claims.put("role", user.getRoles().getFirst().getRoleName().name());
+        claims.put("role", roles.getFirst().getRoleName().name());
 
         return generateToken(claims, user.getEmail(), jwtConfig.getAccessTokenExpiration());
     }
@@ -58,6 +70,12 @@ public class JwtService {
         Map<String, Object> claims = new HashMap<>();
         claims.put(CLAIM_USER_ID, user.getId().toString());
         claims.put("type", "refresh");
+        // Random unique id — the only thing distinguishing two refresh tokens minted for the same
+        // user in the same second, since issuedAt is truncated to seconds and every other claim is
+        // deterministic. Not read back anywhere: it exists solely so the raw JWT (and therefore its
+        // hash in refresh_tokens) is never accidentally identical to another live token. An
+        // already-issued token without this claim keeps working — nothing validates its presence.
+        claims.put(CLAIM_JTI, UUID.randomUUID().toString());
 
         return generateToken(claims, user.getEmail(), jwtConfig.getRefreshTokenExpiration());
     }

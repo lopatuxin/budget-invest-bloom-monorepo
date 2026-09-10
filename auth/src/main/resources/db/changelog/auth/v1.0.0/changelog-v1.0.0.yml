@@ -16,3 +16,5 @@ databaseChangeLog:
       file: db/changelog/auth/v1.0.0/007-add-logout-security-columns.yml
   - include:
       file: db/changelog/auth/v1.0.0/008-refresh-token-hash-algo-migration.yml
+  - include:
+      file: db/changelog/auth/v1.0.0/009-refresh-tokens-token-hash-unique.yml
