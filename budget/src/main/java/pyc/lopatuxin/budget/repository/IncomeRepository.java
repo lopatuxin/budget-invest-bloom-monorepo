@@ -107,6 +107,16 @@ public interface IncomeRepository extends JpaRepository<Income, UUID> {
     );
 
     /**
+     * Returns the date of the user's earliest non-transfer income, used by the analytics page to
+     * determine the earliest year with any data. Entries with isTransfer=true are excluded.
+     *
+     * @param userId identifier of the user
+     * @return the earliest date, or empty if the user has no non-transfer incomes
+     */
+    @Query("SELECT MIN(i.date) FROM Income i WHERE i.userId = :userId AND i.isTransfer = false")
+    Optional<LocalDate> findMinNonTransferDateByUserId(@Param("userId") UUID userId);
+
+    /**
      * Возвращает не-трансферные доходы пользователя за месяц, используется лентой операций.
      * Записи с isTransfer=true исключаются.
      *

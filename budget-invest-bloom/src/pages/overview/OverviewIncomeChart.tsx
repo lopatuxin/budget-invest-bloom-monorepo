@@ -1,6 +1,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ResponsiveContainer } from 'recharts';
 import { formatCurrency } from '@/lib/dateOptions';
-import { capitalize, formatThousands, monthNominative, monthShortLabel, OVERVIEW_CHART_COLORS } from '@/pages/overview/overviewFormat';
+import { capitalize, monthNominative, monthShortLabel } from '@/lib/monthNames';
+import { formatThousands, OVERVIEW_CHART_COLORS } from '@/pages/overview/overviewFormat';
 import type { MonthTotals } from '@/types/budget';
 
 type IncomeChartPoint = MonthTotals & { label: string; spent: number; savedPositive: number };

@@ -6,18 +6,12 @@ export const qk = {
   budget: {
     summary: (month: string, year: string) => ['budget-summary', month, year] as const,
     overviewPage: () => ['overview-page'] as const,
+    analyticsPage: (year: number) => ['analytics-page', year] as const,
     categoryAnalytics: (name: string, year: number, month: number) =>
       ['category-analytics', name, year, month] as const,
     categoryAnalyticsAll: () => ['category-analytics'] as const,
     operations: (month: string, year: string) => ['budget-operations', month, year] as const,
     categoryList: () => ['budget-category-list'] as const,
-  },
-  metrics: {
-    balance: (year: number) => ['balance-metric', year] as const,
-    capital: (year: number) => ['capital-metric', year] as const,
-    expense: (year: number) => ['expense-metric', year] as const,
-    income: (year: number) => ['income-metric', year] as const,
-    inflation: (year: number) => ['inflation-metric', year] as const,
   },
   // investment domain
   investment: {
@@ -42,10 +36,6 @@ export const invalidateBudgetCaches = (queryClient: QueryClient) => {
   queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
   queryClient.invalidateQueries({ queryKey: ['budget-operations'] });
   queryClient.invalidateQueries({ queryKey: ['overview-page'] });
+  queryClient.invalidateQueries({ queryKey: ['analytics-page'] });
   queryClient.invalidateQueries({ queryKey: ['category-analytics'] });
-  queryClient.invalidateQueries({ queryKey: ['balance-metric'] });
-  queryClient.invalidateQueries({ queryKey: ['capital-metric'] });
-  queryClient.invalidateQueries({ queryKey: ['expense-metric'] });
-  queryClient.invalidateQueries({ queryKey: ['income-metric'] });
-  queryClient.invalidateQueries({ queryKey: ['inflation-metric'] });
 };

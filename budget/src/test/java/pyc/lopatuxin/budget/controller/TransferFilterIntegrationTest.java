@@ -21,7 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Integration tests verifying that transfer-flagged records (isTransfer=true)
- * are correctly excluded from overview/balance-metric widgets but included in lifetime balance.
+ * are correctly excluded from overview/analytics widgets but included in lifetime balance.
  */
 @DisplayName("Интеграционные тесты фильтрации transfer-записей")
 class TransferFilterIntegrationTest extends AbstractIntegrationTest {
@@ -217,11 +217,11 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.body.freeCapital", comparesEqualTo(0)));
     }
 
-    // ─── BalanceMetricService: помесячная разбивка исключает transfer ─────────
+    // ─── Analytics: помесячная разбивка сбережений исключает transfer ─────────
 
     @Test
-    @DisplayName("BalanceMetric: помесячная разбивка не включает transfer-записи")
-    void balanceMetric_shouldExcludeTransferFromMonthlyBreakdown() throws Exception {
+    @DisplayName("Analytics: помесячная разбивка сбережений не включает transfer-записи")
+    void analyticsSavings_shouldExcludeTransferFromMonthlyBreakdown() throws Exception {
         // Январь: non-transfer доход 80000, transfer-доход 15000, non-transfer расход 30000, transfer-расход 50000
         incomeRepository.save(Income.builder()
                 .userId(userId)
@@ -252,12 +252,12 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                 .isTransfer(true)
                 .build());
 
-        mockMvc.perform(post("/api/budget/metric/balance")
+        mockMvc.perform(post("/api/budget/analytics")
                         .content(buildMetricRequest(userId, 2024))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                // Январь: баланс = 80000 - 30000 = 50000 (transfer не учитываются)
-                .andExpect(jsonPath("$.body.monthlyData[0].amount", comparesEqualTo(50000.0)));
+                // Январь: сбережения = 80000 - 30000 = 50000 (transfer не учитываются)
+                .andExpect(jsonPath("$.body.savings.months[0].current", comparesEqualTo(50000.0)));
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────

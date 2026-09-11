@@ -11,7 +11,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/', label: 'Обзор', icon: LayoutDashboard, linkTo: '/' },
   { href: '/budget', label: 'Бюджет', icon: Wallet, linkTo: '/budget' },
   { href: '/investments', label: 'Инвестиции', icon: TrendingUp, linkTo: '/investments' },
-  { href: '/budget/metric', label: 'Аналитика', icon: BarChart3, linkTo: '/budget/metric/expenses' },
+  { href: '/analytics', label: 'Аналитика', icon: BarChart3, linkTo: '/analytics' },
 ];
 
 /**

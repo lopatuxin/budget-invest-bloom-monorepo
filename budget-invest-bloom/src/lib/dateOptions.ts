@@ -1,5 +1,5 @@
 // Shared date/period/number formatting utilities used across Budget, CategoryExpenses,
-// MetricDetails, and the overview and investments pages
+// the analytics page, and the overview and investments pages
 
 // Short lowercase month names — chart axis labels (overview) and stale-price
 // header dates (investments). Single source: both pages' *Format.ts import it

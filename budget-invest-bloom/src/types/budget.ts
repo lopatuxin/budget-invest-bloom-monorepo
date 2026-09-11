@@ -75,28 +75,6 @@ export interface MonthlyMetric {
   amount: number;
 }
 
-export interface CategoryInflation {
-  categoryId: string;
-  categoryName: string;
-  emoji: string;
-  avgCurrent: number;
-  avgPrevious: number;
-  changePercent: number;
-  contribution: number;
-  weightPercent: number;
-}
-
-export interface MetricResponse {
-  year: number;
-  currentValue: number;
-  previousValue: number;
-  changePercent: string;
-  yearlyAverage: number;
-  yearlyMax: number;
-  monthlyData: MonthlyMetric[];
-  categoryBreakdown?: CategoryInflation[];
-}
-
 export interface CategoryAnalyticsResponse {
   categoryId: string;
   categoryName: string;
@@ -219,4 +197,61 @@ export interface OverviewPageResponse {
   months: MonthTotals[];
   totals12m: Totals12m;
   personalInflationPercent?: number | null;
+}
+
+// Shape returned by POST /api/budget/analytics — the /analytics page.
+
+export interface AnalyticsMonthExtreme {
+  month: number;
+  amount: number;
+}
+
+export interface AnalyticsMonthPoint {
+  month: number;
+  // Absent for months after the current one and for every month of a future year.
+  current?: number | null;
+  // Always a number — 0 when the previous year has no data for the month.
+  previous: number;
+  partial: boolean;
+}
+
+export interface AnalyticsSection {
+  total: number;
+  previousTotal: number;
+  monthsCounted: number;
+  previousMonthsCounted: number;
+  average?: number | null;
+  previousAverage?: number | null;
+  change: Change;
+  maxMonth?: AnalyticsMonthExtreme | null;
+  minMonth?: AnalyticsMonthExtreme | null;
+  // Always 12 entries, in month order.
+  months: AnalyticsMonthPoint[];
+}
+
+export interface AnalyticsCategory {
+  categoryId: string;
+  categoryName: string;
+  emoji: string;
+  averageCurrent: number;
+  averagePrevious: number;
+  change: Change;
+  contributionPoints?: number | null;
+  sharePercent: number;
+}
+
+export interface AnalyticsPageResponse {
+  year: number;
+  previousYear: number;
+  earliestYear?: number | null;
+  currentMonth: { month: number; year: number; partial: boolean };
+  previousYearHasData: boolean;
+  expenses: AnalyticsSection;
+  income: AnalyticsSection;
+  savings: AnalyticsSection;
+  savingsRatePercent?: number | null;
+  previousSavingsRatePercent?: number | null;
+  personalInflationPercent?: number | null;
+  // Populated only on the expenses tab; empty for income/savings.
+  categories: AnalyticsCategory[];
 }

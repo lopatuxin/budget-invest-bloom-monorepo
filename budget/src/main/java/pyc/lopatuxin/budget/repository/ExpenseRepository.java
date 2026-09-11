@@ -209,26 +209,40 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
     long countByCategoryId(UUID categoryId);
 
     /**
-     * Returns aggregated non-transfer expense totals per category for a given user and year.
-     * Entries with isTransfer=true (investments and transfers between assets) are excluded.
-     * Each result element: [categoryId (UUID), name (String), emoji (String), totalAmount (BigDecimal)].
+     * Returns aggregated non-transfer expense totals per category and year for a date range that
+     * may span several years (used by the analytics page to compare category totals of Y and P
+     * in one query). Entries with isTransfer=true are excluded.
+     * Each result element: [year (Integer), categoryId (UUID), name (String), emoji (String), totalAmount (BigDecimal)].
      *
-     * @param userId identifier of the user
-     * @param year   calendar year
-     * @return list of arrays with category stats
+     * @param userId    identifier of the user
+     * @param startDate first day of the range (inclusive)
+     * @param endDate   last day of the range (inclusive)
+     * @return list of arrays with per-year category stats
      */
     @Query("""
-            SELECT e.category.id, e.category.name, e.category.emoji, SUM(e.amount)
+            SELECT YEAR(e.date), e.category.id, e.category.name, e.category.emoji, SUM(e.amount)
             FROM Expense e
             WHERE e.userId = :userId
-              AND YEAR(e.date) = :year
+              AND e.date >= :startDate
+              AND e.date <= :endDate
               AND e.isTransfer = false
-            GROUP BY e.category.id, e.category.name, e.category.emoji
+            GROUP BY YEAR(e.date), e.category.id, e.category.name, e.category.emoji
             """)
-    List<Object[]> findNonTransferCategoryStatsByUserIdAndYear(
+    List<Object[]> findNonTransferCategoryTotalsByYearForUserAndDateBetween(
             @Param("userId") UUID userId,
-            @Param("year") int year
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
     );
+
+    /**
+     * Returns the date of the user's earliest non-transfer expense, used by the analytics page to
+     * determine the earliest year with any data. Entries with isTransfer=true are excluded.
+     *
+     * @param userId identifier of the user
+     * @return the earliest date, or empty if the user has no non-transfer expenses
+     */
+    @Query("SELECT MIN(e.date) FROM Expense e WHERE e.userId = :userId AND e.isTransfer = false")
+    Optional<LocalDate> findMinNonTransferDateByUserId(@Param("userId") UUID userId);
 
     /**
      * Массово удаляет все расходы указанной категории.

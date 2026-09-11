@@ -17,6 +17,7 @@ import pyc.lopatuxin.budget.dto.response.TotalsLineDto;
 import pyc.lopatuxin.budget.entity.enums.NormStatus;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
 import pyc.lopatuxin.budget.repository.IncomeRepository;
+import pyc.lopatuxin.budget.util.ComparisonMath;
 import pyc.lopatuxin.shared.port.PortfolioCurrentValuation;
 import pyc.lopatuxin.shared.port.PortfolioNextDividend;
 import pyc.lopatuxin.shared.port.PortfolioValuation;
@@ -24,7 +25,6 @@ import pyc.lopatuxin.shared.port.PortfolioValueAt;
 import pyc.lopatuxin.shared.port.PortfolioValueSeries;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
@@ -99,7 +99,7 @@ public class OverviewPageService {
                         .partial(currentMonthPartial)
                         .build())
                 .capital(capital)
-                .currentMonthBalance(money(monthAmount(monthly.income(), currentMonth)
+                .currentMonthBalance(ComparisonMath.money(monthAmount(monthly.income(), currentMonth)
                         .subtract(monthAmount(monthly.expenses(), currentMonth))))
                 .portfolio(buildPortfolioSection(currentPortfolio))
                 .savings(buildSavingsSection(monthly, windows.w(), currentMonth))
@@ -142,19 +142,19 @@ public class OverviewPageService {
                 .month(currentMonth.getMonthValue())
                 .year(currentMonth.getYear())
                 .date(today)
-                .freeMoney(money(freeMoneyNow))
-                .portfolioValue(money(lastPortfolioValue))
-                .total(money(capitalTotal))
+                .freeMoney(ComparisonMath.money(freeMoneyNow))
+                .portfolioValue(ComparisonMath.money(lastPortfolioValue))
+                .total(ComparisonMath.money(capitalTotal))
                 .build());
 
         YearOverYearChange yoy = computeYearOverYearChange(baseIncome, baseExpense, points.getFirst(), capitalTotal);
 
         return CapitalSectionDto.builder()
-                .total(money(capitalTotal))
-                .freeMoney(money(freeMoneyNow))
-                .portfolioValue(money(lastPortfolioValue))
-                .yearAgo(money(yoy.yearAgo()))
-                .changeAbs(money(yoy.changeAbs()))
+                .total(ComparisonMath.money(capitalTotal))
+                .freeMoney(ComparisonMath.money(freeMoneyNow))
+                .portfolioValue(ComparisonMath.money(lastPortfolioValue))
+                .yearAgo(ComparisonMath.money(yoy.yearAgo()))
+                .changeAbs(ComparisonMath.money(yoy.changeAbs()))
                 .change(yoy.change())
                 .history(points)
                 .portfolioHistoryPending(portfolioHistory.historyPending())
@@ -182,9 +182,9 @@ public class OverviewPageService {
                     .month(month.getMonthValue())
                     .year(month.getYear())
                     .date(dates.get(i))
-                    .freeMoney(money(freeMoney))
-                    .portfolioValue(money(portfolioValue))
-                    .total(money(total))
+                    .freeMoney(ComparisonMath.money(freeMoney))
+                    .portfolioValue(ComparisonMath.money(portfolioValue))
+                    .total(ComparisonMath.money(total))
                     .build());
         }
         return points;
@@ -204,7 +204,7 @@ public class OverviewPageService {
         }
         BigDecimal yearAgo = firstPoint.getTotal();
         BigDecimal changeAbs = capitalTotal.subtract(yearAgo);
-        return new YearOverYearChange(yearAgo, changeAbs, changeFrom(changeAbs, yearAgo));
+        return new YearOverYearChange(yearAgo, changeAbs, ComparisonMath.changeFrom(changeAbs, yearAgo));
     }
 
     // ─── Portfolio section ────────────────────────────────────────────────────
@@ -237,16 +237,16 @@ public class OverviewPageService {
         }
 
         PortfolioCurrentValuation valuation = snapshot.valuation();
-        ChangeDto pnl = valuation.assetsCount() > 0 ? changeFrom(valuation.totalPnl(), valuation.totalCost()) : null;
+        ChangeDto pnl = valuation.assetsCount() > 0 ? ComparisonMath.changeFrom(valuation.totalPnl(), valuation.totalCost()) : null;
 
         return PortfolioSectionDto.builder()
                 .available(true)
-                .value(money(valuation.totalValue()))
-                .cost(money(valuation.totalCost()))
-                .pnlAmount(money(valuation.totalPnl()))
+                .value(ComparisonMath.money(valuation.totalValue()))
+                .cost(ComparisonMath.money(valuation.totalCost()))
+                .pnlAmount(ComparisonMath.money(valuation.totalPnl()))
                 .pnl(pnl)
                 .assetsCount(valuation.assetsCount())
-                .dividends12m(money(valuation.dividends12m()))
+                .dividends12m(ComparisonMath.money(valuation.dividends12m()))
                 .nextDividend(toNextDividendDto(valuation.nextDividend()))
                 .build();
     }
@@ -260,7 +260,7 @@ public class OverviewPageService {
                 .securityName(dividend.securityName())
                 .recordDate(dividend.recordDate())
                 .paymentDate(dividend.paymentDate())
-                .totalAmount(money(dividend.totalAmount()))
+                .totalAmount(ComparisonMath.money(dividend.totalAmount()))
                 .currency(dividend.currency())
                 .build();
     }
@@ -272,26 +272,10 @@ public class OverviewPageService {
         BigDecimal windowIncome = sumOverMonths(monthly.income(), windowW);
         BigDecimal windowExpenses = sumOverMonths(monthly.expenses(), windowW);
         return SavingsSectionDto.builder()
-                .rate12m(savingsRate(windowIncome, windowExpenses))
-                .currentMonthRate(savingsRate(monthAmount(monthly.income(), currentMonth),
+                .rate12m(ComparisonMath.savingsRate(windowIncome, windowExpenses))
+                .currentMonthRate(ComparisonMath.savingsRate(monthAmount(monthly.income(), currentMonth),
                         monthAmount(monthly.expenses(), currentMonth)))
                 .build();
-    }
-
-    /**
-     * Savings rate as (income - expenses) / income * 100, clamped to [-99, 99].
-     * Returns null when income is non-positive (the tile shows "—" instead of a misleading 0).
-     */
-    private Integer savingsRate(BigDecimal income, BigDecimal expenses) {
-        if (income == null || income.signum() <= 0) {
-            return null;
-        }
-        int raw = income.subtract(expenses)
-                .divide(income, 4, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(100))
-                .setScale(0, RoundingMode.HALF_UP)
-                .intValueExact();
-        return Math.clamp(raw, -99, 99);
     }
 
     private List<MonthTotalsDto> buildMonths(List<YearMonth> windowW, MonthlyAmounts monthly,
@@ -302,9 +286,9 @@ public class OverviewPageService {
             return MonthTotalsDto.builder()
                     .month(month.getMonthValue())
                     .year(month.getYear())
-                    .income(money(income))
-                    .expenses(money(expenses))
-                    .saved(money(income.subtract(expenses)))
+                    .income(ComparisonMath.money(income))
+                    .expenses(ComparisonMath.money(expenses))
+                    .saved(ComparisonMath.money(income.subtract(expenses)))
                     .partial(month.equals(currentMonth) && currentMonthPartial)
                     .build();
         }).toList();
@@ -325,8 +309,8 @@ public class OverviewPageService {
 
     private TotalsLineDto totalsLine(BigDecimal amount, BigDecimal previous) {
         return TotalsLineDto.builder()
-                .amount(money(amount))
-                .previous(money(previous))
+                .amount(ComparisonMath.money(amount))
+                .previous(ComparisonMath.money(previous))
                 .change(totalsChange(amount, previous))
                 .build();
     }
@@ -336,22 +320,7 @@ public class OverviewPageService {
         if (previous.signum() <= 0) {
             return ChangeDto.builder().status(NormStatus.NO_HISTORY).build();
         }
-        return changeFrom(amount.subtract(previous), previous);
-    }
-
-    /**
-     * A non-positive base has no meaningful percentage: dividing by a negative one flips the sign,
-     * so growing from -50000 to +50000 would report -200% and a "falling" badge. Such a change is
-     * reported as {@code NO_HISTORY} and the frontend hides the badge instead.
-     */
-    private ChangeDto changeFrom(BigDecimal delta, BigDecimal base) {
-        if (base.signum() <= 0) {
-            return ChangeDto.builder().status(NormStatus.NO_HISTORY).build();
-        }
-        BigDecimal percent = delta.divide(base, 10, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(100))
-                .setScale(1, RoundingMode.HALF_UP);
-        return ChangeDto.builder().percent(percent).status(NormStatus.fromDeviationPercent(percent)).build();
+        return ComparisonMath.changeFrom(amount.subtract(previous), previous);
     }
 
     // ─── Monthly amounts loading ──────────────────────────────────────────────
@@ -381,10 +350,6 @@ public class OverviewPageService {
     private List<YearMonth> monthsRange(YearMonth start, YearMonth end) {
         int count = (int) ChronoUnit.MONTHS.between(start, end) + 1;
         return IntStream.range(0, count).mapToObj(start::plusMonths).toList();
-    }
-
-    private BigDecimal money(BigDecimal value) {
-        return value == null ? null : value.setScale(2, RoundingMode.HALF_UP);
     }
 
     // ─── Internal helper types ────────────────────────────────────────────────

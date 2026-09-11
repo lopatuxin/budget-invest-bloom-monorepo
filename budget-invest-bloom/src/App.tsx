@@ -19,7 +19,7 @@ import NotFound from "./pages/NotFound";
 const Index = lazy(() => import("./pages/Index"));
 const Budget = lazy(() => import("./pages/Budget"));
 const CategoryExpenses = lazy(() => import("./pages/CategoryExpenses"));
-const MetricDetails = lazy(() => import("./pages/MetricDetails"));
+const Analytics = lazy(() => import("./pages/Analytics"));
 const Investments = lazy(() => import("./pages/Investments"));
 const PortfolioAnalytics = lazy(() => import("./pages/PortfolioAnalytics"));
 const SecurityDetails = lazy(() => import("./pages/SecurityDetails"));
@@ -60,7 +60,9 @@ const protectedRoutes = [
   { path: "/", element: <Index /> },
   { path: "/budget", element: <Budget /> },
   { path: "/budget/category/:category", element: <CategoryExpenses /> },
-  { path: "/budget/metric/:metric", element: <MetricDetails /> },
+  { path: "/analytics", element: <Analytics /> },
+  { path: "/analytics/:tab", element: <Analytics /> },
+  { path: "/budget/metric/*", element: <Navigate to="/analytics" replace /> },
   { path: "/investments", element: <Investments /> },
   { path: "/investments/analytics", element: <PortfolioAnalytics /> },
   { path: "/investments/security/:ticker", element: <SecurityDetails /> },

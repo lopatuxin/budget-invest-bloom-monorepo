@@ -8,7 +8,8 @@ import { OverviewCapitalCard } from '@/pages/overview/OverviewCapitalCard';
 import { OverviewTiles } from '@/pages/overview/OverviewTiles';
 import { OverviewIncomeChart } from '@/pages/overview/OverviewIncomeChart';
 import { OverviewYearTotals } from '@/pages/overview/OverviewYearTotals';
-import { formatFullDate, monthNominative } from '@/pages/overview/overviewFormat';
+import { monthNominative } from '@/lib/monthNames';
+import { formatFullDate } from '@/pages/overview/overviewFormat';
 
 function OverviewLoadingSkeleton() {
   return (

@@ -1,7 +1,9 @@
 // Formatting helpers specific to the overview (capital) page.
 // Formatters shared with the investments page (currency signs, compact numbers,
 // day-month dates, pluralization) live in '@/lib/dateOptions' — import them from there.
-import { CHART_GRID_COLOR, MONTH_SHORT, MONTHS, parseApiDate } from '@/lib/dateOptions';
+// Month-name formatters (monthShortLabel, monthPrepositional, monthNominative, capitalize)
+// live in '@/lib/monthNames', shared with the analytics page.
+import { CHART_GRID_COLOR, parseApiDate } from '@/lib/dateOptions';
 
 // Colors that recharts needs as literal values (SVG fill/stroke props take
 // plain strings, not Tailwind classes) — kept in sync with the app-* CSS
@@ -14,30 +16,6 @@ export const OVERVIEW_CHART_COLORS = {
   textDim: '#9AA0A8',
   text: '#1A1D21',
 } as const;
-
-const MONTH_PREPOSITIONAL = [
-  'январе', 'феврале', 'марте', 'апреле', 'мае', 'июне',
-  'июле', 'августе', 'сентябре', 'октябре', 'ноябре', 'декабре',
-];
-
-/** "окт" — short lowercase month name for chart axis labels */
-export function monthShortLabel(month: number): string {
-  return MONTH_SHORT[month - 1] ?? String(month);
-}
-
-/** "сентябре" — for "в {месяце}" phrases */
-export function monthPrepositional(month: number): string {
-  return MONTH_PREPOSITIONAL[month - 1] ?? String(month);
-}
-
-/** "сентябрь" — nominative, lowercase, for standalone sentences ("{месяц} ещё не закончился") */
-export function monthNominative(month: number): string {
-  return (MONTHS.find((m) => Number(m.value) === month)?.label ?? String(month)).toLowerCase();
-}
-
-export function capitalize(value: string): string {
-  return value.length === 0 ? value : value.charAt(0).toUpperCase() + value.slice(1);
-}
 
 const FULL_DATE_FORMAT = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 

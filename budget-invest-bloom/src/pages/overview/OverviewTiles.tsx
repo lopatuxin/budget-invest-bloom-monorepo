@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { StatTile } from '@/components/StatTile';
 import { formatCurrency, formatDayMonth, formatDividendAmount, formatSignedCurrency, formatSignedPercent, pluralSecurities } from '@/lib/dateOptions';
-import { monthPrepositional } from '@/pages/overview/overviewFormat';
+import { monthPrepositional } from '@/lib/monthNames';
 import type { NormStatus, OverviewPageResponse } from '@/types/budget';
 
 // Same four-status palette as BudgetNormBadge's "income" variant, but this
@@ -22,26 +22,6 @@ function PortfolioPnlBadge({ percent, status }: { percent: number; status: NormS
       <Arrow aria-hidden="true" className="w-3 h-3" />
       {formatSignedPercent(percent)}
     </span>
-  );
-}
-
-interface OverviewTileProps {
-  label: string;
-  value: string;
-  valueExtra?: ReactNode;
-  subtitle: ReactNode;
-}
-
-function OverviewTile({ label, value, valueExtra, subtitle }: OverviewTileProps) {
-  return (
-    <div className="glass-card p-3 lg:p-4 flex flex-col gap-1 lg:gap-1.5">
-      <span className="text-app-text-muted text-xs lg:text-[13px]">{label}</span>
-      <div className="flex items-center gap-1.5 lg:gap-2">
-        <span className="font-mono text-lg lg:text-[22px] font-semibold text-app-text">{value}</span>
-        {valueExtra}
-      </div>
-      <span className="text-app-text-muted text-[11px] lg:text-xs">{subtitle}</span>
-    </div>
   );
 }
 
@@ -82,14 +62,14 @@ export function OverviewTiles({ data, hasNoRecords }: OverviewTilesProps) {
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 lg:gap-4">
-      <OverviewTile label="Свободные деньги" value={formatCurrency(data.capital.freeMoney)} subtitle={freeMoneySubtitle} />
+      <StatTile label="Свободные деньги" value={formatCurrency(data.capital.freeMoney)} subtitle={freeMoneySubtitle} />
 
       {!portfolio.available ? (
-        <OverviewTile label="Портфель" value="—" subtitle="нет данных от биржи" />
+        <StatTile label="Портфель" value="—" subtitle="нет данных от биржи" />
       ) : portfolio.assetsCount === 0 ? (
-        <OverviewTile label="Портфель" value={formatCurrency(0)} subtitle="бумаг пока нет" />
+        <StatTile label="Портфель" value={formatCurrency(0)} subtitle="бумаг пока нет" />
       ) : (
-        <OverviewTile
+        <StatTile
           label="Портфель"
           value={formatCurrency(portfolio.value ?? 0)}
           valueExtra={
@@ -99,16 +79,16 @@ export function OverviewTiles({ data, hasNoRecords }: OverviewTilesProps) {
         />
       )}
 
-      <OverviewTile
+      <StatTile
         label="Норма сбережений"
         value={savings.rate12m == null ? '—' : `${savings.rate12m}%`}
         subtitle={savingsSubtitle}
       />
 
       {!portfolio.available ? (
-        <OverviewTile label="Дивиденды за 12 месяцев" value="—" subtitle="нет данных от биржи" />
+        <StatTile label="Дивиденды за 12 месяцев" value="—" subtitle="нет данных от биржи" />
       ) : (
-        <OverviewTile
+        <StatTile
           label="Дивиденды за 12 месяцев"
           value={formatCurrency(portfolio.dividends12m ?? 0)}
           subtitle={nextDividendSubtitle}
