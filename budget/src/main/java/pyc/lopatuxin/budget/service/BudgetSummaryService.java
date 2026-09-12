@@ -13,14 +13,13 @@ import pyc.lopatuxin.budget.entity.Category;
 import pyc.lopatuxin.budget.entity.enums.NormStatus;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
-import pyc.lopatuxin.budget.repository.IncomeRepository;
 import pyc.lopatuxin.budget.service.NormCalculationService.MonthlyAggregateRow;
+import pyc.lopatuxin.budget.service.NormWindowLoader.NormsContext;
 import pyc.lopatuxin.budget.service.PeriodAggregateService.PeriodAggregates;
 import pyc.lopatuxin.budget.util.TrendFormatter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -48,11 +47,11 @@ public class BudgetSummaryService {
     private final NormCalculationService normCalculationService;
     private final PersonalInflationCalculator personalInflationCalculator;
     private final ExpenseRepository expenseRepository;
-    private final IncomeRepository incomeRepository;
     private final CategoryRepository categoryRepository;
+    private final NormWindowLoader normWindowLoader;
 
     /**
-     * Builds an aggregated budget summary for the given month and year.
+     * Builds an aggregated budget summary for the given month and year, for "now".
      *
      * @param userId identifier of the user
      * @param month  month number (1-12)
@@ -60,6 +59,14 @@ public class BudgetSummaryService {
      * @return budget summary DTO
      */
     public BudgetSummaryResponseDto getSummary(UUID userId, int month, int year) {
+        return getSummary(userId, month, year, LocalDate.now());
+    }
+
+    /**
+     * Package-private overload taking an explicit "today" so tests can fix the current date
+     * instead of depending on {@link LocalDate#now()}.
+     */
+    BudgetSummaryResponseDto getSummary(UUID userId, int month, int year, LocalDate today) {
         log.debug("Начало формирования сводки бюджета для userId={}, period={}/{}", userId, month, year);
 
         // Cached by year so the current-period and previous-period inflation calculations
@@ -72,10 +79,10 @@ public class BudgetSummaryService {
 
         TrendsDto trends = calculateTrends(userId, month, year, current, personalInflation, monthlyExpensesByYear);
 
-        int dayOfMonth = resolveDayOfMonth(current.startDate());
+        int dayOfMonth = NormWindowLoader.resolveDayOfMonth(current.startDate(), today);
         int daysInMonth = current.startDate().lengthOfMonth();
 
-        NormsContext norms = buildNormsContext(userId, current.startDate(), dayOfMonth);
+        NormsContext norms = normWindowLoader.loadForMonth(userId, current.startDate(), dayOfMonth);
         NormComparisonDto expenseNorm = normCalculationService.calculateNorm(norms.expenseDataMonths(), current.expenses(), dayOfMonth);
         NormComparisonDto incomeNorm = normCalculationService.calculateNorm(norms.incomeDataMonths(), current.income(), dayOfMonth);
 
@@ -100,21 +107,6 @@ public class BudgetSummaryService {
     }
 
     /**
-     * Resolves the day of month the current period is compared up to: today's day number for the
-     * current calendar month, the full month length for a past month, or 0 for a future month.
-     */
-    private int resolveDayOfMonth(LocalDate requestedMonthStart) {
-        LocalDate currentMonthStart = LocalDate.now().withDayOfMonth(1);
-        if (requestedMonthStart.isEqual(currentMonthStart)) {
-            return LocalDate.now().getDayOfMonth();
-        }
-        if (requestedMonthStart.isBefore(currentMonthStart)) {
-            return requestedMonthStart.lengthOfMonth();
-        }
-        return 0;
-    }
-
-    /**
      * Calculates trends of indicators relative to the previous month.
      */
     private TrendsDto calculateTrends(UUID userId, int month, int year, PeriodAggregates current,
@@ -132,63 +124,6 @@ public class BudgetSummaryService {
                 .balance(TrendFormatter.formatTrend(current.balance(), prev.balance()))
                 .inflation(TrendFormatter.formatTrend(personalInflation, prevInflation))
                 .build();
-    }
-
-    /**
-     * Loads the 12-month history window preceding the requested month and pre-aggregates it
-     * for {@link NormCalculationService}: overall expense and income months-with-data, and the
-     * same expense data broken down per category. The per-category rows carry the overall expense
-     * series' daily-tracking flag for their month, not a per-category one — the point where
-     * day-by-day tracking started is determined from expenses as a whole, since a single category
-     * can legitimately have just one purchase in a month.
-     */
-    private NormsContext buildNormsContext(UUID userId, LocalDate requestedMonthStart, int dayOfMonth) {
-        LocalDate windowStart = requestedMonthStart.minusMonths(12);
-        LocalDate windowEnd = requestedMonthStart.minusDays(1);
-
-        List<MonthlyAggregateRow> expenseDataMonths = toMonthlyRows(
-                expenseRepository.findWindowedNonTransferExpenseStats(userId, windowStart, windowEnd, dayOfMonth));
-        List<MonthlyAggregateRow> incomeDataMonths = toMonthlyRows(
-                incomeRepository.findWindowedNonTransferIncomeStats(userId, windowStart, windowEnd, dayOfMonth));
-
-        Map<YearMonth, Boolean> expenseDailyGranularityByMonth = expenseDataMonths.stream()
-                .collect(Collectors.toMap(
-                        row -> YearMonth.of(row.year(), row.month()),
-                        MonthlyAggregateRow::dailyGranularity));
-
-        List<YearMonth> dataMonths = expenseDataMonths.stream()
-                .map(row -> YearMonth.of(row.year(), row.month()))
-                .toList();
-        Map<YearMonth, Map<UUID, MonthlyAggregateRow>> categoryRowsByMonth = groupCategoryRowsByMonth(
-                expenseRepository.findWindowedNonTransferExpenseStatsByCategory(userId, windowStart, windowEnd, dayOfMonth),
-                expenseDailyGranularityByMonth);
-
-        return new NormsContext(expenseDataMonths, incomeDataMonths, dataMonths, expenseDailyGranularityByMonth, categoryRowsByMonth);
-    }
-
-    private List<MonthlyAggregateRow> toMonthlyRows(List<Object[]> rows) {
-        return rows.stream()
-                .map(row -> new MonthlyAggregateRow(
-                        ((Number) row[0]).intValue(),
-                        ((Number) row[1]).intValue(),
-                        (BigDecimal) row[2],
-                        (BigDecimal) row[3],
-                        ((Number) row[4]).intValue() > 1))
-                .toList();
-    }
-
-    private Map<YearMonth, Map<UUID, MonthlyAggregateRow>> groupCategoryRowsByMonth(
-            List<Object[]> rows, Map<YearMonth, Boolean> expenseDailyGranularityByMonth) {
-        Map<YearMonth, Map<UUID, MonthlyAggregateRow>> result = new HashMap<>();
-        for (Object[] row : rows) {
-            YearMonth yearMonth = YearMonth.of(((Number) row[0]).intValue(), ((Number) row[1]).intValue());
-            UUID categoryId = (UUID) row[2];
-            boolean dailyGranularity = expenseDailyGranularityByMonth.getOrDefault(yearMonth, false);
-            MonthlyAggregateRow monthRow = new MonthlyAggregateRow(
-                    yearMonth.getYear(), yearMonth.getMonthValue(), (BigDecimal) row[3], (BigDecimal) row[4], dailyGranularity);
-            result.computeIfAbsent(yearMonth, key -> new HashMap<>()).put(categoryId, monthRow);
-        }
-        return result;
     }
 
     /**
@@ -219,14 +154,7 @@ public class BudgetSummaryService {
                                                              NormsContext norms, int dayOfMonth) {
         CategorySummaryDto dto = categorySummaryBuilder.buildCategorySummary(category, expensesByCategory);
 
-        List<MonthlyAggregateRow> categoryDataMonths = norms.dataMonths().stream()
-                .map(yearMonth -> {
-                    boolean dailyGranularity = norms.expenseDailyGranularityByMonth().getOrDefault(yearMonth, false);
-                    return norms.categoryRowsByMonth().getOrDefault(yearMonth, Map.of())
-                            .getOrDefault(category.getId(), new MonthlyAggregateRow(
-                                    yearMonth.getYear(), yearMonth.getMonthValue(), BigDecimal.ZERO, BigDecimal.ZERO, dailyGranularity));
-                })
-                .toList();
+        List<MonthlyAggregateRow> categoryDataMonths = normWindowLoader.categoryDataMonths(norms, category.getId());
 
         dto.setNorm(normCalculationService.calculateNorm(categoryDataMonths, dto.getAmount(), dayOfMonth));
         return dto;
@@ -238,16 +166,5 @@ public class BudgetSummaryService {
 
     private static BigDecimal deviationForSort(CategorySummaryDto dto) {
         return isNoHistory(dto) ? BigDecimal.ZERO : dto.getNorm().getDeviationPercent();
-    }
-
-    /**
-     * Pre-aggregated 12-month history window used to compute the expense, income and per-category norms.
-     */
-    private record NormsContext(
-            List<MonthlyAggregateRow> expenseDataMonths,
-            List<MonthlyAggregateRow> incomeDataMonths,
-            List<YearMonth> dataMonths,
-            Map<YearMonth, Boolean> expenseDailyGranularityByMonth,
-            Map<YearMonth, Map<UUID, MonthlyAggregateRow>> categoryRowsByMonth) {
     }
 }

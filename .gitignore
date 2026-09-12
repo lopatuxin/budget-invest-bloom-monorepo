@@ -24,3 +24,6 @@ docs/
 
 # Claude Code
 .claude/
+
+# Generated OpenAPI dumps (springdoc, pulled from a running app)
+api-docs*.json

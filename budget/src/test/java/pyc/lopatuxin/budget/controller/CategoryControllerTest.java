@@ -215,6 +215,42 @@ class CategoryControllerTest extends AbstractIntegrationTest {
         }
 
         @Test
+        @DisplayName("Должен обновить категорию без budget и вернуть 200, не изменив лимит в базе")
+        void shouldUpdateCategoryWithoutBudgetAndKeepOldLimit() throws Exception {
+            Category category = categoryRepository.save(Category.builder()
+                    .userId(userId)
+                    .name("Продукты")
+                    .budget(new BigDecimal("15000.00"))
+                    .emoji("🛒")
+                    .build());
+
+            String requestBody = """
+                    {
+                      "user": {
+                        "userId": "%s",
+                        "email": "test@example.com",
+                        "role": "USER",
+                        "sessionId": "%s"
+                      },
+                      "data": {
+                        "categoryId": "%s",
+                        "name": "Еда"
+                      }
+                    }
+                    """.formatted(userId, UUID.randomUUID(), category.getId());
+
+            mockMvc.perform(post(UPDATE_URL)
+                            .content(requestBody)
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.body.name", is("Еда")))
+                    .andExpect(jsonPath("$.body.budget", comparesEqualTo(15000.00)));
+
+            assertThat(categoryRepository.findById(category.getId()).orElseThrow().getBudget())
+                    .isEqualByComparingTo(new BigDecimal("15000.00"));
+        }
+
+        @Test
         @DisplayName("Должен вернуть 404 когда категория не найдена")
         void shouldReturn404WhenCategoryNotFound() throws Exception {
             UUID nonExistentId = UUID.randomUUID();
@@ -268,7 +304,8 @@ class CategoryControllerTest extends AbstractIntegrationTest {
                             .contentType(MediaType.APPLICATION_JSON))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.status", is(409)))
-                    .andExpect(jsonPath("$.message", is("Категория с таким именем уже существует")));
+                    .andExpect(jsonPath("$.message", is("Категория с таким именем уже существует")))
+                    .andExpect(jsonPath("$.body.code", is("CATEGORY_NAME_TAKEN")));
         }
 
         @Test
@@ -596,8 +633,6 @@ class CategoryControllerTest extends AbstractIntegrationTest {
                         "{%s, \"data\": {\"categoryId\": \"%s\", \"budget\": 10000.00}}".formatted(userBlock, catId)),
                 Arguments.of("name пустой (blank)",
                         "{%s, \"data\": {\"categoryId\": \"%s\", \"name\": \"   \", \"budget\": 10000.00}}".formatted(userBlock, catId)),
-                Arguments.of("budget отсутствует (null)",
-                        "{%s, \"data\": {\"categoryId\": \"%s\", \"name\": \"Еда\"}}".formatted(userBlock, catId)),
                 Arguments.of("budget отрицательный",
                         "{%s, \"data\": {\"categoryId\": \"%s\", \"name\": \"Еда\", \"budget\": -100.00}}".formatted(userBlock, catId))
         );

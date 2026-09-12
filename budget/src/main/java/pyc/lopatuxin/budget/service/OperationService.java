@@ -10,6 +10,7 @@ import pyc.lopatuxin.budget.dto.response.OperationsResponseDto;
 import pyc.lopatuxin.budget.entity.Expense;
 import pyc.lopatuxin.budget.entity.Income;
 import pyc.lopatuxin.budget.entity.enums.OperationKind;
+import pyc.lopatuxin.budget.mapper.ExpenseMapper;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
 import pyc.lopatuxin.budget.repository.IncomeRepository;
 
@@ -36,6 +37,7 @@ public class OperationService {
 
     private final ExpenseRepository expenseRepository;
     private final IncomeRepository incomeRepository;
+    private final ExpenseMapper expenseMapper;
 
     /**
      * Builds the feed of non-transfer operations (expenses and incomes) for the given month and year,
@@ -72,16 +74,7 @@ public class OperationService {
     }
 
     private OperationRow toRow(Expense expense) {
-        OperationDto dto = OperationDto.builder()
-                .id(expense.getId())
-                .kind(OperationKind.EXPENSE)
-                .date(expense.getDate())
-                .amount(expense.getAmount())
-                .description(expense.getDescription())
-                .categoryId(expense.getCategory().getId())
-                .categoryName(expense.getCategory().getName())
-                .categoryEmoji(expense.getCategory().getEmoji())
-                .build();
+        OperationDto dto = expenseMapper.toOperationDto(expense);
         return new OperationRow(expense.getDate(), expense.getCreatedAt(), dto);
     }
 

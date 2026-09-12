@@ -51,9 +51,8 @@ public class UpdateCategoryRequestDto {
     private String emoji;
 
     /**
-     * Новый лимит бюджета категории.
+     * Новый лимит бюджета категории. Необязателен: {@code null} — не менять текущий лимит.
      */
-    @NotNull(message = "Лимит бюджета обязателен")
     @PositiveOrZero(message = "Лимит бюджета не может быть отрицательным")
     @Digits(integer = 13, fraction = 2, message = "Лимит бюджета не должен превышать 13 целых и 2 дробных знака")
     @Schema(description = "Новый лимит бюджета категории", example = "20000.00")

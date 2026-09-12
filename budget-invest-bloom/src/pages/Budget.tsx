@@ -9,8 +9,8 @@ import { useBudgetOperations } from '@/hooks/useBudgetOperations';
 import { BudgetMonthHeader } from '@/pages/budget/BudgetMonthHeader';
 import { BudgetSummaryStrip } from '@/pages/budget/BudgetSummaryStrip';
 import { BudgetCategoryGrid } from '@/pages/budget/BudgetCategoryGrid';
-import { BudgetOperationsFeed } from '@/pages/budget/BudgetOperationsFeed';
-import { BudgetCategoryDialog } from '@/pages/budget/BudgetCategoryDialog';
+import { OperationsFeed } from '@/components/operation/OperationsFeed';
+import { CategoryFormDialog } from '@/components/CategoryFormDialog';
 import { getBudgetPeriodKind } from '@/pages/budget/budgetPeriod';
 
 const Budget = () => {
@@ -124,7 +124,9 @@ const Budget = () => {
             categories={summary.categories}
             dayOfMonth={summary.dayOfMonth}
             periodKind={periodKind}
-            onCategoryClick={(name) => navigate(`/budget/category/${encodeURIComponent(name)}`)}
+            onCategoryClick={(name) =>
+              navigate(`/budget/category/${encodeURIComponent(name)}?month=${month}&year=${year}`)
+            }
             onCreateCategory={() => setCategoryDialogOpen(true)}
           />
         ) : null}
@@ -134,7 +136,7 @@ const Budget = () => {
         ) : operationsError ? (
           <RetryErrorCard message="Не удалось загрузить операции" onRetry={refetchOperations} />
         ) : operations ? (
-          <BudgetOperationsFeed
+          <OperationsFeed
             operations={operations.items}
             total={operations.total}
             onEmptyAction={() => openOperationDialog('expense')}
@@ -142,7 +144,7 @@ const Budget = () => {
         ) : null}
       </div>
 
-      <BudgetCategoryDialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen} />
+      <CategoryFormDialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen} mode="create" />
     </div>
   );
 };

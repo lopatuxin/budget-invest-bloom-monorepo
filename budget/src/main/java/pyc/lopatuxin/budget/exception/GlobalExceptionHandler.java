@@ -105,13 +105,15 @@ public class GlobalExceptionHandler {
         log.warn("Нарушение ограничения целостности данных: {}", rootMessage);
 
         String userMessage = "Запись с такими данными уже существует";
+        Map<String, String> body = null;
         if (rootMessage != null && rootMessage.contains("uq_categories_user_name")) {
             userMessage = "Категория с таким именем уже существует";
+            body = Map.of("code", "CATEGORY_NAME_TAKEN");
         }
 
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
-                .body(ResponseApi.error(HttpStatus.CONFLICT.value(), userMessage));
+                .body(ResponseApi.error(HttpStatus.CONFLICT.value(), userMessage, body));
     }
 
     /**

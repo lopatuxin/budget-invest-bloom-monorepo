@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOperationDialog } from '@/components/operation/OperationDialogProvider';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
-import { NAV_ITEMS, isNavItemActive } from '@/lib/nav';
+import { NAV_ITEMS, isNavItemActive, navItemTargetTo } from '@/lib/nav';
 
 interface RailUser {
   name?: string;
@@ -61,9 +61,9 @@ const AppRail = () => {
 
       <nav className="flex flex-col items-center gap-1 mt-1">
         {NAV_ITEMS.map((item, idx) => {
-          const { href, label, icon: Icon, linkTo } = item;
+          const { href, label, icon: Icon } = item;
           const active = idx === activeIndex;
-          const targetTo = active && location.pathname.startsWith(href + '/') ? location.pathname : linkTo;
+          const targetTo = navItemTargetTo(item, location.pathname, active);
           return (
             <Link
               key={href}

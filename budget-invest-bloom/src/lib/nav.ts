@@ -30,3 +30,19 @@ export function isNavItemActive(item: NavItem, pathname: string): boolean {
       (pathname === other.href || pathname.startsWith(other.href + '/'))
   );
 }
+
+// Nested routes under here are drill-down detail pages, not tabs of their section —
+// clicking the section's nav item should return to the section, not preserve the path.
+const DRILL_DOWN_PATH_PREFIXES = ['/budget/category/'];
+
+/**
+ * Link target for a nav item: a still-active nested route (e.g. /analytics/:tab) keeps the
+ * current path so switching sections doesn't lose the open tab, except for drill-down pages.
+ */
+export function navItemTargetTo(item: NavItem, pathname: string, isActive: boolean): string {
+  const isDrillDown = DRILL_DOWN_PATH_PREFIXES.some(prefix => pathname.startsWith(prefix));
+  if (isActive && !isDrillDown && pathname.startsWith(item.href + '/')) {
+    return pathname;
+  }
+  return item.linkTo;
+}

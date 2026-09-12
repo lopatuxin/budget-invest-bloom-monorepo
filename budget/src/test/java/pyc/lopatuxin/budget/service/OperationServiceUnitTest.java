@@ -4,7 +4,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pyc.lopatuxin.budget.dto.response.OperationDto;
@@ -14,6 +13,7 @@ import pyc.lopatuxin.budget.entity.Expense;
 import pyc.lopatuxin.budget.entity.Income;
 import pyc.lopatuxin.budget.entity.enums.IncomeSource;
 import pyc.lopatuxin.budget.entity.enums.OperationKind;
+import pyc.lopatuxin.budget.mapper.ExpenseMapperImpl;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
 import pyc.lopatuxin.budget.repository.IncomeRepository;
 
@@ -37,7 +37,6 @@ class OperationServiceUnitTest {
     @Mock
     private IncomeRepository incomeRepository;
 
-    @InjectMocks
     private OperationService operationService;
 
     private UUID userId;
@@ -46,6 +45,7 @@ class OperationServiceUnitTest {
 
     @BeforeEach
     void setUp() {
+        operationService = new OperationService(expenseRepository, incomeRepository, new ExpenseMapperImpl());
         userId = UUID.randomUUID();
         startDate = LocalDate.of(2026, 9, 1);
         endDate = LocalDate.of(2026, 9, 30);

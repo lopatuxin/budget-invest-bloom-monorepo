@@ -17,32 +17,20 @@ import { useDeleteExpense } from '@/hooks/useDeleteExpense';
 import { useDeleteIncome } from '@/hooks/useDeleteIncome';
 import { ApiError } from '@/lib/api';
 import { invalidateBudgetCaches } from '@/lib/queryKeys';
-import { formatCurrency, formatRelativeDay } from '@/lib/dateOptions';
+import { formatCurrency, formatRelativeDay, parseApiDate, pluralize } from '@/lib/dateOptions';
 import type { Operation } from '@/types/budget';
-
-function parseApiDate(value: string): Date {
-  const [year, month, day] = value.split('-').map(Number);
-  return new Date(year, month - 1, day);
-}
-
-function pluralOperations(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return `${n} операция`;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${n} операции`;
-  return `${n} операций`;
-}
 
 interface OperationRowProps {
   operation: Operation;
+  showCategory: boolean;
   onDeleteRequest: (operation: Operation) => void;
 }
 
-function OperationRow({ operation, onDeleteRequest }: OperationRowProps) {
+function OperationRow({ operation, showCategory, onDeleteRequest }: OperationRowProps) {
   const isExpense = operation.kind === 'EXPENSE';
   const title = operation.description || (isExpense ? operation.categoryName : operation.sourceName) || '';
   const subtitle = isExpense ? operation.categoryName : `Доход · ${operation.sourceName}`;
-  const showSubtitle = isExpense ? Boolean(operation.description) : true;
+  const showSubtitle = isExpense ? showCategory && Boolean(operation.description) : true;
 
   return (
     <div className="group flex items-center gap-3 h-10 py-1">
@@ -73,15 +61,31 @@ function OperationRow({ operation, onDeleteRequest }: OperationRowProps) {
   );
 }
 
-interface BudgetOperationsFeedProps {
+interface OperationsFeedProps {
   operations: Operation[];
   total: number;
   onEmptyAction: () => void;
+  title?: string;
+  /** Appended after the operation count, e.g. "9 операций {periodLabel}" — empty string omits it. */
+  periodLabel?: string;
+  /** Hides the category name under a row's description — the category page shows one category, naming it again in every row is redundant. */
+  showCategory?: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }
 
 // Grouped by date in the order the backend already sorted (date desc, then createdAt
 // desc) — this component only labels the groups, it does not re-sort.
-export function BudgetOperationsFeed({ operations, total, onEmptyAction }: BudgetOperationsFeedProps) {
+export function OperationsFeed({
+  operations,
+  total,
+  onEmptyAction,
+  title = 'Операции',
+  periodLabel = 'за месяц',
+  showCategory = true,
+  emptyTitle = 'За этот месяц операций нет',
+  emptyDescription = 'Запишите первую операцию, чтобы увидеть её здесь',
+}: OperationsFeedProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const deleteExpense = useDeleteExpense();
@@ -127,18 +131,20 @@ export function BudgetOperationsFeed({ operations, total, onEmptyAction }: Budge
     }
   };
 
+  const countLabel = pluralize(total, ['операция', 'операции', 'операций']);
+
   return (
     <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-display text-[22px] text-app-text">Операции</h2>
-        <span className="text-xs text-app-text-dim">{pluralOperations(total)} за месяц</span>
+        <h2 className="font-display text-[22px] text-app-text">{title}</h2>
+        <span className="text-xs text-app-text-dim">{periodLabel ? `${countLabel} ${periodLabel}` : countLabel}</span>
       </div>
 
       {groups.length === 0 ? (
         <EmptyState
           icon={<Inbox className="w-10 h-10" />}
-          title="За этот месяц операций нет"
-          description="Запишите первую операцию, чтобы увидеть её здесь"
+          title={emptyTitle}
+          description={emptyDescription}
           actionLabel="Записать расход"
           onAction={onEmptyAction}
         />
@@ -149,7 +155,12 @@ export function BudgetOperationsFeed({ operations, total, onEmptyAction }: Budge
               <p className="text-[11px] uppercase tracking-[0.06em] text-app-text-dim mb-1">{group.label}</p>
               <div className="flex flex-col divide-y divide-app-border">
                 {group.items.map((operation) => (
-                  <OperationRow key={operation.id} operation={operation} onDeleteRequest={setPendingDelete} />
+                  <OperationRow
+                    key={operation.id}
+                    operation={operation}
+                    showCategory={showCategory}
+                    onDeleteRequest={setPendingDelete}
+                  />
                 ))}
               </div>
             </div>

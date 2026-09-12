@@ -14,13 +14,14 @@ import pyc.lopatuxin.budget.entity.Category;
 import pyc.lopatuxin.budget.entity.enums.NormStatus;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
-import pyc.lopatuxin.budget.repository.IncomeRepository;
+import pyc.lopatuxin.budget.service.NormWindowLoader.NormsContext;
 import pyc.lopatuxin.budget.service.PeriodAggregateService.PeriodAggregates;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,9 +40,6 @@ class BudgetSummaryServiceUnitTest {
     private ExpenseRepository expenseRepository;
 
     @Mock
-    private IncomeRepository incomeRepository;
-
-    @Mock
     private CategoryRepository categoryRepository;
 
     @Mock
@@ -56,10 +54,16 @@ class BudgetSummaryServiceUnitTest {
     @Mock
     private PersonalInflationCalculator personalInflationCalculator;
 
+    @Mock
+    private NormWindowLoader normWindowLoader;
+
     @InjectMocks
     private BudgetSummaryService budgetSummaryService;
 
     private UUID userId;
+
+    private static final NormsContext EMPTY_NORMS_CONTEXT =
+            new NormsContext(List.of(), List.of(), List.of(), Map.of(), Map.of());
 
     @BeforeEach
     void setUp() {
@@ -68,8 +72,12 @@ class BudgetSummaryServiceUnitTest {
         // logic is covered by PersonalInflationCalculatorUnitTest, not here)
         lenient().when(personalInflationCalculator.calculate(eq(userId), anyInt(), anyInt(), any()))
                 .thenReturn(BigDecimal.ZERO);
+        // Default lenient stub for the norms window — empty unless a test needs specific history
+        // (window-loading itself is covered by NormWindowLoaderUnitTest, not here).
+        lenient().when(normWindowLoader.loadForMonth(eq(userId), any(), anyInt())).thenReturn(EMPTY_NORMS_CONTEXT);
+        lenient().when(normWindowLoader.categoryDataMonths(any(), any())).thenReturn(List.of());
         // Default lenient stub for norm calculation — NO_HISTORY unless a test overrides it for
-        // a specific amount (windowed repository queries default to empty lists when unstubbed).
+        // a specific amount.
         lenient().when(normCalculationService.calculateNorm(any(), any(), anyInt()))
                 .thenReturn(NormComparisonDto.builder().status(NormStatus.NO_HISTORY).build());
     }

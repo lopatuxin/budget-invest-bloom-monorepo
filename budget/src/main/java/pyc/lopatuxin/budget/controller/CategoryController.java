@@ -94,7 +94,7 @@ public class CategoryController {
     @ResponseStatus(HttpStatus.OK)
     @Operation(
             summary = "Обновить категорию",
-            description = "Обновляет название и лимит бюджета категории расходов"
+            description = "Обновляет название и эмодзи; лимит необязателен"
     )
     @ApiResponse(
             responseCode = "200",

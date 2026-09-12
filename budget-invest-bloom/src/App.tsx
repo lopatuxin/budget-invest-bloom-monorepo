@@ -18,7 +18,9 @@ import NotFound from "./pages/NotFound";
 
 const Index = lazy(() => import("./pages/Index"));
 const Budget = lazy(() => import("./pages/Budget"));
-const CategoryExpenses = lazy(() => import("./pages/CategoryExpenses"));
+const CategoryPage = lazy(() =>
+  import("./pages/category/CategoryPage").then((module) => ({ default: module.CategoryPage }))
+);
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Investments = lazy(() => import("./pages/Investments"));
 const PortfolioAnalytics = lazy(() => import("./pages/PortfolioAnalytics"));
@@ -59,7 +61,7 @@ const ErrorFallback = ({ resetError }: { resetError: () => void }) => (
 const protectedRoutes = [
   { path: "/", element: <Index /> },
   { path: "/budget", element: <Budget /> },
-  { path: "/budget/category/:category", element: <CategoryExpenses /> },
+  { path: "/budget/category/:category", element: <CategoryPage /> },
   { path: "/analytics", element: <Analytics /> },
   { path: "/analytics/:tab", element: <Analytics /> },
   { path: "/budget/metric/*", element: <Navigate to="/analytics" replace /> },

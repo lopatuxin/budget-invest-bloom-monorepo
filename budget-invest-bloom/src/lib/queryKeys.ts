@@ -7,9 +7,8 @@ export const qk = {
     summary: (month: string, year: string) => ['budget-summary', month, year] as const,
     overviewPage: () => ['overview-page'] as const,
     analyticsPage: (year: number) => ['analytics-page', year] as const,
-    categoryAnalytics: (name: string, year: number, month: number) =>
-      ['category-analytics', name, year, month] as const,
-    categoryAnalyticsAll: () => ['category-analytics'] as const,
+    categoryPage: (name: string, month: number, year: number) =>
+      ['category-page', name, month, year] as const,
     operations: (month: string, year: string) => ['budget-operations', month, year] as const,
     categoryList: () => ['budget-category-list'] as const,
   },
@@ -37,5 +36,5 @@ export const invalidateBudgetCaches = (queryClient: QueryClient) => {
   queryClient.invalidateQueries({ queryKey: ['budget-operations'] });
   queryClient.invalidateQueries({ queryKey: ['overview-page'] });
   queryClient.invalidateQueries({ queryKey: ['analytics-page'] });
-  queryClient.invalidateQueries({ queryKey: ['category-analytics'] });
+  queryClient.invalidateQueries({ queryKey: ['category-page'] });
 };

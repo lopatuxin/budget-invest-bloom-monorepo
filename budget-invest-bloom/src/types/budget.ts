@@ -69,37 +69,37 @@ export interface TrendsData {
 // Re-exported from common for backward compatibility
 export type { ApiResponse } from './common';
 
-export interface MonthlyMetric {
+// Shape returned by POST /api/budget/categories/page — the category page.
+
+export interface CategoryPageCategory {
+  id: string;
+  name: string;
+  emoji?: string;
+  system: boolean;
+}
+
+export interface CategoryMonthAmount {
   month: number;
-  monthName: string;
-  amount: number;
-}
-
-export interface CategoryAnalyticsResponse {
-  categoryId: string;
-  categoryName: string;
-  emoji: string;
-  budget: number;
-  monthlyData: MonthlyMetric[];
-  yearlyData: YearlyMetric[];
-  expenses: ExpenseItem[];
-  totalExpenses: number;
-  totalYear: number;
-  averageYear: number;
-}
-
-export interface YearlyMetric {
   year: number;
   amount: number;
+  partial: boolean;
 }
 
-export interface ExpenseItem {
-  id: string;
-  categoryId: string;
-  categoryName: string;
-  amount: number;
-  description: string;
-  date: string;
+export interface CategoryPageResponse {
+  category: CategoryPageCategory;
+  period: { month: number; year: number };
+  dayOfMonth: number;
+  daysInMonth: number;
+  spent: number;
+  norm: NormComparison;
+  normMonthsCounted: number;
+  sharePercent?: number | null;
+  operationsCount: number;
+  averageCheck?: number | null;
+  largestAmount?: number | null;
+  // Always 12 entries, in month order (oldest to newest, ending on the requested month).
+  months: CategoryMonthAmount[];
+  operations: Operation[];
 }
 
 export interface CategoryHasExpensesErrorBody {

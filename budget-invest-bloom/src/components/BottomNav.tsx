@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Plus } from 'lucide-react';
-import { NAV_ITEMS, isNavItemActive, type NavItem } from '@/lib/nav';
+import { NAV_ITEMS, isNavItemActive, navItemTargetTo, type NavItem } from '@/lib/nav';
 import { useOperationDialog } from '@/components/operation/OperationDialogProvider';
 
 // Mobile bottom navigation: Обзор, Бюджет, "+", Инвестиции, Аналитика.
@@ -15,9 +15,9 @@ const BottomNav = () => {
   );
 
   const renderItem = (item: NavItem, idx: number) => {
-    const { href, label, icon: Icon, linkTo } = item;
+    const { href, label, icon: Icon } = item;
     const active = idx === activeIndex;
-    const targetTo = active && location.pathname.startsWith(href + '/') ? location.pathname : linkTo;
+    const targetTo = navItemTargetTo(item, location.pathname, active);
     return (
       <Link
         key={href}

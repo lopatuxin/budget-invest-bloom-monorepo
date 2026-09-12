@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiPost } from '@/lib/api';
+import { apiPost, isCategoryNameTakenError } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { invalidateBudgetCaches, qk } from '@/lib/queryKeys';
 import type { ApiResponse } from '@/types/budget';
@@ -23,6 +23,10 @@ export function useCreateCategory() {
       toast({ title: 'Категория создана', description: `Добавлена категория "${variables.name}"` });
     },
     onError: (error: unknown) => {
+      // A taken name is validation, not a failure: CategoryFormDialog puts it under the name field.
+      if (isCategoryNameTakenError(error)) {
+        return;
+      }
       const message = error instanceof Error ? error.message : 'Не удалось добавить категорию';
       toast({ title: 'Ошибка', description: message, variant: 'destructive' });
     },

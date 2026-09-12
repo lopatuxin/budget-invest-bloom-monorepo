@@ -7,8 +7,8 @@ interface DeleteExpenseParams {
   expenseId: string;
 }
 
-// No built-in toast here — callers show their own (success text and 404 "already
-// deleted" handling differ between CategoryExpenses and the budget operations feed).
+// No built-in toast here — the operations feed shows its own (success text and
+// the 404 "already deleted" case need different wording than a generic error toast).
 export function useDeleteExpense() {
   const queryClient = useQueryClient();
 

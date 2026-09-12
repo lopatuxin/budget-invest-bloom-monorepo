@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { BudgetPeriodKind } from '@/pages/budget/budgetPeriod';
+import { monthYearLabel } from '@/lib/monthNames';
+import { periodSubtitle, type BudgetPeriodKind } from '@/pages/budget/budgetPeriod';
 
 interface BudgetMonthHeaderProps {
   month: number;
@@ -16,8 +16,6 @@ interface BudgetMonthHeaderProps {
   onOpenCategoryDialog: () => void;
 }
 
-const MONTH_YEAR_FORMAT = new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' });
-
 export function BudgetMonthHeader({
   month,
   year,
@@ -29,18 +27,8 @@ export function BudgetMonthHeader({
   onNextMonth,
   onOpenCategoryDialog,
 }: BudgetMonthHeaderProps) {
-  const monthLabel = useMemo(() => {
-    // Intl appends "г." (year abbreviation) in ru-RU — strip it, the mockup shows "Сентябрь 2026".
-    const raw = MONTH_YEAR_FORMAT.format(new Date(year, month - 1, 1)).replace(/\s*г\.$/i, '');
-    return raw.charAt(0).toUpperCase() + raw.slice(1);
-  }, [month, year]);
-
-  const subtitle =
-    periodKind === 'current'
-      ? `${dayOfMonth}-й день из ${daysInMonth}`
-      : periodKind === 'past'
-        ? 'полный месяц'
-        : 'месяц ещё не начался';
+  const monthLabel = monthYearLabel(month, year);
+  const subtitle = periodSubtitle(periodKind, dayOfMonth, daysInMonth);
 
   return (
     <div className="flex items-center justify-between gap-3">

@@ -14,40 +14,41 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import pyc.lopatuxin.budget.dto.request.CategoryAnalyticsRequestDto;
-import pyc.lopatuxin.budget.dto.response.CategoryAnalyticsResponseDto;
-import pyc.lopatuxin.budget.service.CategoryAnalyticsService;
+import pyc.lopatuxin.budget.dto.request.CategoryPageRequestDto;
+import pyc.lopatuxin.budget.dto.response.CategoryPageResponseDto;
+import pyc.lopatuxin.budget.service.CategoryPageService;
 import pyc.lopatuxin.shared.dto.ApiRequest;
 import pyc.lopatuxin.shared.dto.ResponseApi;
 
 /**
- * Контроллер для получения детальной аналитики по категории расходов.
+ * Controller for the category page endpoint: the requested month's spending against the
+ * category's personal norm, the last 12 months chart and the month's operations feed.
  */
 @Slf4j
 @RestController
 @RequestMapping("/api/budget/categories")
 @RequiredArgsConstructor
-@Tag(name = "Аналитика категорий", description = "API для получения детальной аналитики по категориям расходов")
-public class CategoryAnalyticsController {
+@Tag(name = "Категории", description = "API для управления категориями расходов")
+public class CategoryPageController {
 
-    private final CategoryAnalyticsService categoryAnalyticsService;
+    private final CategoryPageService categoryPageService;
 
     /**
-     * Возвращает детальную аналитику по категории расходов пользователя.
+     * Returns the category page for the authenticated user, the requested category and period.
      *
-     * @param request запрос с контекстом пользователя и параметрами аналитики
-     * @return стандартный ответ с аналитикой категории
+     * @param request request with user context, category name and period
+     * @return standard response with the category page data
      */
-    @PostMapping("/analytics")
+    @PostMapping("/page")
     @ResponseStatus(HttpStatus.OK)
     @Operation(
-            summary = "Получить аналитику категории",
-            description = "Возвращает помесячные и годовые данные расходов, список расходов за период " +
-                    "и общую сумму по указанной категории"
+            summary = "Получить страницу категории",
+            description = "Возвращает потраченное за месяц против личной нормы категории, последние 12 месяцев " +
+                    "и операции категории за месяц."
     )
     @ApiResponse(
             responseCode = "200",
-            description = "Аналитика категории успешно получена",
+            description = "Страница категории успешно получена",
             content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(implementation = ResponseApi.class)
@@ -70,13 +71,13 @@ public class CategoryAnalyticsController {
             )
     )
     @CommonApiResponses
-    public ResponseApi<CategoryAnalyticsResponseDto> getAnalytics(
-            @RequestBody @Valid ApiRequest<CategoryAnalyticsRequestDto> request) {
+    public ResponseApi<CategoryPageResponseDto> getPage(
+            @RequestBody @Valid ApiRequest<CategoryPageRequestDto> request) {
 
-        CategoryAnalyticsResponseDto result = categoryAnalyticsService.getAnalytics(
+        CategoryPageResponseDto page = categoryPageService.getPage(
                 request.getUser().getUserId(),
                 request.getData()
         );
-        return ResponseApi.success("Аналитика категории получена", result);
+        return ResponseApi.success("Страница категории успешно получена", page);
     }
 }

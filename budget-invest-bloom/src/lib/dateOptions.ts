@@ -1,4 +1,4 @@
-// Shared date/period/number formatting utilities used across Budget, CategoryExpenses,
+// Shared date/period/number formatting utilities used across Budget, the category page,
 // the analytics page, and the overview and investments pages
 
 // Short lowercase month names — chart axis labels (overview) and stale-price
@@ -25,14 +25,6 @@ export const MONTHS = [
   { value: '11', label: 'Ноябрь' },
   { value: '12', label: 'Декабрь' },
 ] as const;
-
-const YEAR_MIN = 2020;
-
-/** Returns string year options from YEAR_MIN to currentYear + 1 */
-export function getYearOptions(): string[] {
-  const currentYear = new Date().getFullYear();
-  return Array.from({ length: currentYear - YEAR_MIN + 2 }, (_, i) => String(YEAR_MIN + i));
-}
 
 /** Formats a number as Russian rubles, no decimals */
 export const formatCurrency = (value: number): string =>
