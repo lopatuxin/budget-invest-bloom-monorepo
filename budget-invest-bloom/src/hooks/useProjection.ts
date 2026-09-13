@@ -8,7 +8,7 @@ export function useProjection(request: ProjectionRequest | null) {
     queryKey: qk.investment.projection(request),
     queryFn: () =>
       apiPost<ApiResponse<ProjectionResult>>('/api/investment/analytics/projection', request!),
-    enabled: false,
+    enabled: request !== null,
     staleTime: 0,
   });
 }

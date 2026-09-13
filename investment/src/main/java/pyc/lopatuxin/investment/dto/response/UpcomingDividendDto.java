@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import pyc.lopatuxin.investment.service.DividendTiming;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -30,11 +31,9 @@ public class UpcomingDividendDto {
     // Takes "today" as an argument instead of calling LocalDate.now() itself, so a whole page
     // build (which can call this once per comparison in a sort) judges every row against the
     // same "today" rather than risking a different one for each call around a midnight rollover
-    // (plan point 3).
+    // (plan point 3). Delegates to DividendTiming so the security page's own upcoming events use
+    // the identical rule instead of a second copy of it.
     public LocalDate effectiveDate(LocalDate today) {
-        if (recordDate != null && !recordDate.isBefore(today)) {
-            return recordDate;
-        }
-        return paymentDate;
+        return DividendTiming.upcomingEffectiveDate(recordDate, paymentDate, today);
     }
 }

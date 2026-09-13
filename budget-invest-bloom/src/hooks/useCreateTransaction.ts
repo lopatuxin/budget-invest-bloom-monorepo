@@ -15,7 +15,7 @@ export function useCreateTransaction() {
       queryClient.invalidateQueries({ queryKey: qk.investment.portfolioAll() });
       queryClient.invalidateQueries({ queryKey: qk.investment.transactions() });
       queryClient.invalidateQueries({ queryKey: qk.investment.portfolioValueHistory() });
-      queryClient.invalidateQueries({ queryKey: qk.investment.positionByTicker(variables.ticker) });
+      queryClient.invalidateQueries({ queryKey: qk.investment.securityPageAll() });
     },
   });
 }

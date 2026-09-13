@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { BarChart2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RetryErrorCard } from '@/components/RetryErrorCard';
-import AddAssetDialog from '@/components/AddAssetDialog';
+import { TransactionDialog } from '@/components/investments/TransactionDialog';
 import EmptyState from '@/components/EmptyState';
 import { useToast } from '@/hooks/use-toast';
 import { useInvestmentPortfolio } from '@/hooks/useInvestmentPortfolio';
@@ -57,10 +57,11 @@ const Investments = () => {
   }, [error, toast]);
 
   const isEmpty = Boolean(portfolio && portfolio.overview.assetsCount === 0);
+  const quantityByTicker = Object.fromEntries((portfolio?.positions ?? []).map((position) => [position.ticker, position.quantity]));
 
   return (
     <div className="flex flex-col gap-4 lg:gap-5 pb-6">
-      <AddAssetDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <TransactionDialog open={dialogOpen} onOpenChange={setDialogOpen} quantityByTicker={quantityByTicker} />
 
       <InvestmentsHeader
         pricesAsOf={portfolio?.overview.pricesAsOf ?? null}

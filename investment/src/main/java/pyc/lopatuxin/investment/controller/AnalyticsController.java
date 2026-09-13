@@ -11,8 +11,6 @@ import org.springframework.web.bind.annotation.RestController;
 import pyc.lopatuxin.investment.dto.request.DateRangeDto;
 import pyc.lopatuxin.investment.dto.request.ProjectionRequestDto;
 import pyc.lopatuxin.investment.dto.request.SecurityHistoryRequestDto;
-import pyc.lopatuxin.investment.dto.request.SecurityTickerRequestDto;
-import pyc.lopatuxin.investment.dto.response.SecurityDividendDto;
 import pyc.lopatuxin.investment.dto.response.PortfolioValueSeriesResponseDto;
 import pyc.lopatuxin.investment.dto.response.PricePointDto;
 import pyc.lopatuxin.investment.dto.response.ProjectionResultDto;
@@ -23,7 +21,6 @@ import pyc.lopatuxin.shared.dto.ApiRequest;
 import pyc.lopatuxin.shared.dto.ResponseApi;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -57,13 +54,6 @@ public class AnalyticsController {
         validateDateRange(from, to);
         SeriesResponseDto<PricePointDto> result = analyticsService.securityPriceHistory(dto.getTicker(), from, to);
         return ResponseApi.success("История цен инструмента", result);
-    }
-
-    @PostMapping("/security/dividends-history")
-    public ResponseApi<List<SecurityDividendDto>> securityDividendsHistory(
-            @RequestBody @Valid ApiRequest<SecurityTickerRequestDto> request) {
-        return ResponseApi.success("История дивидендов",
-                analyticsService.securityDividendsHistory(request.getUser().getUserId(), request.getData().getTicker()));
     }
 
     @PostMapping("/projection")

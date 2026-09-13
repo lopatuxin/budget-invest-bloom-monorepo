@@ -78,12 +78,20 @@ public class ProjectionService {
         List<ProjectionPointDto> series = simulateSeries(
                 totalValue, monthlyReturn, monthlyWithdrawalRate, req, now);
 
+        // series is never empty here: the only empty-portfolio case (no positions) already
+        // returned via emptyResult() above, and horizonMonths is validated >= 1.
+        ProjectionPointDto lastPoint = series.get(series.size() - 1);
+        BigDecimal contributedTotal = lastPoint.getContributed();
+        BigDecimal earned = lastPoint.getValue().subtract(contributedTotal);
+
         return ProjectionResultDto.builder()
                 .startValue(totalValue.setScale(SCALE, RM))
                 .portfolioWeightedAnnualReturn(weightedAnnualReturn.setScale(4, RM))
                 .monthlyReturn(monthlyReturn)
                 .series(series)
                 .pendingHistoryTickers(pendingTickers)
+                .contributedTotal(contributedTotal)
+                .earned(earned)
                 .build();
     }
 
@@ -215,18 +223,24 @@ public class ProjectionService {
                                                     ProjectionRequestDto req,
                                                     LocalDate now) {
         BigDecimal value = startValue;
+        // Principal tracked separately from value: it only moves by deposits and withdrawals,
+        // never by the simulated return, so contributedTotal/earned can tell "money I put in"
+        // apart from "growth" at any point on the series (plan item 3 of the plan's API section).
+        BigDecimal contributed = startValue;
         List<ProjectionPointDto> series = new ArrayList<>();
         for (int m = 1; m <= req.getHorizonMonths(); m++) {
             value = value.multiply(BigDecimal.ONE.add(monthlyReturn), MC);
             value = value.add(req.getMonthlyDeposit());
             BigDecimal withdrawal = value.multiply(monthlyWithdrawalRate, MC).setScale(SCALE, RM);
             value = value.subtract(withdrawal);
+            contributed = contributed.add(req.getMonthlyDeposit()).subtract(withdrawal);
             series.add(new ProjectionPointDto(
                     m,
                     now.plusMonths(m),
                     value.setScale(SCALE, RM),
                     req.getMonthlyDeposit().setScale(SCALE, RM),
-                    withdrawal
+                    withdrawal,
+                    contributed.setScale(SCALE, RM)
             ));
         }
         return series;
@@ -239,6 +253,8 @@ public class ProjectionService {
                 .monthlyReturn(BigDecimal.ZERO)
                 .series(List.of())
                 .pendingHistoryTickers(List.of())
+                .contributedTotal(BigDecimal.ZERO)
+                .earned(BigDecimal.ZERO)
                 .build();
     }
 }

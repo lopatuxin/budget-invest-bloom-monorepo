@@ -23,8 +23,8 @@ const CategoryPage = lazy(() =>
 );
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Investments = lazy(() => import("./pages/Investments"));
-const PortfolioAnalytics = lazy(() => import("./pages/PortfolioAnalytics"));
-const SecurityDetails = lazy(() => import("./pages/SecurityDetails"));
+const ForecastPage = lazy(() => import("./pages/forecast/ForecastPage").then((module) => ({ default: module.ForecastPage })));
+const SecurityPage = lazy(() => import("./pages/security/SecurityPage").then((module) => ({ default: module.SecurityPage })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,8 +66,9 @@ const protectedRoutes = [
   { path: "/analytics/:tab", element: <Analytics /> },
   { path: "/budget/metric/*", element: <Navigate to="/analytics" replace /> },
   { path: "/investments", element: <Investments /> },
-  { path: "/investments/analytics", element: <PortfolioAnalytics /> },
-  { path: "/investments/security/:ticker", element: <SecurityDetails /> },
+  { path: "/investments/forecast", element: <ForecastPage /> },
+  { path: "/investments/analytics", element: <Navigate to="/investments/forecast" replace /> },
+  { path: "/investments/security/:ticker", element: <SecurityPage /> },
 ];
 
 const AppLayout = () => {

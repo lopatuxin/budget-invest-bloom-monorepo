@@ -312,13 +312,16 @@ public final class MoexResponseParser {
         return map;
     }
 
+    // The /iss/securities/{ticker}.json endpoint lists a security's trading boards under a
+    // "boards" block (lowercase columns), not "securities" — that block name is only used by the
+    // board-listing and market-data endpoints (doParseBoardSecurities, parsePreviousClose).
     private static String extractPrimaryBoardId(JsonNode root) {
-        Optional<IssTable> tableOpt = IssTable.of(root, "securities");
+        Optional<IssTable> tableOpt = IssTable.of(root, "boards");
         if (tableOpt.isEmpty()) {
             return null;
         }
         IssTable table = tableOpt.get();
-        int boardIdx     = table.columnIndex("BOARDID");
+        int boardIdx     = table.columnIndex("boardid");
         int isPrimaryIdx = table.columnIndex("is_primary");
         int isTradedIdx  = table.columnIndex("is_traded");
 

@@ -42,9 +42,9 @@ class MoexIssClientTest extends AbstractMoexClientTest {
                       ["CURRENCYID","Валюта","RUB"]
                     ]
                   },
-                  "securities": {
-                    "columns": ["SECID","BOARDID","SHORTNAME","is_primary","is_traded"],
-                    "data": [["SBER","TQBR","Сбербанк",1,1]]
+                  "boards": {
+                    "columns": ["secid","boardid","is_primary","is_traded"],
+                    "data": [["SBER","TQBR",1,1]]
                   }
                 }
                 """);
@@ -106,9 +106,9 @@ class MoexIssClientTest extends AbstractMoexClientTest {
                       ["CURRENCYID","Валюта","RUB"]
                     ]
                   },
-                  "securities": {
-                    "columns": ["SECID","BOARDID","SHORTNAME","is_primary","is_traded"],
-                    "data": [["SBER","TQBR","Сбербанк",1,1]]
+                  "boards": {
+                    "columns": ["secid","boardid","is_primary","is_traded"],
+                    "data": [["SBER","TQBR",1,1]]
                   }
                 }
                 """);
@@ -126,7 +126,7 @@ class MoexIssClientTest extends AbstractMoexClientTest {
         JsonNode response = MAPPER.readTree("""
                 {
                   "description": {"columns": ["name","title","value"], "data": []},
-                  "securities": {"columns": ["SECID","BOARDID","SHORTNAME"], "data": []}
+                  "boards": {"columns": ["secid","boardid"], "data": []}
                 }
                 """);
         when(api.getSecurity(anyString(), anyString(), anyString())).thenReturn(response);

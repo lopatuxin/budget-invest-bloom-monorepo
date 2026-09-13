@@ -9,8 +9,8 @@ export function useCreateManualDividend() {
   return useMutation({
     mutationFn: (data: CreateManualDividendRequest) =>
       apiPost<ApiResponse<SecurityDividend>>('/api/investment/dividends', data),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: qk.investment.securityDividends(variables.ticker) });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.investment.securityPageAll() });
       queryClient.invalidateQueries({ queryKey: qk.investment.portfolioAll() });
       queryClient.invalidateQueries({ queryKey: qk.budget.overviewPage() });
     },

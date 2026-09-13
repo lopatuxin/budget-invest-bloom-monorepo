@@ -25,7 +25,7 @@ import java.util.Optional;
 public class MoexIssClient {
 
     private static final String META_OFF = "off";
-    private static final String ONLY_DESCRIPTION_SECURITIES = "description,securities";
+    private static final String ONLY_DESCRIPTION_BOARDS = "description,boards";
     private static final String ONLY_SECURITIES = "securities";
     private static final String ONLY_MARKETDATA_SECURITIES = "marketdata,securities";
     private static final String ONLY_HISTORY = "history,history.cursor";
@@ -38,7 +38,7 @@ public class MoexIssClient {
 
     public Optional<MoexSecurityDto> fetchSecurity(String ticker) {
         return resilience.execute("fetchSecurity",
-                () -> MoexResponseParser.parseSecurity(api.getSecurity(ticker, ONLY_DESCRIPTION_SECURITIES, META_OFF), ticker));
+                () -> MoexResponseParser.parseSecurity(api.getSecurity(ticker, ONLY_DESCRIPTION_BOARDS, META_OFF), ticker));
     }
 
     public Map<String, MoexSnapshotDto> fetchSnapshots(Collection<String> tickers) {

@@ -28,7 +28,7 @@ export function InvestmentsHeader({ pricesAsOf, pricesStale, onAddTransaction }:
       </div>
       <div className="flex items-center gap-2">
         <Button asChild variant="outline" size="sm" className="hidden lg:inline-flex gap-1.5 border-app-border-strong bg-app-surface text-app-text hover:bg-app-surface-2">
-          <Link to="/investments/analytics">
+          <Link to="/investments/forecast">
             <LineChart aria-hidden="true" className="w-3.5 h-3.5" />
             Прогноз
           </Link>

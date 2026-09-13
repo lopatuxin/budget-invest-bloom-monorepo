@@ -14,4 +14,8 @@ public class ProjectionResultDto {
     private BigDecimal monthlyReturn;
     private List<ProjectionPointDto> series;
     private List<String> pendingHistoryTickers;
+    // Last point's contributed (see ProjectionPointDto.contributed) and earned = last point's
+    // value minus contributedTotal — the forecast page's "Через N лет"/"Заработано" tiles.
+    private BigDecimal contributedTotal;
+    private BigDecimal earned;
 }

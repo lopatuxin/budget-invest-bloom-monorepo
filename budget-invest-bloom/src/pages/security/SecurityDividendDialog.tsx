@@ -43,30 +43,48 @@ interface DividendDateFieldProps {
   placeholder: string;
 }
 
+// The shadcn Calendar colours days with the dark theme's primary (near-white) and accent (navy)
+// tokens, so on this light popover the selected day vanished; each replaced key swaps them for app
+// tokens. The selected look lives in aria-selected: variants on `day`: variant rules are emitted after
+// plain utilities, so they beat the day's own text/background colours regardless of class order.
+const LIGHT_CALENDAR_CLASS_NAMES = {
+  caption_label: 'text-sm font-medium text-app-text',
+  nav_button:
+    'inline-flex items-center justify-center h-7 w-7 rounded-md border border-app-border-strong bg-transparent p-0 text-app-text-muted hover:bg-app-surface-2 hover:text-app-text',
+  head_cell: 'text-app-text-dim rounded-md w-9 font-normal text-[0.8rem]',
+  cell: 'h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20',
+  day: 'h-9 w-9 p-0 rounded-md font-normal text-app-text hover:bg-app-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent aria-selected:opacity-100 aria-selected:bg-app-accent aria-selected:text-app-accent-ink aria-selected:hover:bg-app-accent',
+  day_selected: 'font-medium',
+  day_today: 'bg-app-accent-soft',
+  day_outside: 'day-outside text-app-text-dim opacity-50 aria-selected:opacity-30',
+  day_disabled: 'text-app-text-dim opacity-50',
+};
+
 // Shared by both date fields below — the required "record date" and the
 // optional "payment date" differ only in label/placeholder/validation.
 function DividendDateField({ label, value, onChange, placeholder }: DividendDateFieldProps) {
   const [open, setOpen] = useState(false);
   return (
     <FormItem className="flex flex-col">
-      <FormLabel className="text-dashboard-text-muted">{label}</FormLabel>
+      <FormLabel className="text-app-text-muted">{label}</FormLabel>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <FormControl>
             <Button
               type="button"
               variant="outline"
-              className="w-full justify-start bg-white/5 border-white/10 text-dashboard-text hover:bg-white/10 font-normal"
+              className="w-full justify-start bg-app-surface border-app-border-strong text-app-text hover:bg-app-surface-2 font-normal"
             >
-              <CalendarDays aria-hidden="true" className="w-4 h-4 mr-2 text-dashboard-text-muted" />
-              {value ? formatDayMonth(toApiDateString(value)) : <span className="text-dashboard-text-muted">{placeholder}</span>}
+              <CalendarDays aria-hidden="true" className="w-4 h-4 mr-2 text-app-text-muted" />
+              {value ? formatDayMonth(toApiDateString(value)) : <span className="text-app-text-dim">{placeholder}</span>}
             </Button>
           </FormControl>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 bg-slate-800 border-white/10" align="start">
+        <PopoverContent className="w-auto p-0 bg-app-surface border-app-border text-app-text" align="start">
           <Calendar
             mode="single"
             locale={ru}
+            classNames={LIGHT_CALENDAR_CLASS_NAMES}
             selected={value}
             onSelect={(date) => {
               onChange(date);
@@ -131,9 +149,9 @@ export function SecurityDividendDialog({ ticker, open, onOpenChange }: SecurityD
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[400px]">
+      <DialogContent className="sm:max-w-[400px] border-app-border text-app-text" style={{ background: 'rgb(var(--app-surface))' }}>
         <DialogHeader>
-          <DialogTitle>Добавить дивиденд вручную</DialogTitle>
+          <DialogTitle className="text-app-text">Добавить дивиденд вручную</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -158,14 +176,14 @@ export function SecurityDividendDialog({ ticker, open, onOpenChange }: SecurityD
               name="amountPerShare"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-dashboard-text-muted">Сумма на акцию, ₽</FormLabel>
+                  <FormLabel className="text-app-text-muted">Сумма на акцию, ₽</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
                       placeholder="34.84"
                       min="0"
                       step="0.01"
-                      className="bg-white/5 border-white/10 text-dashboard-text"
+                      className="bg-app-surface border-app-border-strong text-app-text ring-offset-app-surface"
                       {...field}
                       value={field.value ?? ''}
                     />
@@ -176,13 +194,18 @@ export function SecurityDividendDialog({ ticker, open, onOpenChange }: SecurityD
             />
 
             <div className="flex justify-end space-x-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleOpenChange(false)}
+                className="border-app-border-strong bg-app-surface text-app-text hover:bg-app-surface-2"
+              >
                 Отмена
               </Button>
               <Button
                 type="submit"
                 disabled={isPending}
-                className="bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                className="bg-app-accent text-app-accent-ink hover:bg-app-accent/90"
               >
                 {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Добавить

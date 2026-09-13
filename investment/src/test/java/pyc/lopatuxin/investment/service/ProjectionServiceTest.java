@@ -8,6 +8,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pyc.lopatuxin.investment.dto.request.ProjectionRequestDto;
+import pyc.lopatuxin.investment.dto.response.ProjectionPointDto;
 import pyc.lopatuxin.investment.dto.response.ProjectionResultDto;
 import pyc.lopatuxin.investment.entity.Dividend;
 import pyc.lopatuxin.investment.entity.PriceHistory;
@@ -245,6 +246,110 @@ class ProjectionServiceTest {
         assertThat(result.getSeries()).hasSize(4);
         result.getSeries().forEach(point ->
                 assertThat(point.getDeposit()).isEqualByComparingTo(new BigDecimal("10000.00")));
+    }
+
+    @Test
+    @DisplayName("project — startValue=0, monthlyDeposit=10000, без изъятий → contributed растёт на пополнение каждый месяц")
+    void project_contributed_growsByMonthlyDeposit_whenNoWithdrawal() {
+        Position position = Position.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .security(sber)
+                .quantity(new BigDecimal("10"))
+                .averagePrice(new BigDecimal("300.00"))
+                .totalCost(new BigDecimal("3000.00"))
+                .build();
+
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(position));
+        when(marketDataService.getSnapshots(List.of("SBER")))
+                .thenReturn(Map.of("SBER", new SnapshotResult(new BigDecimal("300.00"), null, Instant.now(), false)));
+
+        ProjectionRequestDto req = new ProjectionRequestDto();
+        req.setHorizonMonths(3);
+        req.setMonthlyDeposit(new BigDecimal("10000"));
+        req.setWithdrawalRatePerYear(BigDecimal.ZERO);
+        req.setOverrides(Map.of("SBER", BigDecimal.ZERO));
+
+        ProjectionResultDto result = projectionService.project(userId, req);
+
+        // startValue = 10 * 300.00 = 3000.00; contributed = startValue + deposit * month.
+        assertThat(result.getSeries().get(0).getContributed()).isEqualByComparingTo("13000.00");
+        assertThat(result.getSeries().get(1).getContributed()).isEqualByComparingTo("23000.00");
+        assertThat(result.getSeries().get(2).getContributed()).isEqualByComparingTo("33000.00");
+    }
+
+    @Test
+    @DisplayName("project — изъятие уменьшает contributed на ту же сумму, что вычитается из value")
+    void project_contributed_shrinksByWithdrawal() {
+        Position position = Position.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .security(sber)
+                .quantity(new BigDecimal("10"))
+                .averagePrice(new BigDecimal("300.00"))
+                .totalCost(new BigDecimal("3000.00"))
+                .build();
+
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(position));
+        when(marketDataService.getSnapshots(List.of("SBER")))
+                .thenReturn(Map.of("SBER", new SnapshotResult(new BigDecimal("300.00"), null, Instant.now(), false)));
+
+        ProjectionRequestDto req = new ProjectionRequestDto();
+        req.setHorizonMonths(2);
+        req.setMonthlyDeposit(BigDecimal.ZERO);
+        req.setWithdrawalRatePerYear(new BigDecimal("0.12")); // 1% a month, flat
+        req.setOverrides(Map.of("SBER", BigDecimal.ZERO));
+
+        ProjectionResultDto result = projectionService.project(userId, req);
+
+        ProjectionPointDto firstPoint = result.getSeries().get(0);
+        // No return, no deposit: contributed drops by exactly the withdrawal taken that month,
+        // same as value — the two stay in lockstep whenever nothing is actually earned.
+        assertThat(firstPoint.getContributed())
+                .isEqualByComparingTo(new BigDecimal("3000.00").subtract(firstPoint.getWithdrawal()));
+    }
+
+    @Test
+    @DisplayName("project — contributedTotal равен contributed последней точки, earned = значение последней точки минус contributedTotal")
+    void project_contributedTotalAndEarned_matchLastPoint() {
+        Position position = Position.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .security(sber)
+                .quantity(new BigDecimal("10"))
+                .averagePrice(new BigDecimal("300.00"))
+                .totalCost(new BigDecimal("3000.00"))
+                .build();
+
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(position));
+        when(marketDataService.getSnapshots(List.of("SBER")))
+                .thenReturn(Map.of("SBER", new SnapshotResult(new BigDecimal("300.00"), null, Instant.now(), false)));
+
+        ProjectionRequestDto req = new ProjectionRequestDto();
+        req.setHorizonMonths(6);
+        req.setMonthlyDeposit(new BigDecimal("5000"));
+        req.setWithdrawalRatePerYear(BigDecimal.ZERO);
+        req.setOverrides(Map.of("SBER", new BigDecimal("0.10")));
+
+        ProjectionResultDto result = projectionService.project(userId, req);
+
+        ProjectionPointDto lastPoint = result.getSeries().get(result.getSeries().size() - 1);
+        assertThat(result.getContributedTotal()).isEqualByComparingTo(lastPoint.getContributed());
+        assertThat(result.getEarned()).isEqualByComparingTo(lastPoint.getValue().subtract(lastPoint.getContributed()));
+    }
+
+    @Test
+    @DisplayName("project — пустой портфель → contributedTotal и earned равны нулю")
+    void project_emptyPortfolio_contributedTotalAndEarnedAreZero() {
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of());
+
+        ProjectionRequestDto req = new ProjectionRequestDto();
+        req.setHorizonMonths(12);
+
+        ProjectionResultDto result = projectionService.project(userId, req);
+
+        assertThat(result.getContributedTotal()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.getEarned()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     private Dividend buildPaidDividend(String ticker, LocalDate paymentDate, BigDecimal amountPerShare) {

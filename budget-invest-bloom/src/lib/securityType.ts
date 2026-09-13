@@ -8,7 +8,7 @@ export const SECURITY_TYPE_LABEL: Record<SecurityType, string> = {
   ETF: 'ETF',
 };
 
-// Singular labels — used in AddAssetDialog search results
+// Singular labels — used in TransactionSecurityPicker search results
 export const SECURITY_TYPE_LABEL_SINGULAR: Record<SecurityType, string> = {
   STOCK: 'Акция',
   BOND: 'Облигация',

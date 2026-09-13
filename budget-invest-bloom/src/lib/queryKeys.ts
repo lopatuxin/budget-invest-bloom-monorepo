@@ -20,13 +20,14 @@ export const qk = {
     transactions: (ticker?: string) =>
       (ticker ? ['investment-transactions', ticker] : ['investment-transactions']) as const,
     portfolioValueHistory: () => ['portfolio-value-history'] as const,
-    positionByTicker: (ticker: string) => ['position-by-ticker', ticker] as const,
     securityList: () => ['moex-list'] as const,
     securitySearch: (q: string) => ['moex-search', q] as const,
     securityPriceHistory: (ticker: string) => ['security-price-history', ticker] as const,
-    securityDividends: (ticker: string) => ['security-dividends-history', ticker] as const,
     securitySnapshot: () => ['security-snapshot'] as const,
     projection: (request: unknown) => ['projection', request] as const,
+    securityPage: (ticker: string) => ['security-page', ticker] as const,
+    // Prefix match invalidates the cached page for every ticker
+    securityPageAll: () => ['security-page'] as const,
   },
 };
 

@@ -11,8 +11,7 @@ import java.util.List;
  * {@code pricesStale}/{@code staleTickers} cover securities whose latest known price is older
  * than the window's end by more than a routine gap — a genuinely different situation the
  * frontend labels differently. Kept as its own DTO rather than adding the fields to
- * {@link SeriesResponseDto} itself so security/price-history and dividends-history responses
- * are unaffected.
+ * {@link SeriesResponseDto} itself so the security/price-history response is unaffected.
  */
 @Getter
 public class PortfolioValueSeriesResponseDto extends SeriesResponseDto<PortfolioValuePointDto> {

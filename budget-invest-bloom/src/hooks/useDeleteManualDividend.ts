@@ -16,8 +16,8 @@ export function useDeleteManualDividend() {
   return useMutation({
     mutationFn: ({ dividendId }: DeleteManualDividendParams) =>
       apiPost<ApiResponse<void>>('/api/investment/dividends/delete', { dividendId }),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: qk.investment.securityDividends(variables.ticker) });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.investment.securityPageAll() });
       queryClient.invalidateQueries({ queryKey: qk.investment.portfolioAll() });
       queryClient.invalidateQueries({ queryKey: qk.budget.overviewPage() });
     },

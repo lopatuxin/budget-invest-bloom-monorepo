@@ -69,6 +69,11 @@ export const formatDividendAmount = (value: number, currency: string, variant: '
 export const formatQuantity = (value: number): string =>
   value.toLocaleString('ru-RU', { maximumFractionDigits: 4 });
 
+/** "10,5" → 10.5 — a text input with inputMode="decimal" gets a comma from Russian keyboards
+ * and phone keypads, which Number() alone turns into NaN; NaN is still returned for non-numbers */
+export const parseDecimalInput = (raw: string | number): number =>
+  typeof raw === 'number' ? raw : Number(raw.replace(/\s/g, '').replace(',', '.'));
+
 /** Formats a local Date as YYYY-MM-DD without any UTC shift (unlike toISOString) */
 export const toApiDateString = (date: Date): string => {
   const year = date.getFullYear();
@@ -107,25 +112,8 @@ export const formatDayMonth = (value: string): string => DAY_MONTH_FORMAT.format
 
 interface DividendDates {
   recordDate: string;
-  paymentDate: string | null;
+  paymentDate?: string | null;
 }
-
-/** A dividend is upcoming once either date it carries is still ahead — see
- * docs/plans/dividends-tinvest.md p.21. Shared by PortfolioDividendsCard
- * (portfolio-wide upcoming/recent split, done by the backend) and
- * SecurityDividendsCard (single per-security list, split here). */
-export const isUpcomingDividend = (dividend: DividendDates): boolean => {
-  const today = toApiDateString(new Date());
-  return dividend.recordDate >= today || (dividend.paymentDate != null && dividend.paymentDate >= today);
-};
-
-/** The date an upcoming dividend is sorted by: the record date while it is
- * still ahead, otherwise the payment date — same rule formatDividendDateLabel
- * uses to pick the label, kept here so both read one definition. */
-export const upcomingDividendSortDate = (dividend: DividendDates): string => {
-  const today = toApiDateString(new Date());
-  return dividend.recordDate >= today ? dividend.recordDate : (dividend.paymentDate ?? dividend.recordDate);
-};
 
 /** "отсечка 18 июля" / "выплата 1 августа" / "выплачено 1 августа" — the row
  * label rule from docs/plans/dividends-tinvest.md p.21: an upcoming dividend

@@ -1,17 +1,14 @@
 package pyc.lopatuxin.investment.service;
 
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import pyc.lopatuxin.investment.dto.response.SecurityDividendDto;
 import pyc.lopatuxin.investment.dto.response.PortfolioValuePointDto;
 import pyc.lopatuxin.investment.dto.response.PortfolioValueSeriesResponseDto;
 import pyc.lopatuxin.investment.dto.response.PositionResponseDto;
 import pyc.lopatuxin.investment.dto.response.PricePointDto;
 import pyc.lopatuxin.investment.dto.response.SeriesResponseDto;
 import pyc.lopatuxin.investment.dto.response.SnapshotResult;
-import pyc.lopatuxin.investment.entity.Dividend;
 import pyc.lopatuxin.investment.entity.PriceHistory;
 import pyc.lopatuxin.investment.entity.Position;
 import pyc.lopatuxin.investment.entity.Security;
@@ -20,7 +17,6 @@ import pyc.lopatuxin.investment.entity.enums.HistoryStatus;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
 import pyc.lopatuxin.investment.entity.enums.TransactionType;
 import pyc.lopatuxin.investment.mapper.PositionMapper;
-import pyc.lopatuxin.investment.repository.DividendRepository;
 import pyc.lopatuxin.investment.repository.PositionRepository;
 import pyc.lopatuxin.investment.repository.PriceHistoryRepository;
 import pyc.lopatuxin.investment.repository.TransactionRepository;
@@ -63,20 +59,9 @@ public class AnalyticsService {
     private final PriceHistoryRepository priceHistoryRepository;
     private final PositionRepository positionRepository;
     private final MarketDataService marketDataService;
-    private final DividendRepository dividendRepository;
     private final TransactionRepository transactionRepository;
     private final PositionMapper positionMapper;
     private final PortfolioGroupingService portfolioGroupingService;
-
-    public List<SecurityDividendDto> securityDividendsHistory(UUID userId, String ticker) {
-        String normalizedTicker = ticker.toUpperCase();
-        if (!positionRepository.existsByUserIdAndSecurity_Ticker(userId, normalizedTicker)) {
-            throw new EntityNotFoundException("Бумага не найдена в портфеле: " + normalizedTicker);
-        }
-        return dividendRepository.findBySecurity_TickerOrderByRecordDateDesc(normalizedTicker).stream()
-                .map(this::toSecurityDividendDto)
-                .toList();
-    }
 
     public PortfolioValueSeriesResponseDto portfolioValueHistory(UUID userId, LocalDate from, LocalDate to) {
         List<Position> positions = positionRepository.findByUserIdWithSecurity(userId);
@@ -441,18 +426,6 @@ public class AnalyticsService {
             total = total.add(qty.multiply(price));
         }
         return total;
-    }
-
-    private SecurityDividendDto toSecurityDividendDto(Dividend d) {
-        return SecurityDividendDto.builder()
-                .id(d.getId())
-                .recordDate(d.getRecordDate())
-                .paymentDate(d.getPaymentDate())
-                .amountPerShare(d.getAmountPerShare())
-                .currency(d.getCurrency())
-                .status(d.getStatus())
-                .source(d.getSource())
-                .build();
     }
 
     private PricePointDto toPricePointDto(PriceHistory ph) {

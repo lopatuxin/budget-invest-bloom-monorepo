@@ -259,7 +259,7 @@ public class PortfolioService {
     private BigDecimal upcomingQuantity(Dividend dividend, Map<String, List<Transaction>> journalByTicker,
                                         Map<String, BigDecimal> currentQuantityByTicker, LocalDate today) {
         String ticker = dividend.getSecurity().getTicker();
-        if (!dividend.getRecordDate().isBefore(today)) {
+        if (DividendTiming.isRecordDateAhead(dividend.getRecordDate(), today)) {
             return currentQuantityByTicker.getOrDefault(ticker, BigDecimal.ZERO);
         }
         return holdingsOnDateService.quantityAt(journalByTicker, ticker, dividend.getRecordDate());

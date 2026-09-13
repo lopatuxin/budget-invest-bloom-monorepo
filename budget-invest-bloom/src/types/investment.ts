@@ -168,6 +168,9 @@ export interface ProjectionPoint {
   value: number;
   deposit: number;
   withdrawal: number;
+  // Starting value plus deposits minus withdrawals up to this point — lets the
+  // chart draw a "contributed" line alongside the grown value.
+  contributed: number;
 }
 
 export interface ProjectionResult {
@@ -176,6 +179,8 @@ export interface ProjectionResult {
   monthlyReturn: number;
   series: ProjectionPoint[];
   pendingHistoryTickers: string[];
+  contributedTotal: number;
+  earned: number;
 }
 
 export interface ProjectionRequest {
@@ -208,6 +213,145 @@ export interface CreateManualDividendRequest {
   paymentDate?: string;
   amountPerShare: number;
   currency?: string;
+}
+
+// --- Security page (/investments/security/:ticker), POST /api/investment/securities/page ---
+// See docs/plans/security-page-redesign.md "API" section for the full response shape.
+// Optional (?) fields come from DTOs serialised with @JsonInclude(NON_NULL): when empty they
+// are absent, i.e. undefined rather than null — check them with `!= null`, never `!== null`.
+
+export interface SecurityPageSecurity {
+  ticker: string;
+  name: string;
+  securityType: SecurityType;
+  sector?: string;
+  // Empty until the startup backfill has read the trading board from MOEX
+  boardId?: string;
+  historyStatus: SecurityHistoryStatus;
+}
+
+// Serialised without NON_NULL: previousClose and dailyChangePercent arrive as null when the
+// exchange snapshot has no previous close.
+export interface SecurityPagePrice {
+  current: number;
+  previousClose: number | null;
+  dailyChangePercent: number | null;
+  asOf: string;
+  stale: boolean;
+}
+
+// Mirrors PositionResponse's price-dependent fields: null whenever the exchange
+// snapshot is unavailable, even though the position itself is open.
+export interface SecurityPagePosition {
+  quantity: number;
+  averagePrice: number;
+  totalCost: number;
+  currentValue: number | null;
+  pnl: number | null;
+  pnlPercent: number | null;
+  weightPercent: number | null;
+}
+
+export interface SecurityNextDividend {
+  recordDate: string;
+  paymentDate?: string;
+  amountPerShare: number;
+  quantity: number;
+  netAmount: number;
+  currency: string;
+}
+
+export interface SecurityPageDividends {
+  total12m: number;
+  totalAll: number;
+  yield12mPercent?: number;
+  next?: SecurityNextDividend;
+}
+
+export interface SecurityPageResult {
+  pricePnl: number;
+  realizedPnl: number;
+  dividendsAll: number;
+  total: number;
+  investedAll: number;
+  totalPercent?: number;
+}
+
+export interface SecurityMarker {
+  date: string;
+  kind: TransactionType;
+  quantity: number;
+  price: number;
+}
+
+export interface SecurityPositionAfter {
+  quantity: number;
+  invested: number;
+  averagePrice: number;
+}
+
+export interface SecurityBuyEvent {
+  kind: 'BUY';
+  date: string;
+  transactionId: string;
+  quantity: number;
+  price: number;
+  amount: number;
+  positionAfter: SecurityPositionAfter;
+  first?: boolean;
+}
+
+export interface SecuritySellEvent {
+  kind: 'SELL';
+  date: string;
+  transactionId: string;
+  quantity: number;
+  price: number;
+  amount: number;
+  realizedPnl: number;
+  positionAfter: SecurityPositionAfter;
+}
+
+export interface SecurityDividendPaidEvent {
+  kind: 'DIVIDEND_PAID';
+  date: string;
+  dividendId: string;
+  amountPerShare: number;
+  quantity: number;
+  netAmount: number;
+  currency: string;
+  source: DividendSource;
+}
+
+export interface SecurityDividendUpcomingEvent {
+  kind: 'DIVIDEND_UPCOMING';
+  date: string;
+  dividendId: string;
+  amountPerShare: number;
+  quantity: number;
+  netAmount: number;
+  currency: string;
+  paymentDate?: string;
+  source: DividendSource;
+}
+
+export type SecurityEvent =
+  | SecurityBuyEvent
+  | SecuritySellEvent
+  | SecurityDividendPaidEvent
+  | SecurityDividendUpcomingEvent;
+
+export interface SecurityPageResponse {
+  security: SecurityPageSecurity;
+  price?: SecurityPagePrice;
+  position?: SecurityPagePosition;
+  dividends: SecurityPageDividends;
+  result: SecurityPageResult;
+  transactionsCount: number;
+  buysCount: number;
+  sellsCount: number;
+  markers: SecurityMarker[];
+  events: SecurityEvent[];
 }
 
 // Re-exported from common for backward compatibility

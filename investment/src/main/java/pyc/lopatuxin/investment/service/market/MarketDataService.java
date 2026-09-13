@@ -406,6 +406,41 @@ public class MarketDataService {
         return true;
     }
 
+    // Securities created while MoexResponseParser looked for the trading board in a block that
+    // /iss/securities/{ticker}.json never returns were saved without board_id, and nothing else
+    // rewrites a READY entry's dictionary fields (PENDING ones get them from
+    // healPendingSecurities). MOEX is asked outside any transaction, each hit saved in its own.
+    public void backfillMissingBoards() {
+        List<Security> missing = securityRepository.findByBoardIdIsNullAndHistoryStatus(HistoryStatus.READY);
+        int updated = 0;
+        for (Security security : missing) {
+            String ticker = security.getTicker();
+            try {
+                Optional<String> boardId = moexIssClient.fetchSecurity(ticker).map(MoexSecurityDto::boardId);
+                if (boardId.isPresent() && self.applyBoardId(ticker, boardId.get())) {
+                    updated++;
+                }
+            } catch (MoexUnavailableException e) {
+                log.warn("MOEX недоступна, заполнение площадок отложено до следующего старта");
+                break;
+            } catch (Exception e) {
+                log.warn("Площадку {} заполнить не удалось: {}", ticker, e.getMessage());
+            }
+        }
+        log.info("Заполнение площадок: обновлено {} из {} бумаг", updated, missing.size());
+    }
+
+    @Transactional("investmentTransactionManager")
+    public boolean applyBoardId(String ticker, String boardId) {
+        Security security = securityRepository.findById(ticker).orElse(null);
+        if (security == null || security.getBoardId() != null) {
+            return false;
+        }
+        security.setBoardId(boardId);
+        securityRepository.save(security);
+        return true;
+    }
+
     private Security buildPendingSecurity(String ticker, SecurityType fallbackType) {
         return Security.builder()
                 .ticker(ticker)
@@ -497,7 +532,7 @@ public class MarketDataService {
 
     // Runs on the same background executor the nightly job uses for history loading, so
     // application startup does not block on MOEX round-trips (or timeouts, while the exchange
-    // is unreachable); each step is guarded on its own so one failure cannot skip the other.
+    // is unreachable); each step is guarded on its own so one failure cannot skip the others.
     @Async("historyLoaderExecutor")
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
@@ -510,6 +545,11 @@ public class MarketDataService {
             self.backfillMissingSectors();
         } catch (Exception e) {
             log.warn("Донастройка секторов на старте не выполнена: {}", e.getMessage());
+        }
+        try {
+            self.backfillMissingBoards();
+        } catch (Exception e) {
+            log.warn("Заполнение площадок на старте не выполнено: {}", e.getMessage());
         }
     }
 
