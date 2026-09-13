@@ -73,9 +73,8 @@ export function TransactionSecurityPicker({ value, onChange }: TransactionSecuri
             </button>
           ))}
         </div>
-        {/* The shadcn Command pieces paint with the dark theme's popover/accent/border tokens
-            (<html class="dark">) and the popover renders in a portal outside .app-shell,
-            so every surface, text and state colour is overridden with the light app tokens. */}
+        {/* The shadcn Command pieces paint with the generic shadcn popover/accent/border tokens,
+            not the app-* palette, so every surface, text and state colour is overridden with app tokens. */}
         <Command shouldFilter={false} className="bg-app-surface text-app-text [&_[data-cmdk-input-wrapper]]:border-app-border">
           <CommandInput
             placeholder="Поиск по тикеру или названию..."

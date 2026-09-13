@@ -18,12 +18,11 @@ export const qk = {
     // Prefix match invalidates the cached page for every sort order
     portfolioAll: () => ['investment-portfolio'] as const,
     transactions: (ticker?: string) =>
-      (ticker ? ['investment-transactions', ticker] : ['investment-transactions']) as const,
+      ticker ? (['investment-transactions', ticker] as const) : (['investment-transactions'] as const),
     portfolioValueHistory: () => ['portfolio-value-history'] as const,
     securityList: () => ['moex-list'] as const,
     securitySearch: (q: string) => ['moex-search', q] as const,
     securityPriceHistory: (ticker: string) => ['security-price-history', ticker] as const,
-    securitySnapshot: () => ['security-snapshot'] as const,
     projection: (request: unknown) => ['projection', request] as const,
     securityPage: (ticker: string) => ['security-page', ticker] as const,
     // Prefix match invalidates the cached page for every ticker

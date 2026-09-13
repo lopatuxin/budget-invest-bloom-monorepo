@@ -11,7 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * CORS configuration for the unified servlet security perimeter (replaces the former gateway).
+ * CORS configuration for the servlet security perimeter.
  * Allowed origins are read from property {@code cors.allowed-origins},
  * defaulting to {@code http://localhost:8080}.
  */

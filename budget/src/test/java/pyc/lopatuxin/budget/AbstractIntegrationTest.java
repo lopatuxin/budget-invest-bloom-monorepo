@@ -9,7 +9,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import pyc.lopatuxin.budget.repository.CapitalRecordRepository;
 import pyc.lopatuxin.budget.repository.CategoryRepository;
 import pyc.lopatuxin.budget.repository.ExpenseRepository;
 import pyc.lopatuxin.budget.repository.IncomeRepository;
@@ -48,8 +47,4 @@ public abstract class AbstractIntegrationTest {
     /** Репозиторий доходов. */
     @Autowired
     protected IncomeRepository incomeRepository;
-
-    /** Репозиторий записей капитала. */
-    @Autowired
-    protected CapitalRecordRepository capitalRecordRepository;
 }

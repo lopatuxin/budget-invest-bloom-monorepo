@@ -16,7 +16,7 @@ import java.util.UUID;
 
 /**
  * Контекст пользователя, выполняющего запрос.
- * Заполняется API Gateway из JWT-токена и передаётся в теле каждого запроса.
+ * Заполняется security-модулем из JWT-токена и передаётся в теле каждого запроса.
  */
 @Getter
 @Setter
@@ -24,7 +24,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@Schema(description = "Контекст пользователя, извлечённый API Gateway из JWT-токена")
+@Schema(description = "Контекст пользователя, извлечённый security-модулем из JWT-токена")
 public class UserContextDto {
 
     @NotNull(message = "userId обязателен")

@@ -28,6 +28,16 @@ LOCK_DIR="$STATE_DIR/lock"
 REMOTE_DIR="${YADISK_BACKUP_DIR:-backups/budget-invest-bloom}"
 RETRY_MAX=5
 
+# Retention must be a whole number of days >= 1: `rclone delete --min-age 0d` would wipe
+# every remote backup, including the dump uploaded a moment earlier in this very run.
+RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-7}"
+case "$RETENTION_DAYS" in
+  ''|*[!0-9]*|0*)
+    echo "WARNING: BACKUP_RETENTION_DAYS='$RETENTION_DAYS' is not a whole number >= 1; using 7."
+    RETENTION_DAYS=7
+    ;;
+esac
+
 HOST="${BIB_POSTGRES_HOST:-postgres}"
 DBUSER="${BIB_POSTGRES_USER:-bib}"
 DB="${BIB_POSTGRES_DB:-bib}"
@@ -165,8 +175,8 @@ if ! echo "$TARGET" > "$STATE_FILE"; then
   echo "WARNING: could not persist success marker to $STATE_FILE; next tick may re-run the slot."
 fi
 
-echo "=== Step: Removing backups older than ${BACKUP_RETENTION_DAYS:-7} days from Yandex Disk ==="
-rclone delete "yadisk:${REMOTE_DIR}/" --min-age "${BACKUP_RETENTION_DAYS:-7}d" --log-level INFO ||
+echo "=== Step: Removing backups older than ${RETENTION_DAYS} days from Yandex Disk ==="
+rclone delete "yadisk:${REMOTE_DIR}/" --min-age "${RETENTION_DAYS}d" --log-level INFO ||
   echo "WARNING: pruning old backups failed (non-fatal)."
 
 # Verify the freshly-produced dump actually restores (weekly), using it before removal.

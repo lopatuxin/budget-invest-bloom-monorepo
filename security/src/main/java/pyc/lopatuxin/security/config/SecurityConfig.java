@@ -12,8 +12,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 /**
- * Single security perimeter for the monolith (servlet stack), replacing the former
- * reactive gateway. Validates JWTs issued by the auth module and denies-by-default
+ * Single security perimeter for the monolith (servlet stack). Validates JWTs issued by the auth module and denies-by-default
  * everything that is not explicitly permitted.
  */
 @Configuration

@@ -12,12 +12,13 @@ const NotFound = () => {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
-      <div className="glass-card p-12 text-center max-w-md">
-        <h1 className="text-6xl font-bold text-emerald-400 mb-4">404</h1>
-        <p className="text-xl text-dashboard-text-muted mb-6">Страница не найдена</p>
-        <Link to="/" className="text-emerald-400 hover:text-emerald-300 underline">
-          Вернуться на главную
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <span className="font-display text-[72px] leading-none text-app-text-dim">404</span>
+        <span className="font-display text-[26px] text-app-text">Такой страницы нет</span>
+        <span className="text-[13px] text-app-text-muted">Возможно, ссылка устарела</span>
+        <Link to="/" className="mt-1.5 text-[13px] text-app-accent hover:underline">
+          К обзору
         </Link>
       </div>
     </div>

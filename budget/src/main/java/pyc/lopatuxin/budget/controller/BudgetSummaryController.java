@@ -24,7 +24,7 @@ import pyc.lopatuxin.shared.dto.ResponseApi;
  * Контроллер для получения агрегированной сводки бюджета пользователя.
  *
  * <p>Принимает POST-запрос с unified API contract: userId извлекается из блока user,
- * заполненного API Gateway из JWT-токена.</p>
+ * заполненного security-модулем из JWT-токена.</p>
  */
 @Slf4j
 @RestController

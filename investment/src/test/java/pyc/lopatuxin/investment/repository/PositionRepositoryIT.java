@@ -88,33 +88,6 @@ class PositionRepositoryIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("findByUserIdAndTickerWithSecurity — security читается без LazyInitializationException вне транзакции сервиса")
-    void findByUserIdAndTickerWithSecurity_fetchesSecurityEagerly() {
-        Security security = securityRepository.save(Security.builder()
-                .ticker("SBER")
-                .name("Сбербанк")
-                .type(SecurityType.STOCK)
-                .historyStatus(HistoryStatus.READY)
-                .build());
-        UUID userId = UUID.randomUUID();
-        positionRepository.save(Position.builder()
-                .userId(userId)
-                .security(security)
-                .quantity(new BigDecimal("10.00000000"))
-                .averagePrice(new BigDecimal("280.50"))
-                .totalCost(new BigDecimal("2805.00"))
-                .build());
-
-        Optional<Position> found = positionRepository.findByUserIdAndTickerWithSecurity(userId, "SBER");
-
-        // PortfolioService.getByTicker is not wrapped in a transaction (see its own comment),
-        // so the Hibernate session behind this call is already closed by the time this
-        // assertion runs — a lazy security proxy would throw LazyInitializationException here.
-        assertThat(found).isPresent();
-        assertThat(found.get().getSecurity().getName()).isEqualTo("Сбербанк");
-    }
-
-    @Test
     @DisplayName("Should find all positions by userId")
     void shouldFindByUserId() {
         Security sber = securityRepository.save(Security.builder()

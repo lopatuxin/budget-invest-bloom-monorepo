@@ -17,18 +17,11 @@ import {
 } from 'react-router-dom'
 import App from './App.tsx'
 import './index.css'
-
-/** Auth endpoints whose bodies and URLs must be scrubbed from Sentry events */
-const SENTRY_AUTH_PATHS = [
-  '/auth/api/login',
-  '/auth/api/register',
-  '/auth/api/refresh',
-  '/auth/api/forgot-password',
-];
+import { AUTH_ENDPOINTS } from '@/lib/api'
 
 function isAuthUrl(url: string | undefined): boolean {
   if (!url) return false;
-  return SENTRY_AUTH_PATHS.some((p) => url.includes(p));
+  return AUTH_ENDPOINTS.some((p) => url.includes(p));
 }
 
 /** Strip query string, keep only path */
@@ -105,8 +98,8 @@ Sentry.init({
     }
 
     // Scrub auth-related breadcrumbs
-    if (event.breadcrumbs?.values) {
-      event.breadcrumbs.values = event.breadcrumbs.values.map((bc) => {
+    if (event.breadcrumbs) {
+      event.breadcrumbs = event.breadcrumbs.map((bc) => {
         const bcUrl: string | undefined =
           (bc.data as Record<string, string> | undefined)?.url;
         if (isAuthUrl(bcUrl)) {

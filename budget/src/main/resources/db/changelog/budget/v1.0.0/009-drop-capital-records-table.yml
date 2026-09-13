@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/changelog-v1.0.0.yml
+  - changeSet:
+      id: 009-drop-capital-records-table
+      author: budget-service
+      comment: Удаление неиспользуемой таблицы ручных записей капитала (сущность удалена, данные нигде не показываются)
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: capital_records
+      changes:
+        - dropTable:
+            tableName: capital_records
+      rollback:
+        - sql:
+            sql: "-- no rollback: table dropped as unused"

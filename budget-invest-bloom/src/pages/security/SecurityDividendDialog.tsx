@@ -43,23 +43,6 @@ interface DividendDateFieldProps {
   placeholder: string;
 }
 
-// The shadcn Calendar colours days with the dark theme's primary (near-white) and accent (navy)
-// tokens, so on this light popover the selected day vanished; each replaced key swaps them for app
-// tokens. The selected look lives in aria-selected: variants on `day`: variant rules are emitted after
-// plain utilities, so they beat the day's own text/background colours regardless of class order.
-const LIGHT_CALENDAR_CLASS_NAMES = {
-  caption_label: 'text-sm font-medium text-app-text',
-  nav_button:
-    'inline-flex items-center justify-center h-7 w-7 rounded-md border border-app-border-strong bg-transparent p-0 text-app-text-muted hover:bg-app-surface-2 hover:text-app-text',
-  head_cell: 'text-app-text-dim rounded-md w-9 font-normal text-[0.8rem]',
-  cell: 'h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20',
-  day: 'h-9 w-9 p-0 rounded-md font-normal text-app-text hover:bg-app-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent aria-selected:opacity-100 aria-selected:bg-app-accent aria-selected:text-app-accent-ink aria-selected:hover:bg-app-accent',
-  day_selected: 'font-medium',
-  day_today: 'bg-app-accent-soft',
-  day_outside: 'day-outside text-app-text-dim opacity-50 aria-selected:opacity-30',
-  day_disabled: 'text-app-text-dim opacity-50',
-};
-
 // Shared by both date fields below — the required "record date" and the
 // optional "payment date" differ only in label/placeholder/validation.
 function DividendDateField({ label, value, onChange, placeholder }: DividendDateFieldProps) {
@@ -84,7 +67,6 @@ function DividendDateField({ label, value, onChange, placeholder }: DividendDate
           <Calendar
             mode="single"
             locale={ru}
-            classNames={LIGHT_CALENDAR_CLASS_NAMES}
             selected={value}
             onSelect={(date) => {
               onChange(date);

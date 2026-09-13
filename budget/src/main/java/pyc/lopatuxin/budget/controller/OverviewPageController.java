@@ -23,7 +23,7 @@ import pyc.lopatuxin.shared.dto.ResponseApi;
  * Controller for the overview page ("Capital") endpoint.
  *
  * <p>Accepts a POST request with unified API contract: userId is extracted from
- * the user block populated by the API Gateway from the JWT token. The page always shows
+ * the user block populated by the security module from the JWT token. The page always shows
  * "now", so the request carries no parameters.</p>
  */
 @Slf4j

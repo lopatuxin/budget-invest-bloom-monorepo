@@ -55,32 +55,6 @@ class PortfolioControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("POST /positions/by-ticker — вернуть позицию по тикеру SBER")
-    void shouldReturnPositionByTicker() throws Exception {
-        mockMvc.perform(post(TRANSACTIONS_URL)
-                        .content(buildCreateRequest(userId, "SBER", "10", "250.00"))
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isCreated());
-
-        mockMvc.perform(post(PORTFOLIO_URL + "/positions/by-ticker")
-                        .content(buildByTickerRequest(userId, "SBER"))
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status", is(200)))
-                .andExpect(jsonPath("$.body.ticker", is("SBER")));
-    }
-
-    @Test
-    @DisplayName("POST /positions/by-ticker с несуществующим тикером — 404")
-    void shouldReturn404ForNonExistentTicker() throws Exception {
-        mockMvc.perform(post(PORTFOLIO_URL + "/positions/by-ticker")
-                        .content(buildByTickerRequest(userId, "UNKN"))
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.status", is(404)));
-    }
-
-    @Test
     @DisplayName("POST /page без поля sort — сортировка по умолчанию WEIGHT, запрос успешен")
     void shouldDefaultSortToWeightWhenAbsent() throws Exception {
         mockMvc.perform(post(PORTFOLIO_URL + "/page")
@@ -159,19 +133,4 @@ class PortfolioControllerTest extends AbstractIntegrationTest {
                 """.formatted(reqUserId, UUID.randomUUID(), sort);
     }
 
-    private String buildByTickerRequest(UUID reqUserId, String ticker) {
-        return """
-                {
-                  "user": {
-                    "userId": "%s",
-                    "email": "test@example.com",
-                    "role": "USER",
-                    "sessionId": "%s"
-                  },
-                  "data": {
-                    "ticker": "%s"
-                  }
-                }
-                """.formatted(reqUserId, UUID.randomUUID(), ticker);
-    }
 }

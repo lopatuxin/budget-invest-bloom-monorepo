@@ -27,6 +27,4 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     List<Transaction> findRecentByUserIdWithSecurity(@Param("userId") UUID userId, Pageable pageable);
 
     long countByUserId(UUID userId);
-
-    List<Transaction> findAllByBudgetEntryIdIsNull();
 }

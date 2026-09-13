@@ -10,11 +10,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import pyc.lopatuxin.investment.dto.request.GetPositionByTickerDto;
 import pyc.lopatuxin.investment.dto.request.PortfolioPageRequestDto;
 import pyc.lopatuxin.investment.dto.request.PortfolioSort;
 import pyc.lopatuxin.investment.dto.response.PortfolioPageResponseDto;
-import pyc.lopatuxin.investment.dto.response.PositionResponseDto;
 import pyc.lopatuxin.investment.service.PortfolioService;
 import pyc.lopatuxin.shared.dto.ApiRequest;
 import pyc.lopatuxin.shared.dto.ResponseApi;
@@ -37,16 +35,5 @@ public class PortfolioController {
                 request.getUser().getUserId(), sort
         );
         return ResponseApi.success("Страница портфеля", page);
-    }
-
-    @PostMapping("/positions/by-ticker")
-    @ResponseStatus(HttpStatus.OK)
-    public ResponseApi<PositionResponseDto> getByTicker(
-            @RequestBody @Valid ApiRequest<GetPositionByTickerDto> request) {
-        PositionResponseDto position = portfolioService.getByTicker(
-                request.getUser().getUserId(),
-                request.getData().getTicker()
-        );
-        return ResponseApi.success("Позиция найдена", position);
     }
 }

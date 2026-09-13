@@ -1,0 +1,31 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/changelog-v1.0.0.yml
+  - changeSet:
+      id: 010-drop-password-reset-tokens-table
+      author: system
+      comment: Удаление неиспользуемой таблицы токенов сброса пароля (функциональность не реализована, 0 строк)
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: password_reset_tokens
+      changes:
+        - dropTable:
+            tableName: password_reset_tokens
+      rollback:
+        - sql:
+            sql: "-- no rollback: table dropped as unused"
+
+  - changeSet:
+      id: 010-drop-email-verification-tokens-table
+      author: system
+      comment: Удаление неиспользуемой таблицы токенов подтверждения email (функциональность не реализована, 0 строк)
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: email_verification_tokens
+      changes:
+        - dropTable:
+            tableName: email_verification_tokens
+      rollback:
+        - sql:
+            sql: "-- no rollback: table dropped as unused"

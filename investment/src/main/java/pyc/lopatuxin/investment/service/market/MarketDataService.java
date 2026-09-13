@@ -321,18 +321,6 @@ public class MarketDataService {
                 .orElse(HistoryStatus.PENDING);
     }
 
-    public MoexSecurityDto getSecurityInfo(String ticker) {
-        Security security = ensureSecurity(ticker, SecurityType.STOCK);
-        return new MoexSecurityDto(
-                security.getTicker(),
-                security.getBoardId(),
-                security.getName(),
-                security.getType(),
-                security.getSector(),
-                security.getCurrency()
-        );
-    }
-
     private Security buildReadySecurity(String ticker, MoexSecurityDto dto) {
         Security security = Security.builder().ticker(ticker).historyStatus(HistoryStatus.READY).build();
         applyMoexInfo(security, ticker, dto);

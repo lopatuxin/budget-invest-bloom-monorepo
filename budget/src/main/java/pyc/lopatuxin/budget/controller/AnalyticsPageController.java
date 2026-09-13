@@ -24,7 +24,7 @@ import pyc.lopatuxin.shared.dto.ResponseApi;
  * Controller for the analytics page ("Year to year") endpoint.
  *
  * <p>Accepts a POST request with unified API contract: userId is extracted from the user block
- * populated by the API Gateway from the JWT token, year comes from the request body.</p>
+ * populated by the security module from the JWT token, year comes from the request body.</p>
  */
 @Slf4j
 @RestController

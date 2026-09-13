@@ -1,5 +1,3 @@
-import type { ApiResponse } from './common';
-
 export type TransactionType = 'BUY' | 'SELL';
 export type SecurityType = 'STOCK' | 'BOND' | 'ETF' | 'OFZ';
 export type SecurityHistoryStatus = 'PENDING' | 'READY';

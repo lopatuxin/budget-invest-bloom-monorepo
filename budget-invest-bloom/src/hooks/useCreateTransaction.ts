@@ -9,7 +9,7 @@ export function useCreateTransaction() {
   return useMutation({
     mutationFn: (data: CreateTransactionRequest) =>
       apiPost<ApiResponse<TransactionResponse>>('/api/investment/transactions', data),
-    onSuccess: (_data, variables) => {
+    onSuccess: () => {
       // Backend writes BUY/SELL to budget, so invalidate both domains
       invalidateBudgetCaches(queryClient);
       queryClient.invalidateQueries({ queryKey: qk.investment.portfolioAll() });

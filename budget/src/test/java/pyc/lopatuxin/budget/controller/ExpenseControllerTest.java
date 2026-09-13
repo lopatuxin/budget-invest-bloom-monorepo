@@ -31,7 +31,6 @@ class ExpenseControllerTest extends AbstractIntegrationTest {
     void setUp() {
         expenseRepository.deleteAll();
         incomeRepository.deleteAll();
-        capitalRecordRepository.deleteAll();
         categoryRepository.deleteAll();
         userId = UUID.randomUUID();
 

@@ -5,19 +5,16 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A2A3D] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent/30 focus-visible:ring-offset-2 focus-visible:ring-offset-app-surface disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20",
-        destructive:
-          "bg-red-500/10 text-red-400 hover:bg-red-500/20",
+        default: "bg-app-accent text-app-accent-ink hover:bg-app-accent/90",
+        destructive: "bg-app-bad text-white hover:bg-app-bad/90",
         outline:
-          "border border-white/10 bg-white/5 text-dashboard-text-muted hover:bg-white/10 hover:text-dashboard-text",
-        secondary:
-          "bg-blue-500/10 text-blue-400 hover:bg-blue-500/20",
-        ghost: "text-dashboard-text-muted hover:bg-white/5 hover:text-dashboard-text",
-        link: "text-emerald-400 underline-offset-4 hover:underline",
+          "border border-app-border-strong bg-app-surface text-app-text hover:bg-app-surface-2",
+        ghost: "text-app-text-muted hover:bg-app-surface-2 hover:text-app-text",
+        link: "text-app-accent underline-offset-4 hover:underline",
       },
       size: {
         default: "h-10 px-4 py-2",

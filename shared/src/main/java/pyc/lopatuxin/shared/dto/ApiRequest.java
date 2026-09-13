@@ -12,7 +12,7 @@ import lombok.experimental.SuperBuilder;
 
 /**
  * Универсальная обёртка запроса для всех API-эндпоинтов.
- * Блок user заполняется API Gateway из JWT-токена.
+ * Блок user заполняется security-модулем из JWT-токена.
  *
  * @param <T> тип полезной нагрузки запроса
  */
@@ -27,7 +27,7 @@ public class ApiRequest<T> {
 
     @Valid
     @NotNull(message = "Блок user обязателен")
-    @Schema(description = "Контекст пользователя, выполняющего запрос (заполняется API Gateway)")
+    @Schema(description = "Контекст пользователя, выполняющего запрос (заполняется security-модулем)")
     private UserContextDto user;
 
     @Valid

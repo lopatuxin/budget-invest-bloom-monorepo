@@ -25,12 +25,11 @@ export function isCategoryNameTakenError(error: unknown): error is ApiError {
   return error instanceof ApiError && error.status === 409 && error.code === 'CATEGORY_NAME_TAKEN';
 }
 
-/** Auth endpoints whose request bodies must never appear in logs or Sentry */
-const AUTH_ENDPOINTS = [
+/** Auth endpoints whose request/breadcrumb bodies must never appear in logs or Sentry */
+export const AUTH_ENDPOINTS = [
   '/auth/api/login',
   '/auth/api/register',
   '/auth/api/refresh',
-  '/auth/api/forgot-password',
 ];
 
 function isAuthEndpoint(endpoint: string): boolean {
@@ -209,8 +208,11 @@ export async function apiRequest<T = unknown>(
       },
     });
 
-    // Handle 401 (token expired or invalid)
-    if (response.status === 401) {
+    // Handle 401 (token expired or invalid) — only for requests that carried a token in the
+    // first place. A requiresAuth:false request (login/register) has no session to refresh,
+    // and its 401 is a normal business outcome (e.g. INVALID_CREDENTIALS) that must reach the
+    // caller as a coded ApiError instead of being swallowed into a "session expired" redirect.
+    if (requiresAuth && response.status === 401) {
       // Attempt to refresh the token
       const refreshed = await refreshAccessToken();
       if (refreshed) {
@@ -347,18 +349,6 @@ export function apiPost<T = unknown>(endpoint: string, data?: unknown, options?:
     method: 'POST',
     body: data ? JSON.stringify({ data }) : undefined,
   });
-}
-
-export function apiPut<T = unknown>(endpoint: string, data?: unknown, options?: ApiRequestOptions): Promise<T> {
-  return apiRequest<T>(endpoint, {
-    ...options,
-    method: 'PUT',
-    body: data ? JSON.stringify({ data }) : undefined,
-  });
-}
-
-export function apiDelete<T = unknown>(endpoint: string, options?: ApiRequestOptions): Promise<T> {
-  return apiRequest<T>(endpoint, { ...options, method: 'DELETE' });
 }
 
 /**

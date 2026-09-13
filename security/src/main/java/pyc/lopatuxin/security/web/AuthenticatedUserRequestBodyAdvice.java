@@ -20,8 +20,7 @@ import java.util.UUID;
 
 /**
  * Fills {@link ApiRequest#getUser()} from the authenticated JWT for every controller
- * that accepts an {@link ApiRequest} body — the servlet-stack equivalent of the former
- * gateway's UserEnrichmentFilter. Any client-supplied {@code user} block is overwritten.
+ * that accepts an {@link ApiRequest} body. Any client-supplied {@code user} block is overwritten.
  */
 @Slf4j
 @ControllerAdvice

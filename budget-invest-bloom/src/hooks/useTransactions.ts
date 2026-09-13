@@ -6,7 +6,7 @@ import type { ApiResponse, TransactionResponse } from '@/types/investment';
 export function useTransactions(ticker?: string, enabled = true) {
   return useQuery({
     queryKey: qk.investment.transactions(ticker),
-    // Convention: all reads go through POST + ApiRequest so gateway validates JWT once.
+    // Convention: all reads go through POST + ApiRequest, whose user block the security module fills from the JWT.
     queryFn: () =>
       apiPost<ApiResponse<TransactionResponse[]>>('/api/investment/transactions/list', ticker ? { ticker } : {}),
     enabled,

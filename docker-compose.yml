@@ -3,8 +3,6 @@
 #   app             — the monolith (single JVM), the only external port 8082
 #   frontend        — unchanged Vite dev server, now depends_on: app
 #   backup-service  — single `bib` dump + restore test
-# The previous microservices topology is kept in docker-compose.microservices.yml
-# for rollback until the migration is validated.
 services:
 
   # ========================================
@@ -137,6 +135,7 @@ services:
       #   rclone authorize "yandex"
       YADISK_OAUTH_TOKEN: ${YADISK_OAUTH_TOKEN}
       YADISK_BACKUP_DIR: ${YADISK_BACKUP_DIR:-backups/budget-invest-bloom}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
     volumes:
       - backup_temp:/backups
       - backup_state:/state

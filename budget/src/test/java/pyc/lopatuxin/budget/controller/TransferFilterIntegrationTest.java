@@ -21,13 +21,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Integration tests verifying that transfer-flagged records (isTransfer=true)
- * are correctly excluded from overview/analytics widgets but included in lifetime balance.
+ * are correctly excluded from overview/analytics widgets.
  */
 @DisplayName("Интеграционные тесты фильтрации transfer-записей")
 class TransferFilterIntegrationTest extends AbstractIntegrationTest {
 
     private static final String OVERVIEW_URL = "/api/budget/overview";
-    private static final String LIFETIME_BALANCE_URL = "/api/budget/balance/lifetime";
 
     private UUID userId;
     private Category userCategory;
@@ -37,7 +36,6 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
     void setUp() {
         expenseRepository.deleteAll();
         incomeRepository.deleteAll();
-        capitalRecordRepository.deleteAll();
         categoryRepository.deleteAll();
 
         userId = UUID.randomUUID();
@@ -135,88 +133,6 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.body.capital.freeMoney", comparesEqualTo(100000.0)));
     }
 
-    // ─── BalanceService lifetime: transfer-записи НЕ учитываются (баг-фикс «Чистый капитал = -1.15M») ───
-
-    @Test
-    @DisplayName("Lifetime balance: transfer-расходы не учитываются в totalExpense (баг-фикс чистого капитала)")
-    void lifetimeBalance_shouldExcludeTransferEntries() throws Exception {
-        // Non-transfer расход 30000 — учитывается
-        expenseRepository.save(Expense.builder()
-                .userId(userId)
-                .category(userCategory)
-                .amount(new BigDecimal("30000.00"))
-                .date(LocalDate.of(2025, 1, 10))
-                .isTransfer(false)
-                .build());
-
-        // Transfer-расход (BUY акций) 50000 — НЕ должен входить в totalExpense
-        expenseRepository.save(Expense.builder()
-                .userId(userId)
-                .category(systemInvestCategory)
-                .amount(new BigDecimal("50000.00"))
-                .date(LocalDate.of(2025, 1, 15))
-                .isTransfer(true)
-                .build());
-
-        // Non-transfer доход 200000 — учитывается
-        incomeRepository.save(Income.builder()
-                .userId(userId)
-                .source(IncomeSource.SALARY)
-                .amount(new BigDecimal("200000.00"))
-                .date(LocalDate.of(2025, 1, 5))
-                .isTransfer(false)
-                .build());
-
-        // Transfer-доход (SELL акций) 40000 — НЕ должен входить в totalIncome
-        incomeRepository.save(Income.builder()
-                .userId(userId)
-                .source(IncomeSource.INVESTMENTS)
-                .amount(new BigDecimal("40000.00"))
-                .date(LocalDate.of(2025, 1, 20))
-                .isTransfer(true)
-                .build());
-
-        mockMvc.perform(post(LIFETIME_BALANCE_URL)
-                        .content(buildLifetimeRequest(userId))
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                // totalExpense = 30000 (transfer BUY 50000 исключён)
-                .andExpect(jsonPath("$.body.totalExpense", comparesEqualTo(30000.0)))
-                // totalIncome = 200000 (transfer SELL 40000 исключён)
-                .andExpect(jsonPath("$.body.totalIncome", comparesEqualTo(200000.0)))
-                // freeCapital = 200000 - 30000 = 170000
-                .andExpect(jsonPath("$.body.freeCapital", comparesEqualTo(170000.0)));
-    }
-
-    @Test
-    @DisplayName("Lifetime balance: только transfer-записи — totalExpense и totalIncome равны нулю, freeCapital=0")
-    void lifetimeBalance_onlyTransferEntries_shouldReturnZeros() throws Exception {
-        // Только transfer — ни одна запись не должна учитываться в lifetime balance
-        expenseRepository.save(Expense.builder()
-                .userId(userId)
-                .category(systemInvestCategory)
-                .amount(new BigDecimal("100000.00"))
-                .date(LocalDate.of(2025, 2, 1))
-                .isTransfer(true)
-                .build());
-
-        incomeRepository.save(Income.builder()
-                .userId(userId)
-                .source(IncomeSource.INVESTMENTS)
-                .amount(new BigDecimal("120000.00"))
-                .date(LocalDate.of(2025, 2, 5))
-                .isTransfer(true)
-                .build());
-
-        mockMvc.perform(post(LIFETIME_BALANCE_URL)
-                        .content(buildLifetimeRequest(userId))
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.body.totalExpense", comparesEqualTo(0)))
-                .andExpect(jsonPath("$.body.totalIncome", comparesEqualTo(0)))
-                .andExpect(jsonPath("$.body.freeCapital", comparesEqualTo(0)));
-    }
-
     // ─── Analytics: помесячная разбивка сбережений исключает transfer ─────────
 
     @Test
@@ -263,20 +179,6 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private String buildOverviewRequest(UUID reqUserId) {
-        return """
-                {
-                  "user": {
-                    "userId": "%s",
-                    "email": "test@example.com",
-                    "role": "USER",
-                    "sessionId": "%s"
-                  },
-                  "data": {}
-                }
-                """.formatted(reqUserId, UUID.randomUUID());
-    }
-
-    private String buildLifetimeRequest(UUID reqUserId) {
         return """
                 {
                   "user": {

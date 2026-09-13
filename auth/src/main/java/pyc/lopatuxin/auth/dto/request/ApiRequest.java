@@ -18,9 +18,6 @@ import lombok.experimental.SuperBuilder;
 @Schema(description = "Единая стандартная структура запроса для всех API endpoints")
 public class ApiRequest<T> {
 
-    @Schema(description = "Информация о пользователе, выполняющем запрос")
-    private UserContext user;
-
     @Schema(description = "Полезная нагрузка запроса с данными")
     @Valid
     private T data;

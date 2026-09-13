@@ -126,16 +126,4 @@ public class User {
      */
     @OneToMany(mappedBy = "user")
     private List<RefreshToken> refreshTokens;
-
-    /**
-     * Токены для сброса пароля
-     */
-    @OneToMany(mappedBy = "user")
-    private List<PasswordResetToken> passwordResetTokens;
-
-    /**
-     * Токены для подтверждения email
-     */
-    @OneToMany(mappedBy = "user")
-    private List<EmailVerificationToken> emailVerificationTokens;
 }

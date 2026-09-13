@@ -16,7 +16,7 @@ export function useDeleteTransaction() {
   return useMutation({
     mutationFn: ({ id }: DeleteTransactionParams) =>
       apiPost<ApiResponse<void>>('/api/investment/transactions/delete', { id }),
-    onSuccess: (_data, variables) => {
+    onSuccess: () => {
       // Backend removes BUY/SELL from budget, so invalidate both domains
       invalidateBudgetCaches(queryClient);
       queryClient.invalidateQueries({ queryKey: qk.investment.portfolioAll() });

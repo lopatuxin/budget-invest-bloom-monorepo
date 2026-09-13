@@ -20,7 +20,6 @@ interface AuthContextType {
     isAuthenticated: boolean;
     isInitialized: boolean;
     user: User | null;
-    accessToken: string | null;
     logout: () => Promise<void>;
     setAuthData: (accessToken: string, user: User) => void;
 }
@@ -44,7 +43,6 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
     const [user, setUser] = useState<User | null>(null);
-    const [accessToken, setAccessToken] = useState<string | null>(null);
     const navigate = useNavigate();
 
     // Check for tokens on initialization
@@ -54,7 +52,6 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
 
         if (token && userData && userData !== 'undefined' && userData !== 'null') {
             try {
-                setAccessToken(token);
                 setUser(JSON.parse(userData));
                 setIsAuthenticated(true);
             } catch (error) {
@@ -75,7 +72,6 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
             localStorage.removeItem('user');
             setIsAuthenticated(false);
             setUser(null);
-            setAccessToken(null);
             navigate('/login');
         };
 
@@ -87,7 +83,6 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
         localStorage.setItem('accessToken', newAccessToken);
         localStorage.setItem('user', JSON.stringify(userData));
 
-        setAccessToken(newAccessToken);
         setUser(userData);
         setIsAuthenticated(true);
     }, []);
@@ -110,14 +105,13 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
 
         setIsAuthenticated(false);
         setUser(null);
-        setAccessToken(null);
 
         navigate('/login');
     }, [navigate]);
 
     const value = useMemo(
-        () => ({isAuthenticated, isInitialized, user, accessToken, logout, setAuthData}),
-        [isAuthenticated, isInitialized, user, accessToken, logout, setAuthData]
+        () => ({isAuthenticated, isInitialized, user, logout, setAuthData}),
+        [isAuthenticated, isInitialized, user, logout, setAuthData]
     );
 
     return (

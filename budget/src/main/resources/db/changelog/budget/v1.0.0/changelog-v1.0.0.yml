@@ -16,3 +16,5 @@ databaseChangeLog:
       file: db/changelog/budget/v1.0.0/007-add-transfer-flag.yml
   - include:
       file: db/changelog/budget/v1.0.0/008-adjust-initial-balance.yml
+  - include:
+      file: db/changelog/budget/v1.0.0/009-drop-capital-records-table.yml

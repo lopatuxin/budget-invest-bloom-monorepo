@@ -475,31 +475,6 @@ class PortfolioServiceTest {
         assertThat(page.getUpcomingDividends().get(0).getTotalAmount()).isEqualByComparingTo("1740.00");
     }
 
-    @Test
-    @DisplayName("getByTicker — читает позицию через запрос с JOIN FETCH security и обогащает через PortfolioGroupingService.enrichWithSnapshot")
-    void getByTicker_fetchesPositionWithSecurityEagerly_delegatesEnrichmentToGroupingService() {
-        // enrichWithSnapshot is the same method computeTotals uses to enrich every position on
-        // the /investments page (currentValue, pnl, pnlPercent, dailyChange...) — getByTicker
-        // must delegate to it instead of duplicating a partial version of that arithmetic.
-        Position position = Position.builder().id(UUID.randomUUID()).userId(userId)
-                .security(sberSecurity()).quantity(new BigDecimal("10"))
-                .averagePrice(new BigDecimal("280.00")).totalCost(new BigDecimal("2800.00")).build();
-        when(positionRepository.findByUserIdAndTickerWithSecurity(userId, "SBER"))
-                .thenReturn(Optional.of(position));
-        PositionResponseDto dto = PositionResponseDto.builder()
-                .ticker("SBER").securityName("Сбербанк").securityType(SecurityType.STOCK).sector("Финансы")
-                .quantity(position.getQuantity()).averagePrice(position.getAveragePrice())
-                .totalCost(position.getTotalCost()).build();
-        when(positionMapper.toDto(position)).thenReturn(dto);
-        SnapshotResult snapshot = new SnapshotResult(new BigDecimal("310.50"), new BigDecimal("308.00"), Instant.now(), false);
-        when(marketDataService.getSnapshot("SBER")).thenReturn(snapshot);
-
-        PositionResponseDto result = portfolioService.getByTicker(userId, "sber");
-
-        assertThat(result).isSameAs(dto);
-        verify(portfolioGroupingService).enrichWithSnapshot(dto, snapshot);
-    }
-
     private UpcomingDividendDto dividendWithAmountPerShare(PortfolioPageResponseDto page, String amountPerShare) {
         return page.getUpcomingDividends().stream()
                 .filter(d -> d.getAmountPerShare().compareTo(new BigDecimal(amountPerShare)) == 0)

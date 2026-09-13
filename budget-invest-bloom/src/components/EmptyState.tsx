@@ -11,11 +11,11 @@ interface EmptyStateProps {
 const EmptyState = ({ icon, title, description, actionLabel, onAction }: EmptyStateProps) => (
   <div className="h-full flex items-center justify-center">
     <div className="flex flex-col items-center gap-3 text-center px-4">
-      <div className="text-dashboard-text-muted opacity-50">
+      <div className="text-app-text-dim">
         {icon}
       </div>
-      <p className="text-sm font-medium text-dashboard-text">{title}</p>
-      <p className="text-xs text-dashboard-text-muted max-w-[220px]">{description}</p>
+      <p className="text-sm font-medium text-app-text">{title}</p>
+      <p className="text-xs text-app-text-muted max-w-[220px]">{description}</p>
       {actionLabel && onAction && (
         <button
           onClick={onAction}

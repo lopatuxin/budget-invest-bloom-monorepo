@@ -2,15 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Финансовая дизайн-система с зелено-синими градиентами */
-
 /*
- * "Гроссбух" light theme tokens for the authenticated app shell.
- * Defined once on :root (not scoped to .app-shell) so Radix/vaul portals
+ * "Гроссбух" light theme tokens — the single palette for the whole app,
+ * defined on :root (not scoped to any container) so Radix/vaul portals
  * (Dialog, Drawer, Popover) — which mount to document.body, outside the
- * .app-shell DOM subtree — inherit them too. Login/register/forgot-password
- * stay dark: .dashboard-bg overrides the two tokens still used there
- * (dashboard.text / dashboard.text-muted) back to the old dark values.
+ * authenticated layout's own DOM subtree — inherit them too.
  */
 @layer base {
   :root {
@@ -35,12 +31,6 @@
     --app-neutral-soft: 236 234 228;
     --app-track: 236 232 223;
   }
-
-  /* Unauthenticated pages (login/register/forgot-password) keep the old dark text tokens */
-  .dashboard-bg {
-    --app-text: 214 227 250;
-    --app-text-muted: 148 163 184;
-  }
 }
 
 @layer base {
@@ -48,20 +38,15 @@
     --background: 0 0% 100%;
     --foreground: 215 25% 27%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 215 25% 27%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 215 25% 27%;
 
     /* Основной зеленый для финансового роста */
     --primary: 142 76% 36%;
     --primary-foreground: 0 0% 98%;
-    --primary-glow: 142 71% 45%;
 
     /* Синий для доверия и стабильности */
     --secondary: 217 91% 60%;
-    --secondary-foreground: 0 0% 98%;
 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
@@ -73,84 +58,10 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    /* Оранжевый для предупреждений */
-    --warning: 25 95% 53%;
-    --warning-foreground: 0 0% 98%;
-
     --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
     --ring: 142 76% 36%;
 
-    /* Финансовые градиенты */
-    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-    --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)), hsl(217 91% 70%));
-    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 71% 45%));
-    --gradient-background: linear-gradient(180deg, hsl(0 0% 100%), hsl(142 20% 98%));
-
-    /* Тени с финансовой тематикой */
-    --shadow-card: 0 4px 20px hsla(142, 76%, 36%, 0.1);
-    --shadow-success: 0 8px 30px hsla(142, 76%, 36%, 0.2);
-    --shadow-primary: 0 8px 30px hsla(217, 91%, 60%, 0.15);
-
-    /* Анимации */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-
     --radius: 0.75rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
 
@@ -160,73 +71,19 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-app-bg text-app-text;
   }
 }
 
-/* Typography: IBM Plex Sans for body and headings, Instrument Serif for display (opt-in via font-display) */
-@layer base {
-  body {
-    font-family: 'IBM Plex Sans', sans-serif;
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'IBM Plex Sans', sans-serif;
-  }
-}
-
-/* Dashboard dark theme glassmorphism (still used by the unauthenticated dark pages) */
+/* "Гроссбух" light card: flat white surface, no blur, no hover state, no shadow.
+   position/overflow clip charts and tables to the rounded corners and anchor absolutely positioned children. */
 @layer components {
   .glass-card {
     position: relative;
     overflow: hidden;
-    background: rgba(255, 255, 255, 0.06);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 1rem;
-  }
-
-  .glass-card:hover {
-    background: rgba(255, 255, 255, 0.09);
-    border-color: rgba(255, 255, 255, 0.18);
-  }
-
-  /* "Гроссбух" light card: flat white surface, no blur, no hover state */
-  .app-shell .glass-card {
     background: rgb(var(--app-surface));
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
     border: 1px solid rgb(var(--app-border));
     border-radius: 10px;
-  }
-
-  .app-shell .glass-card:hover {
-    background: rgb(var(--app-surface));
-    border-color: rgb(var(--app-border));
-  }
-
-  .app-shell .glass-card::after {
-    content: none;
-  }
-
-  .btn-cta {
-    @apply bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-600 hover:to-teal-500 text-white font-semibold transition-all duration-200;
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
-  }
-
-  .btn-cta:hover {
-    box-shadow: 0 0 25px rgba(16, 185, 129, 0.25);
-  }
-
-  .dashboard-bg {
-    background: linear-gradient(135deg, #0B1929 0%, #0E2A3A 100%);
-    min-height: 100vh;
-  }
-
-  .app-shell {
-    background: rgb(var(--app-bg));
-    min-height: 100vh;
   }
 }
 
@@ -237,103 +94,31 @@
   }
 }
 
-/* Custom scrollbar for dashboard */
-.dashboard-scroll::-webkit-scrollbar {
+/* Custom scrollbar for the authenticated app shell */
+.app-scroll::-webkit-scrollbar {
   width: 6px;
 }
 
-.dashboard-scroll::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.04);
+.app-scroll::-webkit-scrollbar-track {
+  background: transparent;
   border-radius: 3px;
 }
 
-.dashboard-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+.app-scroll::-webkit-scrollbar-thumb {
+  background: rgb(var(--app-border-strong));
   border-radius: 3px;
 }
 
-.dashboard-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+.app-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--app-text-dim));
 }
 
-/* Staggered entrance animation */
-@keyframes fadeSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-slide-up {
-  opacity: 0; /* prevents flash before animation starts */
-  animation: fadeSlideUp 0.4s ease-out both;
-}
-
-/* Progress bar grow animation */
-@keyframes progressGrow {
-  from { width: 0; }
-}
-
-.animate-progress-grow {
-  animation: progressGrow 0.6s ease-out both;
-}
-
-/* Glassmorphism shimmer on hover */
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-.glass-card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.04) 50%,
-    transparent 100%
-  );
-  background-size: 200% 100%;
-  opacity: 0;
-  transition: opacity 0.3s;
-  pointer-events: none;
-}
-
-.glass-card:hover::after {
-  opacity: 1;
-  animation: shimmer 1.5s ease-in-out;
-}
-
-/* Hidden scrollbar for mobile horizontal scroll */
-.hide-scrollbar::-webkit-scrollbar { display: none; }
-.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-/* Respect reduced motion preference */
-@media (prefers-reduced-motion: reduce) {
-  .animate-fade-slide-up {
-    animation: none;
-    opacity: 1;
-  }
-  .animate-progress-grow {
-    animation: none;
-  }
-  .glass-card:hover::after {
-    animation: none;
-  }
-}
-
-/* Browser autofill fix: keep input's translucent background instead of browser's yellow/white */
+/* Browser autofill fix: keep the input's own background instead of the browser's yellow tint */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
   transition: background-color 99999s ease-in-out 0s;
-  -webkit-text-fill-color: #d6e3fa !important;
-  caret-color: #d6e3fa;
+  -webkit-text-fill-color: rgb(var(--app-text));
+  caret-color: rgb(var(--app-text));
 }

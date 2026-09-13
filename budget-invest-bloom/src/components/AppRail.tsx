@@ -23,7 +23,7 @@ function getInitials(user: RailUser | null): string {
   return user.email[0]?.toUpperCase() ?? '?';
 }
 
-// Narrow 76px navigation rail — replaces the old wide Sidebar for authenticated pages.
+// Narrow 76px navigation rail for authenticated pages.
 const AppRail = () => {
   const location = useLocation();
   const { user, logout } = useAuth();

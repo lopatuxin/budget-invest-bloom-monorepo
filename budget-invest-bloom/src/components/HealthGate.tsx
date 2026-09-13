@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import * as Sentry from "@sentry/react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sprout } from "lucide-react";
 
 interface HealthGateProps {
   children: ReactNode;
@@ -10,7 +10,7 @@ const INITIAL_POLL_INTERVAL_MS = 2000;
 const MAX_POLL_INTERVAL_MS = 30_000;
 
 /**
- * HealthGate polls the backend gateway's /actuator/health endpoint on mount
+ * HealthGate polls the backend's /actuator/health endpoint on mount
  * and blocks rendering of children until it receives a successful response.
  *
  * Spring Boot services in Docker can take 20-40 seconds to cold start,
@@ -106,13 +106,14 @@ const HealthGate = ({ children }: HealthGateProps) => {
   }
 
   return (
-    <div className="dashboard-bg flex items-center justify-center min-h-screen">
-      <div className="max-w-md p-8 glass-card text-center">
-        <Loader2 className="w-10 h-10 text-emerald-400 animate-spin mx-auto mb-6" />
-        <h1 className="text-2xl font-bold text-white mb-4">Сервер запускается...</h1>
-        <p className="text-dashboard-text-muted">
-          Это может занять до 30 секунд. Подожди немного.
-        </p>
+    <div className="min-h-screen flex items-center justify-center bg-app-bg p-4">
+      <div className="max-w-[360px] flex flex-col items-center gap-4 text-center">
+        <div className="w-11 h-11 rounded-xl bg-app-accent flex items-center justify-center">
+          <Sprout aria-hidden="true" className="w-[18px] h-[18px] text-app-accent-ink" />
+        </div>
+        <h1 className="font-display text-[28px] text-app-text">Сервер запускается</h1>
+        <p className="text-[13px] text-app-text-muted">Обычно это занимает до 30 секунд. Страница откроется сама.</p>
+        <Loader2 aria-hidden="true" className="w-7 h-7 text-app-accent animate-spin" />
       </div>
     </div>
   );

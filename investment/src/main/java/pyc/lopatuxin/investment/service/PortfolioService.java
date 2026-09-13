@@ -1,6 +1,5 @@
 package pyc.lopatuxin.investment.service;
 
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -166,19 +165,6 @@ public class PortfolioService {
                                    List<PositionResponseDto> basePositions,
                                    Map<String, List<Transaction>> journalByTicker,
                                    Set<String> dividendTickers) {
-    }
-
-    // Not wrapped in a transaction, for the same reason as getPortfolioPage above: getSnapshot
-    // below hits the exchange over the network. findByUserIdAndTickerWithSecurity fetches
-    // security eagerly in the one query, so positionMapper.toDto below can read it safely
-    // without an outer transaction keeping the Hibernate session open.
-    public PositionResponseDto getByTicker(UUID userId, String ticker) {
-        Position position = positionRepository.findByUserIdAndTickerWithSecurity(userId, ticker.toUpperCase())
-                .orElseThrow(() -> new EntityNotFoundException("Position not found: " + ticker));
-        PositionResponseDto dto = positionMapper.toDto(position);
-        SnapshotResult snapshot = marketDataService.getSnapshot(ticker.toUpperCase());
-        portfolioGroupingService.enrichWithSnapshot(dto, snapshot);
-        return dto;
     }
 
     private PortfolioPageResponseDto emptyPage(List<TransactionResponseDto> recentTransactions, long transactionsTotal) {
