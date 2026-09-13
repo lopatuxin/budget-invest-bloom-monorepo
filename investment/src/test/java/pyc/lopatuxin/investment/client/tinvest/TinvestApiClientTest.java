@@ -156,6 +156,57 @@ class TinvestApiClientTest {
     }
 
     @Test
+    @DisplayName("getBondCoupons — POST на верный путь с телом instrumentId/from/to в RFC3339")
+    void getBondCoupons_sendsCorrectPathAndBody() throws InterruptedException {
+        server.enqueue(new MockResponse().setBody("{\"events\":[]}").addHeader("Content-Type", "application/json"));
+
+        resilience.execute("getBondCoupons", () -> api.getBondCoupons(new TinvestBondCouponsRequest(
+                "uid-ofz", Instant.parse("2024-01-01T00:00:00Z"), Instant.parse("2026-01-01T00:00:00Z"))));
+
+        RecordedRequest recorded = server.takeRequest();
+        assertThat(recorded.getPath())
+                .isEqualTo("/tinkoff.public.invest.api.contract.v1.InstrumentsService/GetBondCoupons");
+        assertThat(recorded.getBody().readUtf8())
+                .contains("\"instrumentId\":\"uid-ofz\"", "\"from\":\"2024-01-01T00:00:00Z\"", "\"to\":\"2026-01-01T00:00:00Z\"");
+    }
+
+    @Test
+    @DisplayName("getBondCoupons — разбор реального эталонного ответа T-Invest для ОФЗ")
+    void getBondCoupons_parsesRealOfzFixture() {
+        server.enqueue(new MockResponse().setBody(loadFixture("/tinvest/get-bond-coupons-ofz.json"))
+                .addHeader("Content-Type", "application/json"));
+
+        TinvestBondCouponsResponse response = resilience.execute("getBondCoupons", () -> api.getBondCoupons(
+                new TinvestBondCouponsRequest("uid-ofz", Instant.parse("2024-01-01T00:00:00Z"), Instant.parse("2027-01-01T00:00:00Z"))));
+
+        assertThat(response.events()).hasSize(2);
+        TinvestCoupon latest = response.events().get(0);
+        assertThat(latest.couponDate()).isEqualTo(Instant.parse("2026-08-19T00:00:00Z"));
+        assertThat(latest.fixDate()).isEqualTo(Instant.parse("2026-08-18T00:00:00Z"));
+        assertThat(latest.couponNumber()).isEqualTo(18L);
+        assertThat(latest.couponType()).isEqualTo("COUPON_TYPE_CONSTANT");
+        assertThat(latest.payOneBond().currency()).isEqualTo("rub");
+        assertThat(latest.payOneBond().toAmount()).isEqualByComparingTo(new BigDecimal("38.64"));
+    }
+
+    @Test
+    @DisplayName("getBondCoupons — fixDate отсутствует в ответе → null")
+    void getBondCoupons_missingFixDate_isNull() {
+        server.enqueue(new MockResponse().setBody("""
+                {"events":[{
+                  "payOneBond": {"currency": "RUB", "units": "38", "nano": 640000000},
+                  "couponDate": "2026-08-19T00:00:00Z",
+                  "couponNumber": "18"
+                }]}
+                """).addHeader("Content-Type", "application/json"));
+
+        TinvestBondCouponsResponse response = resilience.execute("getBondCoupons", () -> api.getBondCoupons(
+                new TinvestBondCouponsRequest("uid-ofz", Instant.parse("2024-01-01T00:00:00Z"), Instant.parse("2027-01-01T00:00:00Z"))));
+
+        assertThat(response.events().get(0).fixDate()).isNull();
+    }
+
+    @Test
     @DisplayName("401 → TinvestUnauthorizedException, повтор не выполняется")
     void unauthorized_throwsWithoutRetry() throws InterruptedException {
         server.enqueue(new MockResponse().setResponseCode(401)

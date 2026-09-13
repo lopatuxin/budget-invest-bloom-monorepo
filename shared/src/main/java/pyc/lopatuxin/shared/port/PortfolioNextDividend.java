@@ -18,6 +18,7 @@ public record PortfolioNextDividend(
         LocalDate recordDate,
         LocalDate paymentDate,
         BigDecimal totalAmount,
-        String currency
+        String currency,
+        PayoutKind kind
 ) {
 }

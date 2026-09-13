@@ -51,6 +51,9 @@ export function PortfolioDividendsCard({
 }: PortfolioDividendsCardProps) {
   const [expanded, setExpanded] = useState(false);
   const isEmpty = upcomingDividends.length === 0 && recentDividends.length === 0;
+  // The card lists every payout across the portfolio, dividend-paying stocks and
+  // coupon-paying bonds alike, so the heading names both once a coupon shows up (p.8).
+  const hasCoupons = upcomingDividends.some((d) => d.kind === 'COUPON') || recentDividends.some((d) => d.kind === 'COUPON');
 
   // Upcoming first, then recent — same order the backend already returns each
   // list in; this only interleaves the two for the shared row limit.
@@ -63,7 +66,7 @@ export function PortfolioDividendsCard({
   return (
     <div className="glass-card p-4 lg:p-5 flex flex-col">
       <div className="flex items-baseline justify-between mb-1.5">
-        <h2 className="font-display text-[20px] lg:text-[22px] text-app-text">Дивиденды</h2>
+        <h2 className="font-display text-[20px] lg:text-[22px] text-app-text">{hasCoupons ? 'Дивиденды и купоны' : 'Дивиденды'}</h2>
         <span className="text-app-text-dim text-xs">
           за 12 месяцев <span className="font-mono text-app-text font-semibold">{formatCurrency(dividends12m)}</span>
           {dividendYieldPercent !== null && <> · {formatPercent(dividendYieldPercent)} к вложенному</>}

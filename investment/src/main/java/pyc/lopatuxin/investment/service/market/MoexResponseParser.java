@@ -156,6 +156,7 @@ public final class MoexResponseParser {
         int secidIdx = table.columnIndex("SECID");
         int lastIdx  = table.columnIndex("LAST");
         Map<String, BigDecimal> previousCloseBySecid = parsePreviousClose(root);
+        Map<String, BondFields> bondFieldsBySecid = parseBondFields(root);
 
         Map<String, MoexSnapshotDto> result = new HashMap<>();
         for (JsonNode row : (Iterable<JsonNode>) table.rows()::iterator) {
@@ -170,7 +171,10 @@ public final class MoexResponseParser {
             if (lastEmpty && prevEmpty) {
                 continue;
             }
-            result.put(secid, new MoexSnapshotDto(secid, lastEmpty ? null : last, prevEmpty ? null : prev));
+            BondFields bondFields = bondFieldsBySecid.get(secid);
+            result.put(secid, new MoexSnapshotDto(secid, lastEmpty ? null : last, prevEmpty ? null : prev,
+                    bondFields != null ? bondFields.faceValue() : null,
+                    bondFields != null ? bondFields.accruedInterest() : null));
         }
         return result;
     }
@@ -206,6 +210,45 @@ public final class MoexResponseParser {
             result.put(secid, prev);
         }
         return result;
+    }
+
+    // Same "securities" table parsePreviousClose reads, one extra pass for the bond-only
+    // columns FACEVALUE (face value, plan point 1) and ACCRUEDINT (accrued coupon interest,
+    // plan point 3) — absent entirely for the shares market, so columnIndex/decimalAt just
+    // return null there. FACEVALUE of 0 is nonsensical for a real bond, so it is treated as
+    // "not returned" same as isEmptyPrice does for a price; ACCRUEDINT may legitimately be 0
+    // right after a coupon payment, so a real 0 is kept (decimalAt already tells that apart
+    // from a missing/null value).
+    private static Map<String, BondFields> parseBondFields(JsonNode root) {
+        Optional<IssTable> tableOpt = IssTable.of(root, "securities");
+        if (tableOpt.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        IssTable table = tableOpt.get();
+        int secidIdx = table.columnIndex("SECID");
+        int faceValueIdx = table.columnIndex("FACEVALUE");
+        int accruedIdx = table.columnIndex("ACCRUEDINT");
+
+        Map<String, BondFields> result = new HashMap<>();
+        for (JsonNode row : (Iterable<JsonNode>) table.rows()::iterator) {
+            String secid = IssTable.stringAt(row, secidIdx);
+            if (secid == null) {
+                continue;
+            }
+            BigDecimal faceValue = IssTable.decimalAt(row, faceValueIdx);
+            if (isEmptyPrice(faceValue)) {
+                faceValue = null;
+            }
+            BigDecimal accruedInterest = IssTable.decimalAt(row, accruedIdx);
+            if (faceValue == null && accruedInterest == null) {
+                continue;
+            }
+            result.put(secid, new BondFields(faceValue, accruedInterest));
+        }
+        return result;
+    }
+
+    private record BondFields(BigDecimal faceValue, BigDecimal accruedInterest) {
     }
 
     private static List<MoexSecurityDto> doParseBoardSecurities(JsonNode root, SecurityType securityType) {

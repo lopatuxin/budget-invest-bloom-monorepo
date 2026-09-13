@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/015-add-dividend-kind.yml
+  - changeSet:
+      id: 015-add-dividend-kind
+      author: investment
+      changes:
+        - addColumn:
+            tableName: dividends
+            columns:
+              - column:
+                  name: kind
+                  type: varchar(16)
+                  defaultValue: DIVIDEND
+                  constraints:
+                    nullable: false
+        - sql:
+            sql: |
+              ALTER TABLE dividends ADD CONSTRAINT chk_dividends_kind CHECK (kind IN ('DIVIDEND', 'COUPON'));
+      rollback:
+        - sql:
+            sql: |
+              ALTER TABLE dividends DROP CONSTRAINT chk_dividends_kind;
+        - dropColumn:
+            tableName: dividends
+            columnName: kind

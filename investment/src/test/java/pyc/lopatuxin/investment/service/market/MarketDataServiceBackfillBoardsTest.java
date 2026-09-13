@@ -16,6 +16,7 @@ import pyc.lopatuxin.investment.entity.enums.SecurityType;
 import pyc.lopatuxin.investment.repository.PriceHistoryRepository;
 import pyc.lopatuxin.investment.repository.PriceSnapshotRepository;
 import pyc.lopatuxin.investment.repository.SecurityRepository;
+import pyc.lopatuxin.investment.service.BondPricing;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -63,6 +64,7 @@ class MarketDataServiceBackfillBoardsTest {
                 priceHistoryRepository,
                 moexProperties,
                 historyLoaderService,
+                new BondPricing(),
                 null   // self — set below
         ));
         Field selfField = MarketDataService.class.getDeclaredField("self");

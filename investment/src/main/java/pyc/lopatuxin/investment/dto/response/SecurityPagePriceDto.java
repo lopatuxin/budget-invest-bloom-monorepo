@@ -25,4 +25,9 @@ public class SecurityPagePriceDto {
     private BigDecimal dailyChangePercent;
     private Instant asOf;
     private boolean stale;
+
+    // BOND/OFZ only (plan points 3, 17): accrued coupon interest from the last snapshot, and
+    // whether the exchange never returned a nominal so BondPricing assumed 1000₽.
+    private BigDecimal accruedInterest;
+    private boolean nominalDefaulted;
 }

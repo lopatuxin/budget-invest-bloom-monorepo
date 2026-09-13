@@ -18,4 +18,10 @@ public class ProjectionResultDto {
     // value minus contributedTotal — the forecast page's "Через N лет"/"Заработано" tiles.
     private BigDecimal contributedTotal;
     private BigDecimal earned;
+    // Portfolio-weighted split of portfolioWeightedAnnualReturn into price growth and payout
+    // yield (plan point 13) — percent, scale 1, and priceGrowthPercent + payoutYieldPercent
+    // always equals portfolioWeightedAnnualReturn * 100 rounded the same way (see ProjectionService).
+    private BigDecimal priceGrowthPercent;
+    private BigDecimal payoutYieldPercent;
+    private List<ProjectionBreakdownItemDto> breakdown;
 }

@@ -23,6 +23,7 @@ import pyc.lopatuxin.investment.entity.enums.SecurityType;
 import pyc.lopatuxin.investment.repository.PriceHistoryRepository;
 import pyc.lopatuxin.investment.repository.PriceSnapshotRepository;
 import pyc.lopatuxin.investment.repository.SecurityRepository;
+import pyc.lopatuxin.investment.service.BondPricing;
 import pyc.lopatuxin.investment.service.market.HistoryLoaderService;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
 import pyc.lopatuxin.investment.dto.response.SnapshotResult;
@@ -82,6 +83,7 @@ class MarketDataServiceTest {
                 priceHistoryRepository,
                 moexProperties,
                 historyLoaderService,
+                new BondPricing(),
                 null   // self — set below
         ));
         Field selfField = MarketDataService.class.getDeclaredField("self");
@@ -123,6 +125,111 @@ class MarketDataServiceTest {
         verify(securityRepository).save(captor.capture());
         assertThat(captor.getValue().getHistoryStatus()).isEqualTo(HistoryStatus.PENDING);
         assertThat(result).isEqualTo(saved);
+    }
+
+    @Test
+    @DisplayName("ensureSecurity — новая облигация из поиска биржи → номинал сохраняется сразу, не только при апсерте снимка")
+    void ensureSecurity_newBondFromSearch_fetchesNominalImmediately() {
+        when(securityRepository.findById("RU000A10FAK6")).thenReturn(Optional.empty());
+        MoexSecurityDto moexDto = new MoexSecurityDto("RU000A10FAK6", "TQCB", "Облигация", SecurityType.BOND, null, "RUB");
+        when(moexIssClient.fetchSecurity("RU000A10FAK6")).thenReturn(Optional.of(moexDto));
+        MoexSnapshotDto snapshotDto = new MoexSnapshotDto("RU000A10FAK6", new BigDecimal("93.5791"),
+                new BigDecimal("93.40"), new BigDecimal("1000.00"), null);
+        when(moexIssClient.fetchSnapshots(List.of("RU000A10FAK6"))).thenReturn(Map.of("RU000A10FAK6", snapshotDto));
+        when(securityRepository.save(any(Security.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Security result = marketDataService.ensureSecurity("RU000A10FAK6", SecurityType.BOND);
+
+        assertThat(result.getNominal()).isEqualByComparingTo("1000.00");
+    }
+
+    @Test
+    @DisplayName("ensureSecurity — MOEX не ответил на поиск облигации → номинал не запрашивается")
+    void ensureSecurity_bondMoexUnavailable_doesNotFetchNominal() {
+        when(securityRepository.findById("RU000A10FAK6")).thenReturn(Optional.empty());
+        when(moexIssClient.fetchSecurity("RU000A10FAK6")).thenThrow(new MoexUnavailableException("MOEX down"));
+        when(securityRepository.save(any(Security.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Security result = marketDataService.ensureSecurity("RU000A10FAK6", SecurityType.BOND);
+
+        assertThat(result.getNominal()).isNull();
+        verify(moexIssClient, never()).fetchSnapshots(any());
+    }
+
+    @Test
+    @DisplayName("ensureSecurity — новая акция из поиска биржи → номинал не запрашивается")
+    void ensureSecurity_newStockFromSearch_doesNotFetchNominal() {
+        when(securityRepository.findById("SBER")).thenReturn(Optional.empty());
+        MoexSecurityDto moexDto = new MoexSecurityDto("SBER", "TQBR", "Сбербанк", SecurityType.STOCK, null, "RUB");
+        when(moexIssClient.fetchSecurity("SBER")).thenReturn(Optional.of(moexDto));
+        when(securityRepository.save(any(Security.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Security result = marketDataService.ensureSecurity("SBER", SecurityType.STOCK);
+
+        assertThat(result.getNominal()).isNull();
+        verify(moexIssClient, never()).fetchSnapshots(any());
+    }
+
+    @Test
+    @DisplayName("getSnapshotReadOnly — облигация уже есть в БД → пересчёт по сохранённому номиналу, поиск по бирже не выполняется")
+    void getSnapshotReadOnly_knownBond_convertsUsingStoredNominalWithoutExtraLookup() {
+        Security ofz = Security.builder().ticker("SU26219RMFS4").type(SecurityType.OFZ)
+                .nominal(new BigDecimal("1000.00")).historyStatus(HistoryStatus.READY).build();
+        when(priceSnapshotRepository.findById("SU26219RMFS4")).thenReturn(Optional.empty());
+        when(securityRepository.findById("SU26219RMFS4")).thenReturn(Optional.of(ofz));
+        MoexSnapshotDto dto = new MoexSnapshotDto("SU26219RMFS4", new BigDecimal("99.952"), new BigDecimal("99.80"));
+        when(moexIssClient.fetchSnapshots(List.of("SU26219RMFS4"))).thenReturn(Map.of("SU26219RMFS4", dto));
+
+        SnapshotResult result = marketDataService.getSnapshotReadOnly("SU26219RMFS4");
+
+        assertThat(result.lastPrice()).isEqualByComparingTo("999.52");
+        verify(moexIssClient, never()).fetchSecurity(anyString());
+    }
+
+    @Test
+    @DisplayName("getSnapshotReadOnly — облигация не в БД (найдена только поиском по бирже), FACEVALUE в ответе есть → цена пересчитывается в рубли")
+    void getSnapshotReadOnly_unknownBondWithFaceValue_convertsToRubles() {
+        when(priceSnapshotRepository.findById("RU000A10FAK6")).thenReturn(Optional.empty());
+        when(securityRepository.findById("RU000A10FAK6")).thenReturn(Optional.empty());
+        MoexSnapshotDto dto = new MoexSnapshotDto("RU000A10FAK6", new BigDecimal("93.5791"),
+                new BigDecimal("93.40"), new BigDecimal("1000.00"), null);
+        when(moexIssClient.fetchSnapshots(List.of("RU000A10FAK6"))).thenReturn(Map.of("RU000A10FAK6", dto));
+
+        SnapshotResult result = marketDataService.getSnapshotReadOnly("RU000A10FAK6");
+
+        assertThat(result.lastPrice()).isEqualByComparingTo("935.79");
+        assertThat(result.previousClose()).isEqualByComparingTo("934.00");
+        verify(moexIssClient, never()).fetchSecurity(anyString());
+    }
+
+    @Test
+    @DisplayName("getSnapshotReadOnly — облигация не в БД, FACEVALUE в ответе отсутствует, классификация биржи — долговая бумага → номинал по умолчанию 1000")
+    void getSnapshotReadOnly_unknownBondWithoutFaceValue_defaultsNominalTo1000() {
+        when(priceSnapshotRepository.findById("RU000AXXXX0")).thenReturn(Optional.empty());
+        when(securityRepository.findById("RU000AXXXX0")).thenReturn(Optional.empty());
+        MoexSnapshotDto dto = new MoexSnapshotDto("RU000AXXXX0", new BigDecimal("95.00"), null);
+        when(moexIssClient.fetchSnapshots(List.of("RU000AXXXX0"))).thenReturn(Map.of("RU000AXXXX0", dto));
+        MoexSecurityDto secDto = new MoexSecurityDto("RU000AXXXX0", "TQCB", "Облигация", SecurityType.BOND, null, "RUB");
+        when(moexIssClient.fetchSecurity("RU000AXXXX0")).thenReturn(Optional.of(secDto));
+
+        SnapshotResult result = marketDataService.getSnapshotReadOnly("RU000AXXXX0");
+
+        assertThat(result.lastPrice()).isEqualByComparingTo("950.00");
+    }
+
+    @Test
+    @DisplayName("getSnapshotReadOnly — неизвестная бумага без FACEVALUE, классификация биржи — акция → цена не пересчитывается")
+    void getSnapshotReadOnly_unknownStock_passesThroughUnchanged() {
+        when(priceSnapshotRepository.findById("XYZ")).thenReturn(Optional.empty());
+        when(securityRepository.findById("XYZ")).thenReturn(Optional.empty());
+        MoexSnapshotDto dto = new MoexSnapshotDto("XYZ", new BigDecimal("278.83"), null);
+        when(moexIssClient.fetchSnapshots(List.of("XYZ"))).thenReturn(Map.of("XYZ", dto));
+        MoexSecurityDto secDto = new MoexSecurityDto("XYZ", "TQBR", "Акция", SecurityType.STOCK, null, "RUB");
+        when(moexIssClient.fetchSecurity("XYZ")).thenReturn(Optional.of(secDto));
+
+        SnapshotResult result = marketDataService.getSnapshotReadOnly("XYZ");
+
+        assertThat(result.lastPrice()).isEqualByComparingTo("278.83");
     }
 
     @Test

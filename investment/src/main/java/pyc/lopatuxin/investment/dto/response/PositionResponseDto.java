@@ -25,6 +25,7 @@ public class PositionResponseDto {
     private SecurityType securityType;
     private String sector;
     private HistoryStatus historyStatus;
+    private BigDecimal nominal;
     private BigDecimal quantity;
     private BigDecimal averagePrice;
     private BigDecimal totalCost;

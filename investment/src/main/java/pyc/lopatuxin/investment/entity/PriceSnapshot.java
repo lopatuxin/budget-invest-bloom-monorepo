@@ -28,4 +28,11 @@ public class PriceSnapshot {
 
     @Column(nullable = false)
     private Instant fetchedAt;
+
+    // Accrued coupon interest (NKD), rubles, from MOEX's ACCRUEDINT — bonds/OFZ only, null for
+    // stocks/ETFs and for a bond MOEX has not returned it for yet. Added to the ruble price when
+    // valuing a position/portfolio (see BondPricing.rubleValue); never used in price history or
+    // price growth, which stay clean quote-only series.
+    @Column(precision = 15, scale = 4)
+    private BigDecimal accruedInterest;
 }

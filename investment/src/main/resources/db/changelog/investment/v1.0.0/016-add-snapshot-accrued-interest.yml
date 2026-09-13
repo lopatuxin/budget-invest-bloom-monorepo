@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/016-add-snapshot-accrued-interest.yml
+  - changeSet:
+      id: 016-add-snapshot-accrued-interest
+      author: investment
+      changes:
+        - addColumn:
+            tableName: price_snapshots
+            columns:
+              - column:
+                  name: accrued_interest
+                  type: numeric(15,4)
+      rollback:
+        - dropColumn:
+            tableName: price_snapshots
+            columnName: accrued_interest

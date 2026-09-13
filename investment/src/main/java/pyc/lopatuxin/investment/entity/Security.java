@@ -5,6 +5,7 @@ import lombok.*;
 import pyc.lopatuxin.investment.entity.enums.HistoryStatus;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
@@ -47,4 +48,9 @@ public class Security {
     private String tinvestClassCode;
 
     private Instant dividendsSyncedAt;
+
+    // Face value (par), rubles — bonds/OFZ quote on the exchange as a percentage of this, see
+    // BondPricing. Null for STOCK/ETF and for a bond MOEX has not yet returned FACEVALUE for.
+    @Column(precision = 15, scale = 2)
+    private BigDecimal nominal;
 }

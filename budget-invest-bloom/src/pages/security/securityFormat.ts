@@ -4,7 +4,13 @@
 import { formatCurrency, formatDayMonth, formatDividendAmount, formatQuantity, formatSignedCurrency, formatUnitPrice, pluralize } from '@/lib/dateOptions';
 import { MONTH_SHORT } from '@/lib/dateOptions';
 import { signClass } from '@/pages/investments/investmentsFormat';
-import type { SecurityEvent, SecurityPagePosition, SecurityPageResult } from '@/types/investment';
+import type { PayoutKind, SecurityEvent, SecurityPagePosition, SecurityPageResult } from '@/types/investment';
+
+// "дивиденд"/"купон" wording swap (docs/plans/forecast-coupons-and-bond-prices.md p.8), keyed by
+// the payout's own kind rather than the security's type so a page never has to pass both down.
+export const PAYOUT_NOUN_SINGULAR: Record<PayoutKind, string> = { DIVIDEND: 'дивиденд', COUPON: 'купон' };
+export const PAYOUT_NOUN_PLURAL: Record<PayoutKind, string> = { DIVIDEND: 'дивиденды', COUPON: 'купоны' };
+export const PAYOUT_UNIT_NOUN: Record<PayoutKind, string> = { DIVIDEND: 'акцию', COUPON: 'облигацию' };
 
 // Dot/marker colors from docs/plans/security-page-redesign.md "UI": the price line
 // itself reuses PORTFOLIO_CHART_COLOR from pages/investments/investmentsFormat.
@@ -95,9 +101,10 @@ export function describeEvent(event: SecurityEvent): EventDisplay {
 
   if (event.kind === 'DIVIDEND_PAID') {
     const manual = event.source === 'MANUAL' ? ' · внесено вручную' : '';
+    const unitNoun = PAYOUT_UNIT_NOUN[event.payoutKind];
     return {
-      title: 'Дивиденды получены',
-      subtitle: `${formatDividendAmount(event.amountPerShare, event.currency, 'unit')} на акцию × ${formatQuantity(event.quantity)} шт, после НДФЛ${manual}`,
+      title: event.payoutKind === 'COUPON' ? 'Купон получен' : 'Дивиденды получены',
+      subtitle: `${formatDividendAmount(event.amountPerShare, event.currency, 'unit')} на ${unitNoun} × ${formatQuantity(event.quantity)} шт, после НДФЛ${manual}`,
       amountText: `+${formatDividendAmount(event.netAmount, event.currency)}`,
       amountVariant: 'good',
     };
@@ -109,9 +116,10 @@ export function describeEvent(event: SecurityEvent): EventDisplay {
   // the backend already made the swap, i.e. the record date is behind us.
   const recordDateAhead = event.paymentDate == null || event.paymentDate !== event.date;
   const paymentLine = event.paymentDate ? `выплата ${formatDayMonth(event.paymentDate)}` : 'дата выплаты не объявлена';
+  const isCoupon = event.payoutKind === 'COUPON';
   return {
-    title: recordDateAhead ? 'Отсечка по дивидендам' : 'Выплата ожидается',
-    subtitle: `${formatDividendAmount(event.amountPerShare, event.currency, 'unit')} на акцию × ${formatQuantity(event.quantity)} шт, ${paymentLine}`,
+    title: isCoupon ? (recordDateAhead ? 'Фиксация купона' : 'Купон ожидается') : recordDateAhead ? 'Отсечка по дивидендам' : 'Выплата ожидается',
+    subtitle: `${formatDividendAmount(event.amountPerShare, event.currency, 'unit')} на ${PAYOUT_UNIT_NOUN[event.payoutKind]} × ${formatQuantity(event.quantity)} шт, ${paymentLine}`,
     amountText: formatDividendAmount(event.netAmount, event.currency),
     amountVariant: 'dim',
   };

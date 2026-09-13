@@ -376,7 +376,7 @@ class OverviewPageServiceUnitTest {
     @DisplayName("Ближайшая выплата дивидендов без даты выплаты должна пробрасывать только дату отсечки")
     void shouldMapNextDividendWithoutPaymentDate() {
         PortfolioNextDividend dividend = new PortfolioNextDividend(
-                "LKOH", "ЛУКОЙЛ", LocalDate.of(2026, 10, 3), null, new BigDecimal("4800.00"), "RUB");
+                "LKOH", "ЛУКОЙЛ", LocalDate.of(2026, 10, 3), null, new BigDecimal("4800.00"), "RUB", null);
         when(portfolioValuation.current(userId)).thenReturn(new PortfolioCurrentValuation(
                 new BigDecimal("100000.00"), new BigDecimal("90000.00"), new BigDecimal("10000.00"), 5,
                 new BigDecimal("38200.00"), dividend));
@@ -394,7 +394,7 @@ class OverviewPageServiceUnitTest {
     @DisplayName("Ближайшая выплата дивидендов с известной датой выплаты должна пробрасывать её из порта")
     void shouldMapNextDividendWithPaymentDate() {
         PortfolioNextDividend dividend = new PortfolioNextDividend(
-                "SBER", "Сбербанк", LocalDate.of(2026, 7, 18), LocalDate.of(2026, 8, 1), new BigDecimal("3484.00"), "RUB");
+                "SBER", "Сбербанк", LocalDate.of(2026, 7, 18), LocalDate.of(2026, 8, 1), new BigDecimal("3484.00"), "RUB", null);
         when(portfolioValuation.current(userId)).thenReturn(new PortfolioCurrentValuation(
                 new BigDecimal("100000.00"), new BigDecimal("90000.00"), new BigDecimal("10000.00"), 5,
                 new BigDecimal("38200.00"), dividend));
@@ -409,7 +409,7 @@ class OverviewPageServiceUnitTest {
     @DisplayName("Валюта ближайшей выплаты дивидендов должна пробрасываться в DTO страницы обзора")
     void shouldMapNextDividendCurrency() {
         PortfolioNextDividend dividend = new PortfolioNextDividend(
-                "AAPL", "Apple", LocalDate.of(2026, 10, 3), null, new BigDecimal("20.00"), "USD");
+                "AAPL", "Apple", LocalDate.of(2026, 10, 3), null, new BigDecimal("20.00"), "USD", null);
         when(portfolioValuation.current(userId)).thenReturn(new PortfolioCurrentValuation(
                 new BigDecimal("100000.00"), new BigDecimal("90000.00"), new BigDecimal("10000.00"), 5,
                 new BigDecimal("38200.00"), dividend));
@@ -417,6 +417,21 @@ class OverviewPageServiceUnitTest {
         OverviewPageResponseDto result = overviewPageService.getOverview(userId);
 
         assertThat(result.getPortfolio().getNextDividend().getCurrency()).isEqualTo("USD");
+    }
+
+    @Test
+    @DisplayName("Вид ближайшей выплаты (купон облигации) должен пробрасываться в DTO страницы обзора")
+    void shouldMapNextDividendKind() {
+        PortfolioNextDividend dividend = new PortfolioNextDividend(
+                "SU26219RMFS4", "ОФЗ 26219", LocalDate.of(2026, 10, 3), null,
+                new BigDecimal("38.64"), "RUB", pyc.lopatuxin.shared.port.PayoutKind.COUPON);
+        when(portfolioValuation.current(userId)).thenReturn(new PortfolioCurrentValuation(
+                new BigDecimal("100000.00"), new BigDecimal("90000.00"), new BigDecimal("10000.00"), 5,
+                new BigDecimal("38200.00"), dividend));
+
+        OverviewPageResponseDto result = overviewPageService.getOverview(userId);
+
+        assertThat(result.getPortfolio().getNextDividend().getKind()).isEqualTo(pyc.lopatuxin.shared.port.PayoutKind.COUPON);
     }
 
     // ─── Personal inflation ───────────────────────────────────────────────────

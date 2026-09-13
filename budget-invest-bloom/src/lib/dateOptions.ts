@@ -1,5 +1,6 @@
 // Shared date/period/number formatting utilities used across Budget, the category page,
 // the analytics page, and the overview and investments pages
+import type { PayoutKind } from '@/types/investment';
 
 // Short lowercase month names — chart axis labels (overview) and stale-price
 // header dates (investments). Single source: both pages' *Format.ts import it
@@ -113,20 +114,25 @@ export const formatDayMonth = (value: string): string => DAY_MONTH_FORMAT.format
 interface DividendDates {
   recordDate: string;
   paymentDate?: string | null;
+  // Absent for callers that pre-date the coupon rollout (e.g. CreateManualDividendRequest
+  // echoes) — treated as a dividend, same as backend's default (docs/plans/forecast-coupons-and-bond-prices.md p.7).
+  kind?: PayoutKind;
 }
 
-/** "отсечка 18 июля" / "выплата 1 августа" / "выплачено 1 августа" — the row
- * label rule from docs/plans/dividends-tinvest.md p.21: an upcoming dividend
- * is labelled by the record date while it is still ahead, otherwise by the
- * payment date; a received one is labelled by the payment date, falling back
- * to the record date when no payment date is known. */
+/** "отсечка 18 июля" / "фиксация 18 июля" / "выплата 1 августа" / "выплачено 1 августа" — the
+ * row label rule from docs/plans/dividends-tinvest.md p.21: an upcoming dividend is labelled by
+ * the record date while it is still ahead, otherwise by the payment date; a received one is
+ * labelled by the payment date, falling back to the record date when no payment date is known.
+ * A coupon's record date is its fix date, worded "фиксация" instead of "отсечка"
+ * (docs/plans/forecast-coupons-and-bond-prices.md p.101). */
 export const formatDividendDateLabel = (dividend: DividendDates, variant: 'upcoming' | 'received'): string => {
+  const recordLabel = dividend.kind === 'COUPON' ? 'фиксация' : 'отсечка';
   if (variant === 'received') {
-    return dividend.paymentDate ? `выплачено ${formatDayMonth(dividend.paymentDate)}` : `отсечка ${formatDayMonth(dividend.recordDate)}`;
+    return dividend.paymentDate ? `выплачено ${formatDayMonth(dividend.paymentDate)}` : `${recordLabel} ${formatDayMonth(dividend.recordDate)}`;
   }
   const today = toApiDateString(new Date());
   return dividend.recordDate >= today
-    ? `отсечка ${formatDayMonth(dividend.recordDate)}`
+    ? `${recordLabel} ${formatDayMonth(dividend.recordDate)}`
     : `выплата ${formatDayMonth(dividend.paymentDate ?? dividend.recordDate)}`;
 };
 

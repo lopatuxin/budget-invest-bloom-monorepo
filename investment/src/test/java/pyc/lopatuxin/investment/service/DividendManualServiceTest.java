@@ -16,6 +16,7 @@ import pyc.lopatuxin.investment.entity.Security;
 import pyc.lopatuxin.investment.entity.enums.DividendSource;
 import pyc.lopatuxin.investment.entity.enums.DividendStatus;
 import pyc.lopatuxin.investment.entity.enums.HistoryStatus;
+import pyc.lopatuxin.investment.entity.enums.PayoutKind;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
 import pyc.lopatuxin.investment.exception.DividendAlreadyExistsException;
 import pyc.lopatuxin.investment.repository.DividendRepository;
@@ -76,7 +77,30 @@ class DividendManualServiceTest {
         assertThat(saved.getSource()).isEqualTo(DividendSource.MANUAL);
         assertThat(saved.getCurrency()).isEqualTo("RUB");
         assertThat(saved.getStatus()).isEqualTo(DividendStatus.ANNOUNCED);
+        assertThat(saved.getKind()).isEqualTo(PayoutKind.DIVIDEND);
         assertThat(result.getSource()).isEqualTo(DividendSource.MANUAL);
+        assertThat(result.getKind()).isEqualTo(PayoutKind.DIVIDEND);
+    }
+
+    @Test
+    @DisplayName("create — облигация/ОФЗ → вид выплаты COUPON, а не DIVIDEND")
+    void create_bondOrOfz_savesWithCouponKind() {
+        Security ofz = Security.builder().ticker("SU26219RMFS4").name("ОФЗ 26219").type(SecurityType.OFZ)
+                .historyStatus(HistoryStatus.READY).build();
+        CreateDividendDto dto = CreateDividendDto.builder()
+                .ticker("SU26219RMFS4").recordDate(LocalDate.now().plusDays(5))
+                .amountPerShare(new BigDecimal("38.64")).currency("rub").build();
+        when(positionRepository.existsByUserIdAndSecurity_Ticker(userId, "SU26219RMFS4")).thenReturn(true);
+        when(dividendRepository.existsBySecurity_TickerAndRecordDate("SU26219RMFS4", dto.getRecordDate())).thenReturn(false);
+        when(securityRepository.findById("SU26219RMFS4")).thenReturn(Optional.of(ofz));
+        when(dividendRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        SecurityDividendDto result = dividendManualService.create(userId, dto);
+
+        ArgumentCaptor<Dividend> captor = ArgumentCaptor.forClass(Dividend.class);
+        verify(dividendRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getKind()).isEqualTo(PayoutKind.COUPON);
+        assertThat(result.getKind()).isEqualTo(PayoutKind.COUPON);
     }
 
     @Test

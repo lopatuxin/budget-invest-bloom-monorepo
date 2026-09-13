@@ -26,7 +26,9 @@ import pyc.lopatuxin.investment.repository.PriceHistoryRepository;
 import pyc.lopatuxin.investment.repository.PriceSnapshotRepository;
 import pyc.lopatuxin.investment.repository.SecurityRepository;
 import pyc.lopatuxin.investment.dto.response.SnapshotResult;
+import pyc.lopatuxin.investment.service.BondPricing;
 
+import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -56,6 +58,7 @@ public class MarketDataService {
     private final PriceHistoryRepository priceHistoryRepository;
     private final MoexProperties moexProperties;
     private final HistoryLoaderService historyLoaderService;
+    private final BondPricing bondPricing;
     private final MarketDataService self;
 
     public MarketDataService(MoexIssClient moexIssClient,
@@ -64,6 +67,7 @@ public class MarketDataService {
                              PriceHistoryRepository priceHistoryRepository,
                              MoexProperties moexProperties,
                              @Lazy HistoryLoaderService historyLoaderService,
+                             BondPricing bondPricing,
                              @Lazy MarketDataService self) {
         this.moexIssClient = moexIssClient;
         this.securityRepository = securityRepository;
@@ -71,6 +75,7 @@ public class MarketDataService {
         this.priceHistoryRepository = priceHistoryRepository;
         this.moexProperties = moexProperties;
         this.historyLoaderService = historyLoaderService;
+        this.bondPricing = bondPricing;
         this.self = self;
     }
 
@@ -86,36 +91,109 @@ public class MarketDataService {
         } catch (MoexUnavailableException e) {
             log.warn("MOEX unavailable for ticker {}, saving as PENDING", normalizedTicker);
         }
-        return self.persistNewSecurity(normalizedTicker, moexDto, fallbackType);
+        BigDecimal nominal = moexDto != null && bondPricing.isQuotedAsPercentOfPar(moexDto.securityType())
+                ? fetchNominal(normalizedTicker).orElse(null)
+                : null;
+        return self.persistNewSecurity(normalizedTicker, moexDto, fallbackType, nominal);
     }
 
     @Transactional("investmentTransactionManager")
-    public Security persistNewSecurity(String ticker, MoexSecurityDto moexDto, SecurityType fallbackType) {
+    public Security persistNewSecurity(String ticker, MoexSecurityDto moexDto, SecurityType fallbackType, BigDecimal nominal) {
         return securityRepository.findById(ticker).orElseGet(() -> {
             Security security = moexDto != null
                     ? buildReadySecurity(ticker, moexDto)
                     : buildPendingSecurity(ticker, fallbackType);
+            security.setNominal(nominal);
             return securityRepository.save(security);
         });
     }
 
+    // A bond's nominal is needed from the moment it is created (plan point 1) — otherwise every
+    // quote conversion until the next scheduled snapshot refresh silently defaults to 1000₽
+    // (BondPricing) instead of using the real FACEVALUE the exchange already has. Fetched before
+    // persistNewSecurity so the exchange call does not hold a pooled DB connection.
+    private Optional<BigDecimal> fetchNominal(String ticker) {
+        try {
+            return Optional.ofNullable(moexIssClient.fetchSnapshots(List.of(ticker)).get(ticker))
+                    .map(MoexSnapshotDto::faceValue);
+        } catch (MoexUnavailableException e) {
+            return Optional.empty();
+        }
+    }
+
+    // Raw exchange quote before ruble conversion, plus FACEVALUE (plan point 1) so the trade-dialog
+    // snapshot below can convert a bond found only by exchange search — not yet in
+    // investment.securities — the same way it converts one already on file.
+    private record RawQuote(BigDecimal lastPrice, BigDecimal previousClose, Instant fetchedAt, boolean stale,
+                            BigDecimal accruedInterest, BigDecimal faceValue) {
+        static RawQuote empty() {
+            return new RawQuote(null, null, null, true, null, null);
+        }
+    }
+
+    // The one caller (MarketDataController's trade-dialog snapshot endpoint) needs the price it
+    // substitutes into the form already in rubles, so the conversion happens here rather than in
+    // every other getSnapshot(s) caller — those feed PortfolioGroupingService/ProjectionService/
+    // SecurityPageService, which apply BondPricing themselves against the position's/security's
+    // own nominal (see BondPricingTest, PortfolioGroupingServiceUnitTest).
     public SnapshotResult getSnapshotReadOnly(String ticker) {
+        RawQuote raw = fetchRawQuoteReadOnly(ticker);
+        Security security = securityRepository.findById(ticker).orElse(null);
+        return security != null ? convertKnownToRubles(security, raw) : convertUnknownToRubles(ticker, raw);
+    }
+
+    private RawQuote fetchRawQuoteReadOnly(String ticker) {
         Optional<PriceSnapshot> dbSnapshot = priceSnapshotRepository.findById(ticker);
         if (dbSnapshot.isPresent() && !isStale(dbSnapshot.get())) {
-            return toSnapshotResult(dbSnapshot.get(), false);
+            return toRawQuote(dbSnapshot.get(), false);
         }
         try {
             Map<String, MoexSnapshotDto> fetched = moexIssClient.fetchSnapshots(List.of(ticker));
             MoexSnapshotDto dto = fetched.get(ticker);
             if (dto != null) {
-                return new SnapshotResult(dto.lastPrice(), dto.previousClose(), Instant.now(), false);
+                return new RawQuote(dto.lastPrice(), dto.previousClose(), Instant.now(), false,
+                        dto.accruedInterest(), dto.faceValue());
             }
-            return dbSnapshot.map(s -> toSnapshotResult(s, true))
-                    .orElse(new SnapshotResult(null, null, null, true));
+            return dbSnapshot.map(s -> toRawQuote(s, true)).orElseGet(RawQuote::empty);
         } catch (MoexUnavailableException e) {
             log.warn("MOEX unavailable for snapshot {} (read-only)", ticker);
-            return dbSnapshot.map(s -> toSnapshotResult(s, true))
-                    .orElse(new SnapshotResult(null, null, null, true));
+            return dbSnapshot.map(s -> toRawQuote(s, true)).orElseGet(RawQuote::empty);
+        }
+    }
+
+    private RawQuote toRawQuote(PriceSnapshot snapshot, boolean stale) {
+        return new RawQuote(snapshot.getLastPrice(), snapshot.getPreviousClose(), snapshot.getFetchedAt(), stale,
+                snapshot.getAccruedInterest(), null);
+    }
+
+    private SnapshotResult convertKnownToRubles(Security security, RawQuote raw) {
+        BigDecimal last = bondPricing.quotedToRubles(security, raw.lastPrice());
+        BigDecimal previous = bondPricing.quotedToRubles(security, raw.previousClose());
+        return new SnapshotResult(last, previous, raw.fetchedAt(), raw.stale(), raw.accruedInterest());
+    }
+
+    // A bond/OFZ found only via exchange search (plan point 3, not yet in investment.securities):
+    // the exchange's own bond-board response already carried FACEVALUE when the ticker is quoted
+    // as percent-of-par (see MoexResponseParser.parseBondFields) — its absence means either the
+    // security is not a bond at all (already-ruble quote, pass through unchanged) or it is a bond
+    // the exchange has not returned a nominal for yet, resolved with fetchSecurity's own
+    // classification and BondPricing's default-1000 fallback (plan point 17).
+    private SnapshotResult convertUnknownToRubles(String ticker, RawQuote raw) {
+        if (raw.faceValue() == null && !isQuotedAsPercentOfParTicker(ticker)) {
+            return new SnapshotResult(raw.lastPrice(), raw.previousClose(), raw.fetchedAt(), raw.stale(), raw.accruedInterest());
+        }
+        BigDecimal last = bondPricing.quotedToRubles(SecurityType.BOND, ticker, raw.faceValue(), raw.lastPrice());
+        BigDecimal previous = bondPricing.quotedToRubles(SecurityType.BOND, ticker, raw.faceValue(), raw.previousClose());
+        return new SnapshotResult(last, previous, raw.fetchedAt(), raw.stale(), raw.accruedInterest());
+    }
+
+    private boolean isQuotedAsPercentOfParTicker(String ticker) {
+        try {
+            return moexIssClient.fetchSecurity(ticker)
+                    .map(dto -> bondPricing.isQuotedAsPercentOfPar(dto.securityType()))
+                    .orElse(false);
+        } catch (MoexUnavailableException e) {
+            return false;
         }
     }
 
@@ -451,6 +529,9 @@ public class MarketDataService {
         if (!securityRepository.existsById(ticker)) {
             return null;
         }
+        if (dto.faceValue() != null) {
+            updateNominalIfChanged(ticker, dto.faceValue());
+        }
         Optional<PriceSnapshot> existing = priceSnapshotRepository.findById(ticker);
         // LAST is genuinely absent outside trading hours, on weekends and for illiquid papers.
         // An existing snapshot's lastPrice is the market's last real trade and must not be
@@ -469,13 +550,32 @@ public class MarketDataService {
             PriceSnapshot snapshot = existing.orElseGet(() -> PriceSnapshot.builder().ticker(ticker).build());
             snapshot.setPreviousClose(dto.previousClose());
             snapshot.setFetchedAt(Instant.now());
+            if (dto.accruedInterest() != null) {
+                snapshot.setAccruedInterest(dto.accruedInterest());
+            }
             return priceSnapshotRepository.saveAndFlush(snapshot);
         }
         PriceSnapshot snapshot = existing.orElseGet(() -> PriceSnapshot.builder().ticker(ticker).build());
         snapshot.setLastPrice(dto.lastPrice());
         snapshot.setPreviousClose(dto.previousClose());
         snapshot.setFetchedAt(Instant.now());
+        if (dto.accruedInterest() != null) {
+            snapshot.setAccruedInterest(dto.accruedInterest());
+        }
         return priceSnapshotRepository.saveAndFlush(snapshot);
+    }
+
+    // Nominal changes only when an amortizing bond's next FACEVALUE differs from what is stored
+    // (plan point 1) — most polls skip the write entirely. A separate lookup (rather than reusing
+    // the existsById check above) because it is only ever needed for a BOND/OFZ that actually
+    // returned FACEVALUE.
+    private void updateNominalIfChanged(String ticker, BigDecimal nominal) {
+        securityRepository.findById(ticker).ifPresent(security -> {
+            if (security.getNominal() == null || nominal.compareTo(security.getNominal()) != 0) {
+                security.setNominal(nominal);
+                securityRepository.save(security);
+            }
+        });
     }
 
     // upsertSnapshot is check-then-act (findById, then insert/update) with no locking, so two
@@ -515,7 +615,8 @@ public class MarketDataService {
     }
 
     private SnapshotResult toSnapshotResult(PriceSnapshot snapshot, boolean stale) {
-        return new SnapshotResult(snapshot.getLastPrice(), snapshot.getPreviousClose(), snapshot.getFetchedAt(), stale);
+        return new SnapshotResult(snapshot.getLastPrice(), snapshot.getPreviousClose(), snapshot.getFetchedAt(), stale,
+                snapshot.getAccruedInterest());
     }
 
     // Runs on the same background executor the nightly job uses for history loading, so

@@ -9,6 +9,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pyc.lopatuxin.investment.client.tinvest.TinvestApi;
+import pyc.lopatuxin.investment.client.tinvest.TinvestBondCouponsRequest;
+import pyc.lopatuxin.investment.client.tinvest.TinvestBondCouponsResponse;
+import pyc.lopatuxin.investment.client.tinvest.TinvestCoupon;
 import pyc.lopatuxin.investment.client.tinvest.TinvestDividend;
 import pyc.lopatuxin.investment.client.tinvest.TinvestDividendsResponse;
 import pyc.lopatuxin.investment.client.tinvest.TinvestMoneyValue;
@@ -20,6 +23,7 @@ import pyc.lopatuxin.investment.entity.Security;
 import pyc.lopatuxin.investment.entity.enums.DividendSource;
 import pyc.lopatuxin.investment.entity.enums.DividendStatus;
 import pyc.lopatuxin.investment.entity.enums.HistoryStatus;
+import pyc.lopatuxin.investment.entity.enums.PayoutKind;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
 import pyc.lopatuxin.investment.repository.DividendRepository;
 import pyc.lopatuxin.investment.repository.PositionRepository;
@@ -76,6 +80,7 @@ class DividendSyncServiceTest {
     private DividendSyncService dividendSyncService;
 
     private Security sber;
+    private Security ofz;
 
     private TimeZone originalDefaultTimeZone;
 
@@ -118,6 +123,13 @@ class DividendSyncServiceTest {
                 .historyStatus(HistoryStatus.READY)
                 .tinvestUid("uid-sber")
                 .build();
+        ofz = Security.builder()
+                .ticker("SU26219RMFS4")
+                .name("ОФЗ 26219")
+                .type(SecurityType.OFZ)
+                .historyStatus(HistoryStatus.READY)
+                .tinvestUid("uid-ofz")
+                .build();
     }
 
     @SuppressWarnings("unchecked")
@@ -130,6 +142,10 @@ class DividendSyncServiceTest {
 
     private TinvestDividend dividend(String currency, String units, int nano, Instant recordDate, Instant paymentDate) {
         return new TinvestDividend(new TinvestMoneyValue(currency, units, nano), recordDate, paymentDate);
+    }
+
+    private TinvestCoupon coupon(Instant fixDate, Instant couponDate, String currency, String units, int nano) {
+        return new TinvestCoupon(couponDate, fixDate, new TinvestMoneyValue(currency, units, nano), 1L, "COUPON_TYPE_CONSTANT");
     }
 
     @Test
@@ -352,16 +368,12 @@ class DividendSyncServiceTest {
     }
 
     @Test
-    @DisplayName("syncDividends — облигация/ОФЗ → GetDividends не вызывается вовсе")
-    void syncDividends_bondOrOfz_skipsGetDividendsCall() {
-        Security bond = Security.builder()
-                .ticker("SU26219RMFS4")
-                .name("ОФЗ 26219")
-                .type(SecurityType.OFZ)
-                .historyStatus(HistoryStatus.READY)
-                .tinvestUid("uid-ofz")
-                .build();
-        when(securityRepository.findById("SU26219RMFS4")).thenReturn(Optional.of(bond));
+    @DisplayName("syncDividends — облигация/ОФЗ → GetDividends не вызывается вовсе, вызывается GetBondCoupons")
+    void syncDividends_bondOrOfz_callsGetBondCouponsNotGetDividends() {
+        stubResilienceExecutesSupplier();
+        when(securityRepository.findById("SU26219RMFS4")).thenReturn(Optional.of(ofz));
+        when(dividendRepository.existsBySecurity_Ticker("SU26219RMFS4")).thenReturn(false);
+        when(tinvestApi.getBondCoupons(any())).thenReturn(new TinvestBondCouponsResponse(List.of()));
 
         DividendSyncService.DividendSyncResult result = dividendSyncService.syncDividends("SU26219RMFS4");
 
@@ -369,6 +381,165 @@ class DividendSyncServiceTest {
         assertThat(result.updated()).isZero();
         verify(tinvestApi, never()).getDividends(any());
         verify(tinvestResilience, never()).execute(eq("getDividends"), any());
+        verify(tinvestApi).getBondCoupons(any());
+        verify(securityRepository).save(ofz);
+        assertThat(ofz.getDividendsSyncedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("syncDividends — окно запроса купонов уходит минимум на пять полных лет назад (делитель ProjectionService не завышает доходность)")
+    void syncDividends_bondCouponRequestWindow_coversFiveFullYearsBack() {
+        stubResilienceExecutesSupplier();
+        when(securityRepository.findById("SU26219RMFS4")).thenReturn(Optional.of(ofz));
+        when(dividendRepository.existsBySecurity_Ticker("SU26219RMFS4")).thenReturn(false);
+        when(tinvestApi.getBondCoupons(any())).thenReturn(new TinvestBondCouponsResponse(List.of()));
+
+        dividendSyncService.syncDividends("SU26219RMFS4");
+
+        ArgumentCaptor<TinvestBondCouponsRequest> captor = ArgumentCaptor.forClass(TinvestBondCouponsRequest.class);
+        verify(tinvestApi).getBondCoupons(captor.capture());
+        LocalDate requestedFrom = captor.getValue().from().atZone(MOSCOW).toLocalDate();
+        // ProjectionService's payout window is the five full calendar years before this one
+        // (PAYOUT_WINDOW_YEARS) — the request must reach at least to January 1st of that window's
+        // first year, or older coupons silently drop out of the average (see class-level comment
+        // on WINDOW_BACK_MONTHS).
+        LocalDate requiredFloor = LocalDate.of(LocalDate.now(MOSCOW).getYear() - 5, 1, 1);
+        assertThat(requestedFrom).isBeforeOrEqualTo(requiredFloor);
+    }
+
+    @Test
+    @DisplayName("syncDividends — купон облигации → сохраняется с видом COUPON, record_date = fixDate, payment_date = couponDate")
+    void syncDividends_bondCoupon_insertsWithCouponKindAndDatesFromFixAndCouponDate() {
+        stubResilienceExecutesSupplier();
+        when(securityRepository.findById("SU26219RMFS4")).thenReturn(Optional.of(ofz));
+        when(dividendRepository.existsBySecurity_Ticker("SU26219RMFS4")).thenReturn(false);
+        Instant fixDate = LocalDate.now().minusDays(6).atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+        Instant couponDate = LocalDate.now().minusDays(5).atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+        when(tinvestApi.getBondCoupons(any())).thenReturn(new TinvestBondCouponsResponse(List.of(
+                coupon(fixDate, couponDate, "rub", "38", 640000000))));
+        when(dividendRepository.findBySecurity_TickerAndRecordDate(eq("SU26219RMFS4"), any())).thenReturn(Optional.empty());
+
+        DividendSyncService.DividendSyncResult result = dividendSyncService.syncDividends("SU26219RMFS4");
+
+        assertThat(result.added()).isEqualTo(1);
+        ArgumentCaptor<Dividend> captor = ArgumentCaptor.forClass(Dividend.class);
+        verify(dividendRepository).save(captor.capture());
+        Dividend saved = captor.getValue();
+        assertThat(saved.getKind()).isEqualTo(PayoutKind.COUPON);
+        assertThat(saved.getAmountPerShare()).isEqualByComparingTo("38.6400");
+        assertThat(saved.getCurrency()).isEqualTo("RUB");
+        assertThat(saved.getSource()).isEqualTo(DividendSource.TINVEST);
+        assertThat(saved.getStatus()).isEqualTo(DividendStatus.PAID);
+        assertThat(saved.getRecordDate()).isEqualTo(LocalDate.now().minusDays(6));
+        assertThat(saved.getPaymentDate()).isEqualTo(LocalDate.now().minusDays(5));
+    }
+
+    @Test
+    @DisplayName("syncDividends — купон без fixDate → отсечка берётся как couponDate минус один день")
+    void syncDividends_couponWithoutFixDate_recordDateFallsBackToCouponDateMinusOneDay() {
+        stubResilienceExecutesSupplier();
+        when(securityRepository.findById("SU26219RMFS4")).thenReturn(Optional.of(ofz));
+        when(dividendRepository.existsBySecurity_Ticker("SU26219RMFS4")).thenReturn(false);
+        LocalDate couponLocalDate = LocalDate.now().minusDays(5);
+        Instant couponDate = couponLocalDate.atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+        when(tinvestApi.getBondCoupons(any())).thenReturn(new TinvestBondCouponsResponse(List.of(
+                coupon(null, couponDate, "rub", "38", 640000000))));
+        when(dividendRepository.findBySecurity_TickerAndRecordDate(eq("SU26219RMFS4"), any())).thenReturn(Optional.empty());
+
+        dividendSyncService.syncDividends("SU26219RMFS4");
+
+        ArgumentCaptor<Dividend> captor = ArgumentCaptor.forClass(Dividend.class);
+        verify(dividendRepository).save(captor.capture());
+        assertThat(captor.getValue().getRecordDate()).isEqualTo(couponLocalDate.minusDays(1));
+    }
+
+    @Test
+    @DisplayName("syncDividends — будущий купон с нулевой суммой (ещё не объявлен) → не сохраняется")
+    void syncDividends_futureCouponWithZeroAmount_notSaved() {
+        stubResilienceExecutesSupplier();
+        when(securityRepository.findById("SU26219RMFS4")).thenReturn(Optional.of(ofz));
+        when(dividendRepository.existsBySecurity_Ticker("SU26219RMFS4")).thenReturn(false);
+        Instant futureCouponDate = LocalDate.now().plusMonths(3).atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+        when(tinvestApi.getBondCoupons(any())).thenReturn(new TinvestBondCouponsResponse(List.of(
+                coupon(null, futureCouponDate, "rub", "0", 0))));
+
+        DividendSyncService.DividendSyncResult result = dividendSyncService.syncDividends("SU26219RMFS4");
+
+        assertThat(result.added()).isZero();
+        assertThat(result.updated()).isZero();
+        verify(dividendRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("syncDividends — купон без couponDate или без payOneBond → пропускается")
+    void syncDividends_couponWithoutCouponDateOrPayOneBond_skipped() {
+        stubResilienceExecutesSupplier();
+        when(securityRepository.findById("SU26219RMFS4")).thenReturn(Optional.of(ofz));
+        when(dividendRepository.existsBySecurity_Ticker("SU26219RMFS4")).thenReturn(false);
+        when(tinvestApi.getBondCoupons(any())).thenReturn(new TinvestBondCouponsResponse(List.of(
+                new TinvestCoupon(null, null, new TinvestMoneyValue("RUB", "10", 0), 1L, "COUPON_TYPE_CONSTANT"),
+                new TinvestCoupon(Instant.now(), Instant.now(), null, 2L, "COUPON_TYPE_CONSTANT"))));
+
+        DividendSyncService.DividendSyncResult result = dividendSyncService.syncDividends("SU26219RMFS4");
+
+        assertThat(result.added()).isZero();
+        assertThat(result.updated()).isZero();
+        verify(dividendRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("syncDividends — повторный запуск с теми же купонными данными → save не вызывается (обновлений ноль)")
+    void syncDividends_sameCouponDataAgain_noSaveCalled() {
+        stubResilienceExecutesSupplier();
+        when(securityRepository.findById("SU26219RMFS4")).thenReturn(Optional.of(ofz));
+        when(dividendRepository.existsBySecurity_Ticker("SU26219RMFS4")).thenReturn(true);
+        LocalDate couponLocalDate = LocalDate.now().minusDays(5);
+        LocalDate fixLocalDate = couponLocalDate.minusDays(1);
+        Instant fixDate = fixLocalDate.atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+        Instant couponDate = couponLocalDate.atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+        when(tinvestApi.getBondCoupons(any())).thenReturn(new TinvestBondCouponsResponse(List.of(
+                coupon(fixDate, couponDate, "rub", "38", 640000000))));
+
+        Dividend existing = Dividend.builder()
+                .security(ofz).recordDate(fixLocalDate).paymentDate(couponLocalDate)
+                .amountPerShare(new BigDecimal("38.6400")).currency("RUB")
+                .status(DividendStatus.PAID).source(DividendSource.TINVEST).kind(PayoutKind.COUPON).build();
+        when(dividendRepository.findBySecurity_TickerAndRecordDate("SU26219RMFS4", fixLocalDate))
+                .thenReturn(Optional.of(existing));
+
+        DividendSyncService.DividendSyncResult result = dividendSyncService.syncDividends("SU26219RMFS4");
+
+        assertThat(result.added()).isZero();
+        assertThat(result.updated()).isZero();
+        verify(dividendRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("syncDividends — купон против ручной записи для той же отсечки → ручная запись не перезаписывается")
+    void syncDividends_couponAgainstManualRecord_doesNotOverwriteManual() {
+        stubResilienceExecutesSupplier();
+        when(securityRepository.findById("SU26219RMFS4")).thenReturn(Optional.of(ofz));
+        when(dividendRepository.existsBySecurity_Ticker("SU26219RMFS4")).thenReturn(true);
+        LocalDate couponLocalDate = LocalDate.now().minusDays(5);
+        LocalDate fixLocalDate = couponLocalDate.minusDays(1);
+        Instant fixDate = fixLocalDate.atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+        Instant couponDate = couponLocalDate.atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+        when(tinvestApi.getBondCoupons(any())).thenReturn(new TinvestBondCouponsResponse(List.of(
+                coupon(fixDate, couponDate, "rub", "999", 0))));
+
+        Dividend manual = Dividend.builder()
+                .security(ofz).recordDate(fixLocalDate).paymentDate(couponLocalDate)
+                .amountPerShare(new BigDecimal("38.6400")).currency("RUB")
+                .status(DividendStatus.PAID).source(DividendSource.MANUAL).kind(PayoutKind.COUPON).build();
+        when(dividendRepository.findBySecurity_TickerAndRecordDate("SU26219RMFS4", fixLocalDate))
+                .thenReturn(Optional.of(manual));
+
+        DividendSyncService.DividendSyncResult result = dividendSyncService.syncDividends("SU26219RMFS4");
+
+        assertThat(result.added()).isZero();
+        assertThat(result.updated()).isZero();
+        verify(dividendRepository, never()).save(manual);
+        assertThat(manual.getAmountPerShare()).isEqualByComparingTo("38.6400");
     }
 
     @Test

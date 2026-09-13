@@ -14,11 +14,19 @@ import { useToast } from '@/hooks/use-toast';
 import { useDeleteTransaction } from '@/hooks/useDeleteTransaction';
 import { useDeleteManualDividend } from '@/hooks/useDeleteManualDividend';
 import { SecurityDividendDialog } from '@/pages/security/SecurityDividendDialog';
-import { describeEvent, formatEventDate, pluralEvents, SECURITY_BUY_COLOR, SECURITY_SELL_COLOR } from '@/pages/security/securityFormat';
+import {
+  describeEvent,
+  formatEventDate,
+  PAYOUT_NOUN_SINGULAR,
+  pluralEvents,
+  SECURITY_BUY_COLOR,
+  SECURITY_SELL_COLOR,
+} from '@/pages/security/securityFormat';
 import { PORTFOLIO_CHART_COLOR } from '@/pages/investments/investmentsFormat';
-import type { SecurityEvent } from '@/types/investment';
+import { isBondSecurityType } from '@/lib/securityType';
+import type { PayoutKind, SecurityEvent, SecurityType } from '@/types/investment';
 
-type PendingDelete = { kind: 'transaction' | 'dividend'; id: string; label: string };
+type PendingDelete = { kind: 'transaction'; id: string; label: string } | { kind: 'dividend'; id: string; label: string; payoutKind: PayoutKind };
 
 const DOT_COLOR: Record<'BUY' | 'SELL' | 'DIVIDEND_PAID', string> = {
   BUY: SECURITY_BUY_COLOR,
@@ -32,11 +40,13 @@ function eventKey(event: SecurityEvent): string {
 
 interface SecurityTimelineProps {
   ticker: string;
+  securityType: SecurityType;
   events: SecurityEvent[];
 }
 
-export function SecurityTimeline({ ticker, events }: SecurityTimelineProps) {
+export function SecurityTimeline({ ticker, securityType, events }: SecurityTimelineProps) {
   const { toast } = useToast();
+  const isBond = isBondSecurityType(securityType);
   const [dividendDialogOpen, setDividendDialogOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const { mutate: deleteTransaction, isPending: isDeletingTransaction } = useDeleteTransaction();
@@ -51,9 +61,10 @@ export function SecurityTimeline({ ticker, events }: SecurityTimelineProps) {
         { onSuccess: () => toast({ title: 'Сделка удалена' }), onSettled: () => setPendingDelete(null) }
       );
     } else {
+      const noun = PAYOUT_NOUN_SINGULAR[pendingDelete.payoutKind];
       deleteDividend(
         { dividendId: pendingDelete.id, ticker },
-        { onSuccess: () => toast({ title: 'Дивиденд удалён' }), onSettled: () => setPendingDelete(null) }
+        { onSuccess: () => toast({ title: `${noun[0].toUpperCase()}${noun.slice(1)} удалён` }), onSettled: () => setPendingDelete(null) }
       );
     }
   };
@@ -63,7 +74,7 @@ export function SecurityTimeline({ ticker, events }: SecurityTimelineProps) {
       <div className="flex items-baseline justify-between mb-1">
         <span className="font-display text-[18px] lg:text-[22px] text-app-text">Что было с бумагой</span>
         <span className="lg:hidden text-app-text-dim text-[11px]">{pluralEvents(events.length)}</span>
-        <span className="hidden lg:inline text-app-text-dim text-xs">сделки и дивиденды одной лентой</span>
+        <span className="hidden lg:inline text-app-text-dim text-xs">{isBond ? 'сделки и купоны одной лентой' : 'сделки и дивиденды одной лентой'}</span>
       </div>
 
       <div className="relative">
@@ -109,11 +120,11 @@ export function SecurityTimeline({ ticker, events }: SecurityTimelineProps) {
                   {canDelete && (
                     <button
                       type="button"
-                      aria-label={event.kind === 'DIVIDEND_PAID' ? 'Удалить дивиденд' : 'Удалить сделку'}
+                      aria-label={event.kind === 'DIVIDEND_PAID' ? `Удалить ${PAYOUT_NOUN_SINGULAR[event.payoutKind]}` : 'Удалить сделку'}
                       onClick={() =>
                         setPendingDelete(
                           event.kind === 'DIVIDEND_PAID'
-                            ? { kind: 'dividend', id: key, label: display.title }
+                            ? { kind: 'dividend', id: key, label: display.title, payoutKind: event.payoutKind }
                             : { kind: 'transaction', id: key, label: display.title }
                         )
                       }
@@ -136,15 +147,17 @@ export function SecurityTimeline({ ticker, events }: SecurityTimelineProps) {
         onClick={() => setDividendDialogOpen(true)}
         className="text-app-accent text-[13px] min-h-[44px] lg:min-h-0 lg:mt-2 lg:mb-1 text-left w-fit hover:underline"
       >
-        добавить дивиденд вручную
+        {isBond ? 'добавить купон вручную' : 'добавить дивиденд вручную'}
       </button>
 
-      <SecurityDividendDialog ticker={ticker} open={dividendDialogOpen} onOpenChange={setDividendDialogOpen} />
+      <SecurityDividendDialog ticker={ticker} securityType={securityType} open={dividendDialogOpen} onOpenChange={setDividendDialogOpen} />
 
       <AlertDialog open={pendingDelete !== null} onOpenChange={(open) => !open && setPendingDelete(null)}>
         <AlertDialogContent className="bg-app-surface border-app-border text-app-text">
           <AlertDialogHeader>
-            <AlertDialogTitle>{pendingDelete?.kind === 'dividend' ? 'Удалить дивиденд?' : 'Удалить сделку?'}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {pendingDelete?.kind === 'dividend' ? `Удалить ${PAYOUT_NOUN_SINGULAR[pendingDelete.payoutKind]}?` : 'Удалить сделку?'}
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-app-text-muted">{pendingDelete?.label}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -12,4 +12,7 @@ public interface TinvestApi {
 
     @PostExchange("/tinkoff.public.invest.api.contract.v1.InstrumentsService/GetDividends")
     TinvestDividendsResponse getDividends(@RequestBody TinvestDividendsRequest request);
+
+    @PostExchange("/tinkoff.public.invest.api.contract.v1.InstrumentsService/GetBondCoupons")
+    TinvestBondCouponsResponse getBondCoupons(@RequestBody TinvestBondCouponsRequest request);
 }

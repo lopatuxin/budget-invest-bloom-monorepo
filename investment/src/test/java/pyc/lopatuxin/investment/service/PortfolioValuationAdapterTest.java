@@ -62,7 +62,7 @@ class PortfolioValuationAdapterTest {
         assertThat(result.assetsCount()).isEqualTo(19);
         assertThat(result.dividends12m()).isEqualByComparingTo("38200.00");
         assertThat(result.nextDividend()).isEqualTo(
-                new PortfolioNextDividend("LKOH", "ЛУКОЙЛ", LocalDate.of(2026, 10, 3), null, new BigDecimal("4800.00"), "RUB"));
+                new PortfolioNextDividend("LKOH", "ЛУКОЙЛ", LocalDate.of(2026, 10, 3), null, new BigDecimal("4800.00"), "RUB", null));
     }
 
     @Test
@@ -140,7 +140,7 @@ class PortfolioValuationAdapterTest {
         PortfolioCurrentValuation result = adapter.current(userId);
 
         assertThat(result.nextDividend()).isEqualTo(
-                new PortfolioNextDividend("LKOH", "ЛУКОЙЛ", LocalDate.of(2026, 10, 3), null, new BigDecimal("4800.00"), "RUB"));
+                new PortfolioNextDividend("LKOH", "ЛУКОЙЛ", LocalDate.of(2026, 10, 3), null, new BigDecimal("4800.00"), "RUB", null));
     }
 
     @Test

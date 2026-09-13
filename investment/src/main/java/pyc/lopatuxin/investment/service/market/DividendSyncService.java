@@ -8,6 +8,9 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pyc.lopatuxin.investment.client.tinvest.TinvestApi;
+import pyc.lopatuxin.investment.client.tinvest.TinvestBondCouponsRequest;
+import pyc.lopatuxin.investment.client.tinvest.TinvestBondCouponsResponse;
+import pyc.lopatuxin.investment.client.tinvest.TinvestCoupon;
 import pyc.lopatuxin.investment.client.tinvest.TinvestDividend;
 import pyc.lopatuxin.investment.client.tinvest.TinvestDividendsRequest;
 import pyc.lopatuxin.investment.client.tinvest.TinvestDividendsResponse;
@@ -18,6 +21,7 @@ import pyc.lopatuxin.investment.entity.Dividend;
 import pyc.lopatuxin.investment.entity.Security;
 import pyc.lopatuxin.investment.entity.enums.DividendSource;
 import pyc.lopatuxin.investment.entity.enums.DividendStatus;
+import pyc.lopatuxin.investment.entity.enums.PayoutKind;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
 import pyc.lopatuxin.investment.repository.DividendRepository;
 import pyc.lopatuxin.investment.repository.PositionRepository;
@@ -43,14 +47,21 @@ import java.util.stream.Collectors;
 @Service
 public class DividendSyncService {
 
-    private static final LocalDate WINDOW_START_FLOOR = LocalDate.of(2024, 1, 1);
-    private static final int WINDOW_BACK_MONTHS = 24;
+    // ProjectionService averages payouts over the last five full calendar years (its own
+    // PAYOUT_WINDOW_YEARS) — the earliest date this sync must ever reach is January 1st of
+    // (currentYear - 5), which is up to ~72 months back when "today" falls in December. 24
+    // months only covered the last ~2 years, so a bond whose price history predates that window
+    // (divisor stays 5, per plan point 11) had its coupon sum computed from ~1 year of coupons
+    // instead of 5 — understating payout yield roughly threefold (see SU26219RMFS4 in QA-3).
+    private static final LocalDate WINDOW_START_FLOOR = LocalDate.of(2016, 1, 1);
+    private static final int WINDOW_BACK_MONTHS = 72;
     private static final int WINDOW_FORWARD_MONTHS = 18;
     private static final int STARTUP_STALE_HOURS = 20;
 
-    // GetDividends only supports shares and ETFs (bonds/OFZ pay coupons, fetched via
-    // GetBondCoupons — out of scope, see plan's dividends-tinvest.md).
+    // GetDividends only supports shares and ETFs; a BOND/OFZ pays coupons instead, fetched via
+    // GetBondCoupons (see fetchCoupons/mergeCoupon below).
     private static final Set<SecurityType> DIVIDEND_ELIGIBLE_TYPES = EnumSet.of(SecurityType.STOCK, SecurityType.ETF);
+    private static final Set<SecurityType> COUPON_ELIGIBLE_TYPES = EnumSet.of(SecurityType.BOND, SecurityType.OFZ);
 
     private final TinvestApi tinvestApi;
     private final TinvestResilience tinvestResilience;
@@ -162,14 +173,21 @@ public class DividendSyncService {
         if (!resolved) {
             return DividendSyncResult.EMPTY;
         }
-        if (!DIVIDEND_ELIGIBLE_TYPES.contains(security.getType())) {
-            return DividendSyncResult.EMPTY;
-        }
 
-        // Computed once for this ticker's whole sync — fetchDividends uses it for the request
-        // window, mergeAndPersist/mergeDividend for each row's status — instead of each calling
-        // LocalDate.now() on its own (once per dividend row, for a security with several of them).
+        // Computed once for this ticker's whole sync — fetchDividends/fetchCoupons use it for the
+        // request window, mergeDividend/mergeCoupon for each row's status — instead of each
+        // calling LocalDate.now() on its own (once per row, for a security with several of them).
         LocalDate today = LocalDate.now();
+        if (DIVIDEND_ELIGIBLE_TYPES.contains(security.getType())) {
+            return syncDividendPayouts(ticker, security, today);
+        }
+        if (COUPON_ELIGIBLE_TYPES.contains(security.getType())) {
+            return syncCouponPayouts(ticker, security, today);
+        }
+        return DividendSyncResult.EMPTY;
+    }
+
+    private DividendSyncResult syncDividendPayouts(String ticker, Security security, LocalDate today) {
         List<TinvestDividend> dividends;
         try {
             dividends = fetchDividends(security, today);
@@ -177,8 +195,18 @@ public class DividendSyncService {
             log.warn("Не удалось получить дивиденды для {}: {}", ticker, e.getMessage());
             return DividendSyncResult.EMPTY;
         }
-
         return self.mergeAndPersist(ticker, dividends, today);
+    }
+
+    private DividendSyncResult syncCouponPayouts(String ticker, Security security, LocalDate today) {
+        List<TinvestCoupon> coupons;
+        try {
+            coupons = fetchCoupons(security, today);
+        } catch (RuntimeException e) {
+            log.warn("Не удалось получить купоны для {}: {}", ticker, e.getMessage());
+            return DividendSyncResult.EMPTY;
+        }
+        return self.mergeAndPersistCoupons(ticker, coupons, today);
     }
 
     @Transactional("investmentTransactionManager")
@@ -193,20 +221,33 @@ public class DividendSyncService {
     // meantime — a lost update. Only dividendsSyncedAt is changed on the freshly loaded entity.
     @Transactional("investmentTransactionManager")
     public DividendSyncResult mergeAndPersist(String ticker, List<TinvestDividend> dividends, LocalDate today) {
+        return mergeAndPersistPayouts(ticker, dividends.isEmpty(), "дивиденды",
+                security -> dividends.stream().map(dto -> mergeDividend(security, dto, today)).toList());
+    }
+
+    // Same shape as mergeAndPersist, for coupons — kept as its own @Transactional entry point
+    // (rather than a shared public method taking a pre-built outcome list) so the self-proxy
+    // call from syncCouponPayouts actually goes through Spring's transactional advice.
+    @Transactional("investmentTransactionManager")
+    public DividendSyncResult mergeAndPersistCoupons(String ticker, List<TinvestCoupon> coupons, LocalDate today) {
+        return mergeAndPersistPayouts(ticker, coupons.isEmpty(), "купоны",
+                security -> coupons.stream().map(dto -> mergeCoupon(security, dto, today)).toList());
+    }
+
+    private DividendSyncResult mergeAndPersistPayouts(String ticker, boolean sourceEmpty, String payoutLabel,
+                                                       Function<Security, List<MergeOutcome>> merger) {
         Security security = securityRepository.findById(ticker).orElse(null);
         if (security == null) {
             return DividendSyncResult.EMPTY;
         }
         boolean hadBefore = dividendRepository.existsBySecurity_Ticker(ticker);
-        boolean sourceEmpty = dividends.isEmpty();
         if (sourceEmpty && hadBefore) {
-            log.warn("T-Invest не вернул дивиденды для {}, хотя записи уже есть — оставляем как есть", ticker);
+            log.warn("T-Invest не вернул {} для {}, хотя записи уже есть — оставляем как есть", payoutLabel, ticker);
         }
 
         int added = 0;
         int updated = 0;
-        for (TinvestDividend dto : dividends) {
-            MergeOutcome outcome = mergeDividend(security, dto, today);
+        for (MergeOutcome outcome : merger.apply(security)) {
             if (outcome == MergeOutcome.INSERTED) {
                 added++;
             } else if (outcome == MergeOutcome.UPDATED) {
@@ -277,6 +318,22 @@ public class DividendSyncService {
         return response.dividends() == null ? List.of() : response.dividends();
     }
 
+    // Same request window as fetchDividends (plan point 6) — GetBondCoupons for a BOND/OFZ
+    // instead of GetDividends for a STOCK/ETF.
+    private List<TinvestCoupon> fetchCoupons(Security security, LocalDate today) {
+        LocalDate windowStart = today.minusMonths(WINDOW_BACK_MONTHS);
+        LocalDate from = windowStart.isBefore(WINDOW_START_FLOOR) ? WINDOW_START_FLOOR : windowStart;
+        LocalDate to = today.plusMonths(WINDOW_FORWARD_MONTHS);
+
+        TinvestBondCouponsRequest request = new TinvestBondCouponsRequest(
+                security.getTinvestUid(),
+                from.atStartOfDay(ZoneOffset.UTC).toInstant(),
+                to.atStartOfDay(ZoneOffset.UTC).toInstant());
+        TinvestBondCouponsResponse response = tinvestResilience.execute("getBondCoupons",
+                () -> tinvestApi.getBondCoupons(request));
+        return response.events() == null ? List.of() : response.events();
+    }
+
     // Merge by (ticker, recordDate) — see the unique index backing existsBySecurity_TickerAndRecordDate.
     // A MANUAL row is never touched; a MOEX/TINVEST row is updated only if something actually
     // changed, so a repeated run with the same source data reports zero updates (see plan's QA
@@ -295,7 +352,34 @@ public class DividendSyncService {
         String currency = dto.dividendNet().currency() != null
                 ? dto.dividendNet().currency().toUpperCase() : "RUB";
         amount = amount.setScale(4, RoundingMode.HALF_UP);
+        return mergePayout(security, recordDate, paymentDate, amount, currency, PayoutKind.DIVIDEND, today);
+    }
 
+    // couponDate is the payment date, fixDate its record-date analogue (falling back to the day
+    // before couponDate when T-Invest left it out, plan point 7). A future coupon T-Invest has
+    // not announced an amount for yet (payOneBond = 0, couponDate not yet reached) is skipped
+    // rather than saved as a zero payout that would never get corrected once announced.
+    private MergeOutcome mergeCoupon(Security security, TinvestCoupon dto, LocalDate today) {
+        if (dto.couponDate() == null || dto.payOneBond() == null) {
+            return MergeOutcome.SKIPPED;
+        }
+        BigDecimal amount = dto.payOneBond().toAmount();
+        if (amount == null) {
+            return MergeOutcome.SKIPPED;
+        }
+        LocalDate couponDate = toApplicationDate(dto.couponDate());
+        if (amount.compareTo(BigDecimal.ZERO) == 0 && !couponDate.isBefore(today)) {
+            return MergeOutcome.SKIPPED;
+        }
+        LocalDate recordDate = dto.fixDate() != null ? toApplicationDate(dto.fixDate()) : couponDate.minusDays(1);
+        String currency = dto.payOneBond().currency() != null
+                ? dto.payOneBond().currency().toUpperCase() : "RUB";
+        amount = amount.setScale(4, RoundingMode.HALF_UP);
+        return mergePayout(security, recordDate, couponDate, amount, currency, PayoutKind.COUPON, today);
+    }
+
+    private MergeOutcome mergePayout(Security security, LocalDate recordDate, LocalDate paymentDate, BigDecimal amount,
+                                     String currency, PayoutKind kind, LocalDate today) {
         Optional<Dividend> existingOpt = dividendRepository.findBySecurity_TickerAndRecordDate(
                 security.getTicker(), recordDate);
         if (existingOpt.isEmpty()) {
@@ -308,6 +392,7 @@ public class DividendSyncService {
                     .currency(currency)
                     .status(status)
                     .source(DividendSource.TINVEST)
+                    .kind(kind)
                     .build();
             dividendRepository.save(dividend);
             return MergeOutcome.INSERTED;
@@ -320,7 +405,8 @@ public class DividendSyncService {
         boolean changed = existing.getAmountPerShare().compareTo(amount) != 0
                 || !Objects.equals(existing.getCurrency(), currency)
                 || !Objects.equals(existing.getPaymentDate(), paymentDate)
-                || existing.getSource() != DividendSource.TINVEST;
+                || existing.getSource() != DividendSource.TINVEST
+                || existing.getKind() != kind;
         if (!changed) {
             return MergeOutcome.SKIPPED;
         }
@@ -328,6 +414,7 @@ public class DividendSyncService {
         existing.setCurrency(currency);
         existing.setPaymentDate(paymentDate);
         existing.setSource(DividendSource.TINVEST);
+        existing.setKind(kind);
         dividendRepository.save(existing);
         return MergeOutcome.UPDATED;
     }

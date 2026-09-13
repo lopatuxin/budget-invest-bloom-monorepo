@@ -12,12 +12,16 @@ import pyc.lopatuxin.investment.entity.Dividend;
 import pyc.lopatuxin.investment.entity.Security;
 import pyc.lopatuxin.investment.entity.enums.DividendSource;
 import pyc.lopatuxin.investment.entity.enums.DividendStatus;
+import pyc.lopatuxin.investment.entity.enums.PayoutKind;
+import pyc.lopatuxin.investment.entity.enums.SecurityType;
 import pyc.lopatuxin.investment.exception.DividendAlreadyExistsException;
 import pyc.lopatuxin.investment.repository.DividendRepository;
 import pyc.lopatuxin.investment.repository.PositionRepository;
 import pyc.lopatuxin.investment.repository.SecurityRepository;
 
 import java.time.LocalDate;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -26,6 +30,7 @@ import java.util.UUID;
 public class DividendManualService {
 
     private static final String DUPLICATE_RECORD_DATE_INDEX = "uq_dividends_ticker_record_date";
+    private static final Set<SecurityType> COUPON_TYPES = EnumSet.of(SecurityType.BOND, SecurityType.OFZ);
 
     private final DividendRepository dividendRepository;
     private final SecurityRepository securityRepository;
@@ -48,6 +53,7 @@ public class DividendManualService {
                 ? dto.getCurrency().toUpperCase() : "RUB";
         DividendStatus status = dto.getRecordDate().isBefore(LocalDate.now())
                 ? DividendStatus.PAID : DividendStatus.ANNOUNCED;
+        PayoutKind kind = COUPON_TYPES.contains(security.getType()) ? PayoutKind.COUPON : PayoutKind.DIVIDEND;
 
         Dividend dividend = Dividend.builder()
                 .security(security)
@@ -57,6 +63,7 @@ public class DividendManualService {
                 .currency(currency)
                 .status(status)
                 .source(DividendSource.MANUAL)
+                .kind(kind)
                 .build();
         Dividend saved;
         try {
@@ -117,6 +124,7 @@ public class DividendManualService {
                 .currency(d.getCurrency())
                 .status(d.getStatus())
                 .source(d.getSource())
+                .kind(d.getKind())
                 .build();
     }
 }

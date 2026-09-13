@@ -1,0 +1,31 @@
+{
+  "events": [{
+    "figi": "BBG00XPZBGB1",
+    "couponDate": "2026-08-19T00:00:00Z",
+    "couponNumber": "18",
+    "fixDate": "2026-08-18T00:00:00Z",
+    "payOneBond": {
+      "currency": "rub",
+      "units": "38",
+      "nano": 640000000
+    },
+    "couponType": "COUPON_TYPE_CONSTANT",
+    "couponStartDate": "2026-02-18T00:00:00Z",
+    "couponEndDate": "2026-08-19T00:00:00Z",
+    "couponPeriod": 182
+  }, {
+    "figi": "BBG00XPZBGB1",
+    "couponDate": "2026-02-18T00:00:00Z",
+    "couponNumber": "17",
+    "fixDate": "2026-02-17T00:00:00Z",
+    "payOneBond": {
+      "currency": "rub",
+      "units": "38",
+      "nano": 640000000
+    },
+    "couponType": "COUPON_TYPE_CONSTANT",
+    "couponStartDate": "2025-08-19T00:00:00Z",
+    "couponEndDate": "2026-02-18T00:00:00Z",
+    "couponPeriod": 183
+  }]
+}

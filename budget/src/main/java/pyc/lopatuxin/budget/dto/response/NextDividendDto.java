@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import pyc.lopatuxin.shared.port.PayoutKind;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -40,4 +41,7 @@ public class NextDividendDto {
 
     @Schema(description = "Код валюты суммы выплаты", example = "RUB")
     private String currency;
+
+    @Schema(description = "Вид выплаты: дивиденд или купон облигации", example = "COUPON")
+    private PayoutKind kind;
 }

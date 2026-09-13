@@ -13,5 +13,6 @@ public interface PositionMapper {
     @Mapping(source = "security.type", target = "securityType")
     @Mapping(source = "security.sector", target = "sector")
     @Mapping(source = "security.historyStatus", target = "historyStatus")
+    @Mapping(source = "security.nominal", target = "nominal")
     PositionResponseDto toDto(Position position);
 }

@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/014-add-security-nominal.yml
+  - changeSet:
+      id: 014-add-security-nominal
+      author: investment
+      changes:
+        - addColumn:
+            tableName: securities
+            columns:
+              - column:
+                  name: nominal
+                  type: numeric(15,2)
+      rollback:
+        - dropColumn:
+            tableName: securities
+            columnName: nominal

@@ -19,6 +19,7 @@ import pyc.lopatuxin.investment.entity.enums.TransactionType;
 import pyc.lopatuxin.investment.mapper.PositionMapper;
 import pyc.lopatuxin.investment.repository.PositionRepository;
 import pyc.lopatuxin.investment.repository.PriceHistoryRepository;
+import pyc.lopatuxin.investment.repository.SecurityRepository;
 import pyc.lopatuxin.investment.repository.TransactionRepository;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
 import pyc.lopatuxin.shared.port.PortfolioValueAt;
@@ -60,8 +61,10 @@ public class AnalyticsService {
     private final PositionRepository positionRepository;
     private final MarketDataService marketDataService;
     private final TransactionRepository transactionRepository;
+    private final SecurityRepository securityRepository;
     private final PositionMapper positionMapper;
     private final PortfolioGroupingService portfolioGroupingService;
+    private final BondPricing bondPricing;
 
     public PortfolioValueSeriesResponseDto portfolioValueHistory(UUID userId, LocalDate from, LocalDate to) {
         List<Position> positions = positionRepository.findByUserIdWithSecurity(userId);
@@ -87,19 +90,19 @@ public class AnalyticsService {
             return new PortfolioValueSeriesResponseDto(List.of(), !pendingTickers.isEmpty(), pendingTickers, false, List.of());
         }
 
-        Map<String, SecurityType> typeByTicker = positions.stream()
-                .collect(Collectors.toMap(p -> p.getSecurity().getTicker(), p -> p.getSecurity().getType(), (a, b) -> a));
+        Map<String, Security> securityByTicker = positions.stream()
+                .collect(Collectors.toMap(p -> p.getSecurity().getTicker(), Position::getSecurity, (a, b) -> a));
 
         Set<String> readyTickers = quantitiesByTicker.keySet();
         // Seed with the last close strictly before `from` so a security whose history has no
         // row inside [from, to] (e.g. sync stalled after `from`) still carries its last known
         // price into the window instead of being silently treated as worth 0.
         Map<String, LocalDate> lastKnownDate = new HashMap<>();
-        Map<String, BigDecimal> lastKnownClose = seedLastKnownClose(readyTickers, from, lastKnownDate);
+        Map<String, BigDecimal> lastKnownClose = seedLastKnownClose(readyTickers, from, lastKnownDate, securityByTicker);
 
         List<PriceHistory> history = priceHistoryRepository
                 .findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(readyTickers, from, to);
-        Map<LocalDate, Map<String, BigDecimal>> closePriceByDate = groupCloseByDate(history);
+        Map<LocalDate, Map<String, BigDecimal>> closePriceByDate = groupCloseByDate(history, securityByTicker);
         // The window's reported start must reflect the same composition as every later point:
         // a ticker whose price only becomes known partway into the window (not seeded before
         // `from`, first real row later) would otherwise read as 0 at `from` while counting in
@@ -130,7 +133,7 @@ public class AnalyticsService {
         // as noPriceTickers, just for a stale rather than a fully missing price.
         List<String> staleTickers = readyTickers.stream()
                 .filter(t -> !noPriceTickers.contains(t))
-                .filter(t -> lastKnownDate.get(t).isBefore(to.minusDays(staleToleranceDays(typeByTicker.get(t)))))
+                .filter(t -> lastKnownDate.get(t).isBefore(to.minusDays(staleToleranceDays(securityByTicker.get(t).getType()))))
                 .toList();
         List<String> pricesStaleTickers = Stream.concat(noPriceTickers.stream(), staleTickers.stream()).toList();
 
@@ -213,14 +216,26 @@ public class AnalyticsService {
         return portfolioGroupingService.computeTotals(basePositions, liveSnapshots).totalValue();
     }
 
-    private Map<String, BigDecimal> seedLastKnownClose(Set<String> tickers, LocalDate from, Map<String, LocalDate> lastKnownDate) {
+    private Map<String, BigDecimal> seedLastKnownClose(Set<String> tickers, LocalDate from, Map<String, LocalDate> lastKnownDate,
+                                                        Map<String, Security> securityByTicker) {
         List<PriceHistory> lastBeforeWindow = priceHistoryRepository.findLastBeforeDateForTickers(tickers, from);
         Map<String, BigDecimal> lastKnownClose = new HashMap<>();
         for (PriceHistory ph : lastBeforeWindow) {
-            lastKnownClose.put(ph.getTicker(), ph.getClose());
+            lastKnownClose.put(ph.getTicker(), toRubles(securityByTicker, ph.getTicker(), ph.getClose()));
             lastKnownDate.put(ph.getTicker(), ph.getTradeDate());
         }
         return lastKnownClose;
+    }
+
+    // Every PriceHistory close is the exchange quote as-is — percent-of-par for a BOND/OFZ — so
+    // every consumer of this series (the value-history chart, valueAtDates, the price-growth
+    // input in ProjectionService) must convert through BondPricing before doing arithmetic on it
+    // (plan point 2). Falls back to the raw quote when the ticker's Security is not in the map
+    // (should not happen for a ticker this service is already iterating positions/transactions
+    // for, but avoids an NPE over a defensive gap rather than a real one).
+    private BigDecimal toRubles(Map<String, Security> securityByTicker, String ticker, BigDecimal quoted) {
+        Security security = securityByTicker.get(ticker);
+        return security != null ? bondPricing.quotedToRubles(security, quoted) : quoted;
     }
 
     // priceDates can hold dates earlier than `from` (stableFrom) — closePriceByDate is built
@@ -263,7 +278,7 @@ public class AnalyticsService {
         LocalDate maxDate = dates.stream().max(Comparator.naturalOrder()).orElseThrow();
         List<PriceHistory> priceHistory = priceHistoryRepository
                 .findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(readyTickers, earliestTxDate, maxDate);
-        Map<LocalDate, Map<String, BigDecimal>> closePriceByDate = groupCloseByDate(priceHistory);
+        Map<LocalDate, Map<String, BigDecimal>> closePriceByDate = groupCloseByDate(priceHistory, securityByTicker);
         List<LocalDate> sortedPriceDates = closePriceByDate.keySet().stream().sorted().toList();
 
         List<LocalDate> sortedDates = dates.stream().sorted().toList();
@@ -295,9 +310,10 @@ public class AnalyticsService {
             marketDataService.triggerHistoryAsync(ticker);
             return new SeriesResponseDto<>(List.of(), true, List.of(ticker));
         }
+        Security security = securityRepository.findById(ticker).orElse(null);
         List<PriceHistory> history = priceHistoryRepository
                 .findByTickerAndTradeDateBetweenOrderByTradeDateAsc(ticker, from, to);
-        List<PricePointDto> series = history.stream().map(this::toPricePointDto).toList();
+        List<PricePointDto> series = history.stream().map(ph -> toPricePointDto(ph, security)).toList();
         return new SeriesResponseDto<>(series, false, List.of());
     }
 
@@ -371,11 +387,12 @@ public class AnalyticsService {
         quantities.merge(ticker, signedQuantity, BigDecimal::add);
     }
 
-    private Map<LocalDate, Map<String, BigDecimal>> groupCloseByDate(List<PriceHistory> history) {
+    private Map<LocalDate, Map<String, BigDecimal>> groupCloseByDate(List<PriceHistory> history,
+                                                                      Map<String, Security> securityByTicker) {
         Map<LocalDate, Map<String, BigDecimal>> result = new TreeMap<>();
         for (PriceHistory ph : history) {
             result.computeIfAbsent(ph.getTradeDate(), _ -> new HashMap<>())
-                    .put(ph.getTicker(), ph.getClose());
+                    .put(ph.getTicker(), toRubles(securityByTicker, ph.getTicker(), ph.getClose()));
         }
         return result;
     }
@@ -428,13 +445,19 @@ public class AnalyticsService {
         return total;
     }
 
-    private PricePointDto toPricePointDto(PriceHistory ph) {
+    // Chart series shown to the user (plan point 2) — quoted-to-rubles only, no accrued interest
+    // (that only applies to current position/portfolio valuation, see BondPricing).
+    private PricePointDto toPricePointDto(PriceHistory ph, Security security) {
+        BigDecimal open = security != null ? bondPricing.quotedToRubles(security, ph.getOpen()) : ph.getOpen();
+        BigDecimal close = security != null ? bondPricing.quotedToRubles(security, ph.getClose()) : ph.getClose();
+        BigDecimal high = security != null ? bondPricing.quotedToRubles(security, ph.getHigh()) : ph.getHigh();
+        BigDecimal low = security != null ? bondPricing.quotedToRubles(security, ph.getLow()) : ph.getLow();
         return PricePointDto.builder()
                 .date(ph.getTradeDate())
-                .open(ph.getOpen())
-                .close(ph.getClose())
-                .high(ph.getHigh())
-                .low(ph.getLow())
+                .open(open)
+                .close(close)
+                .high(high)
+                .low(low)
                 .volume(ph.getVolume())
                 .build();
     }

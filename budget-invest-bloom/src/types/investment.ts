@@ -92,6 +92,12 @@ export interface PositionGroup {
   sectors: SectorGroup[];
 }
 
+// A payout's underlying instrument: a stock/ETF dividend or a bond/OFZ coupon
+// (plan docs/plans/forecast-coupons-and-bond-prices.md p.8, p.91). Named
+// `payoutKind` everywhere it sits next to an existing `kind` discriminant
+// (SecurityEvent) to avoid colliding with it; plain `kind` elsewhere.
+export type PayoutKind = 'DIVIDEND' | 'COUPON';
+
 export interface UpcomingDividend {
   ticker: string;
   securityName: string;
@@ -101,6 +107,7 @@ export interface UpcomingDividend {
   quantity: number;
   totalAmount: number;
   currency: string;
+  kind: PayoutKind;
 }
 
 export interface PortfolioPageResponse {
@@ -171,10 +178,32 @@ export interface ProjectionPoint {
   contributed: number;
 }
 
+// One security's contribution to the portfolio's weighted annual return (plan p.13, p.15):
+// priceGrowthPercent/payoutYieldPercent are that security's own annual rates (not yet weighted
+// by weightPercent), scale 1 like ProjectionResult's own fields. payoutKind is 'NONE' when the
+// security has never paid — lastPayoutYear is then absent.
+export interface ProjectionBreakdownItem {
+  ticker: string;
+  securityName: string;
+  securityType: SecurityType;
+  weightPercent: number;
+  priceGrowthPercent: number;
+  payoutYieldPercent: number;
+  payoutKind: PayoutKind | 'NONE';
+  yearsCounted: number;
+  lastPayoutYear?: number;
+  historyPending: boolean;
+}
+
 export interface ProjectionResult {
   startValue: number;
   portfolioWeightedAnnualReturn: number;
   monthlyReturn: number;
+  // Portfolio-wide split of portfolioWeightedAnnualReturn into price growth and after-tax
+  // payouts (plan p.13): priceGrowthPercent + payoutYieldPercent === portfolioWeightedAnnualReturn * 100.
+  priceGrowthPercent: number;
+  payoutYieldPercent: number;
+  breakdown: ProjectionBreakdownItem[];
   series: ProjectionPoint[];
   pendingHistoryTickers: string[];
   contributedTotal: number;
@@ -229,13 +258,17 @@ export interface SecurityPageSecurity {
 }
 
 // Serialised without NON_NULL: previousClose and dailyChangePercent arrive as null when the
-// exchange snapshot has no previous close.
+// exchange snapshot has no previous close. accruedInterest and nominalDefaulted are BOND/OFZ-only
+// and NON_NULL (absent — undefined — for a stock, or a bond with no known accrued interest);
+// see BondPricing (plan p.3, p.17): current is already the ruble price, accrued interest on top.
 export interface SecurityPagePrice {
   current: number;
   previousClose: number | null;
   dailyChangePercent: number | null;
   asOf: string;
   stale: boolean;
+  accruedInterest?: number;
+  nominalDefaulted?: boolean;
 }
 
 // Mirrors PositionResponse's price-dependent fields: null whenever the exchange
@@ -257,6 +290,7 @@ export interface SecurityNextDividend {
   quantity: number;
   netAmount: number;
   currency: string;
+  kind: PayoutKind;
 }
 
 export interface SecurityPageDividends {
@@ -319,6 +353,9 @@ export interface SecurityDividendPaidEvent {
   netAmount: number;
   currency: string;
   source: DividendSource;
+  // Named payoutKind, not kind, so it doesn't collide with this event's own
+  // `kind` discriminant (BUY/SELL/DIVIDEND_PAID/DIVIDEND_UPCOMING).
+  payoutKind: PayoutKind;
 }
 
 export interface SecurityDividendUpcomingEvent {
@@ -331,6 +368,7 @@ export interface SecurityDividendUpcomingEvent {
   currency: string;
   paymentDate?: string;
   source: DividendSource;
+  payoutKind: PayoutKind;
 }
 
 export type SecurityEvent =

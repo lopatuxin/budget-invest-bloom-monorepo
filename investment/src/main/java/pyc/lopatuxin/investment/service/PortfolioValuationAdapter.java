@@ -8,6 +8,7 @@ import pyc.lopatuxin.shared.port.PortfolioCurrentValuation;
 import pyc.lopatuxin.shared.port.PortfolioNextDividend;
 import pyc.lopatuxin.shared.port.PortfolioValuation;
 import pyc.lopatuxin.shared.port.PortfolioValueSeries;
+import pyc.lopatuxin.shared.port.PayoutKind;
 
 import java.time.LocalDate;
 import java.util.Comparator;
@@ -71,7 +72,18 @@ public class PortfolioValuationAdapter implements PortfolioValuation {
                 earliest.getRecordDate(),
                 earliest.getPaymentDate(),
                 earliest.getTotalAmount(),
-                earliest.getCurrency()
+                earliest.getCurrency(),
+                toPortSharedKind(earliest.getKind())
         );
+    }
+
+    // investment's own entity.enums.PayoutKind cannot cross into shared (module boundary rule —
+    // shared must not depend on investment), so the port carries its own mirror enum with the
+    // same two values; this is the one place that translates between them.
+    private PayoutKind toPortSharedKind(pyc.lopatuxin.investment.entity.enums.PayoutKind kind) {
+        if (kind == null) {
+            return null;
+        }
+        return kind == pyc.lopatuxin.investment.entity.enums.PayoutKind.COUPON ? PayoutKind.COUPON : PayoutKind.DIVIDEND;
     }
 }

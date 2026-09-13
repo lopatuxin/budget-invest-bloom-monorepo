@@ -92,10 +92,20 @@ export function SecurityPage() {
             markers={page.markers}
             averagePrice={page.position?.averagePrice ?? null}
           />
-          <SecuritySummaryCompactCard position={page.position} dividends={page.dividends} result={page.result} />
+          <SecuritySummaryCompactCard
+            position={page.position}
+            dividends={page.dividends}
+            result={page.result}
+            securityType={page.security.securityType}
+          />
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-4 lg:gap-5 items-start">
-            <SecurityTimeline ticker={page.security.ticker} events={page.events} />
-            <SecuritySummaryCard position={page.position} dividends={page.dividends} result={page.result} />
+            <SecurityTimeline ticker={page.security.ticker} securityType={page.security.securityType} events={page.events} />
+            <SecuritySummaryCard
+              position={page.position}
+              dividends={page.dividends}
+              result={page.result}
+              securityType={page.security.securityType}
+            />
           </div>
         </>
       )}

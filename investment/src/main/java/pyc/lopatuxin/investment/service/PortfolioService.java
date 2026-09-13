@@ -275,6 +275,7 @@ public class PortfolioService {
                     .quantity(qty)
                     .totalAmount(netAmount)
                     .currency(d.getCurrency())
+                    .kind(d.getKind())
                     .build());
         }
         return result;

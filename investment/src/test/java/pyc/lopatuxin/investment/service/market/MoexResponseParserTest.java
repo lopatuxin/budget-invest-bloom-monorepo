@@ -312,6 +312,95 @@ class MoexResponseParserTest {
         assertThat(result.get("SBER").previousClose()).isEqualByComparingTo(new BigDecimal("280.68"));
     }
 
+    @Test
+    @DisplayName("parseMarketData — FACEVALUE и ACCRUEDINT облигационной доски читаются в MoexSnapshotDto")
+    void parseMarketData_bondBoard_readsFaceValueAndAccruedInterest() throws Exception {
+        JsonNode root = MAPPER.readTree("""
+                {
+                  "marketdata": {
+                    "columns": ["SECID","LAST"],
+                    "data": [["SU26219RMFS4",99.95]]
+                  },
+                  "securities": {
+                    "columns": ["SECID","PREVPRICE","FACEVALUE","ACCRUEDINT"],
+                    "data": [["SU26219RMFS4",99.80,1000,12.34]]
+                  }
+                }
+                """);
+
+        Map<String, MoexSnapshotDto> result = MoexResponseParser.parseMarketData(root);
+
+        MoexSnapshotDto dto = result.get("SU26219RMFS4");
+        assertThat(dto.lastPrice()).isEqualByComparingTo("99.95");
+        assertThat(dto.faceValue()).isEqualByComparingTo("1000");
+        assertThat(dto.accruedInterest()).isEqualByComparingTo("12.34");
+    }
+
+    @Test
+    @DisplayName("parseMarketData — акции: FACEVALUE/ACCRUEDINT отсутствуют в ответе → null, без падения")
+    void parseMarketData_sharesBoard_faceValueAndAccruedInterestAreNull() throws Exception {
+        JsonNode root = MAPPER.readTree("""
+                {
+                  "marketdata": {
+                    "columns": ["SECID","LAST"],
+                    "data": [["SBER",278.83]]
+                  },
+                  "securities": {
+                    "columns": ["SECID","PREVPRICE"],
+                    "data": [["SBER",280.68]]
+                  }
+                }
+                """);
+
+        Map<String, MoexSnapshotDto> result = MoexResponseParser.parseMarketData(root);
+
+        MoexSnapshotDto dto = result.get("SBER");
+        assertThat(dto.faceValue()).isNull();
+        assertThat(dto.accruedInterest()).isNull();
+    }
+
+    @Test
+    @DisplayName("parseMarketData — ACCRUEDINT=0 (день после купона) сохраняется как ноль, а не как отсутствие данных")
+    void parseMarketData_zeroAccruedInterest_keptAsZeroNotNull() throws Exception {
+        JsonNode root = MAPPER.readTree("""
+                {
+                  "marketdata": {
+                    "columns": ["SECID","LAST"],
+                    "data": [["SU26219RMFS4",100.00]]
+                  },
+                  "securities": {
+                    "columns": ["SECID","PREVPRICE","FACEVALUE","ACCRUEDINT"],
+                    "data": [["SU26219RMFS4",99.80,1000,0]]
+                  }
+                }
+                """);
+
+        Map<String, MoexSnapshotDto> result = MoexResponseParser.parseMarketData(root);
+
+        assertThat(result.get("SU26219RMFS4").accruedInterest()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("parseMarketData — FACEVALUE=0 трактуется как отсутствующее значение (не бывает у настоящей облигации)")
+    void parseMarketData_zeroFaceValue_treatedAsMissing() throws Exception {
+        JsonNode root = MAPPER.readTree("""
+                {
+                  "marketdata": {
+                    "columns": ["SECID","LAST"],
+                    "data": [["SU26219RMFS4",100.00]]
+                  },
+                  "securities": {
+                    "columns": ["SECID","FACEVALUE"],
+                    "data": [["SU26219RMFS4",0]]
+                  }
+                }
+                """);
+
+        Map<String, MoexSnapshotDto> result = MoexResponseParser.parseMarketData(root);
+
+        assertThat(result.get("SU26219RMFS4").faceValue()).isNull();
+    }
+
     // ------------------------------------------------------------------
     // parseSecurity
     // ------------------------------------------------------------------

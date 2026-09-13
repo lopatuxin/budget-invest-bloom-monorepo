@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import pyc.lopatuxin.investment.entity.enums.PayoutKind;
 import pyc.lopatuxin.investment.service.DividendTiming;
 
 import java.math.BigDecimal;
@@ -23,6 +24,7 @@ public class UpcomingDividendDto {
     private BigDecimal quantity;
     private BigDecimal totalAmount;
     private String currency;
+    private PayoutKind kind;
 
     // The date this row is shown and sorted by: the record date while it has not passed yet
     // (labeled "отсечка"), the payment date once it has (labeled "выплата") — see

@@ -1,3 +1,5 @@
+import type { PayoutKind } from '@/types/investment';
+
 export type NormStatus = 'ABOVE_MUCH' | 'ABOVE' | 'NORMAL' | 'BELOW' | 'NO_HISTORY';
 
 export interface NormComparison {
@@ -145,6 +147,7 @@ export interface NextDividend {
   paymentDate: string | null;
   totalAmount: number;
   currency: string;
+  kind: PayoutKind;
 }
 
 // Everything past `available` and `assetsCount` is missing from the response when the

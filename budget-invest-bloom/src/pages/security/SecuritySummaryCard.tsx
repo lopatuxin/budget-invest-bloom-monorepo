@@ -2,8 +2,9 @@ import type { ReactNode } from 'react';
 import { formatCurrency, formatDividendAmount, formatDividendDateLabel, formatSignedCurrency } from '@/lib/dateOptions';
 import { formatPercent, signClass } from '@/pages/investments/investmentsFormat';
 import { SecurityPnlBadge } from '@/pages/security/SecurityPnlBadge';
-import { describePnlRow, SIGN_AMOUNT_CLASS } from '@/pages/security/securityFormat';
-import type { SecurityPageDividends, SecurityPagePosition, SecurityPageResult } from '@/types/investment';
+import { describePnlRow, PAYOUT_UNIT_NOUN, SIGN_AMOUNT_CLASS } from '@/pages/security/securityFormat';
+import { isBondSecurityType } from '@/lib/securityType';
+import type { SecurityPageDividends, SecurityPagePosition, SecurityPageResult, SecurityType } from '@/types/investment';
 
 function SummaryRow({ label, value, valueClassName = 'font-mono text-app-text' }: { label: string; value: ReactNode; valueClassName?: string }) {
   return (
@@ -18,11 +19,14 @@ interface SecuritySummaryCardProps {
   position?: SecurityPagePosition;
   dividends: SecurityPageDividends;
   result: SecurityPageResult;
+  securityType: SecurityType;
 }
 
 // Desktop «Итог» and «Ближайшая выплата» cards (p.12); the phone gets SecuritySummaryCompactCard
-export function SecuritySummaryCard({ position, dividends, result }: SecuritySummaryCardProps) {
+export function SecuritySummaryCard({ position, dividends, result, securityType }: SecuritySummaryCardProps) {
   const pnlRow = describePnlRow(position, result);
+  const isBond = isBondSecurityType(securityType);
+  const payoutNounPlural = isBond ? 'Купоны' : 'Дивиденды';
 
   return (
     <div className="hidden lg:flex flex-col gap-4">
@@ -46,7 +50,7 @@ export function SecuritySummaryCard({ position, dividends, result }: SecuritySum
         </div>
 
         <SummaryRow
-          label="Дивиденды за 12 месяцев"
+          label={`${payoutNounPlural} за 12 месяцев`}
           value={
             <>
               {formatCurrency(dividends.total12m)}
@@ -57,7 +61,7 @@ export function SecuritySummaryCard({ position, dividends, result }: SecuritySum
           }
           valueClassName="font-mono font-semibold text-app-good"
         />
-        <SummaryRow label="Дивиденды за всё время" value={formatCurrency(dividends.totalAll)} valueClassName="font-mono font-semibold text-app-good" />
+        <SummaryRow label={`${payoutNounPlural} за всё время`} value={formatCurrency(dividends.totalAll)} valueClassName="font-mono font-semibold text-app-good" />
 
         <div className="flex items-center justify-between text-[13px] border-t border-app-border pt-3">
           <span className="font-medium text-app-text">Итого</span>
@@ -78,8 +82,8 @@ export function SecuritySummaryCard({ position, dividends, result }: SecuritySum
               {formatDividendAmount(dividends.next.netAmount, dividends.next.currency)}
             </span>
             <span className="text-app-text-muted text-xs">
-              {formatDividendAmount(dividends.next.amountPerShare, dividends.next.currency, 'unit')} на акцию × {dividends.next.quantity} шт
-              после НДФЛ · {formatDividendDateLabel(dividends.next, 'upcoming')}
+              {formatDividendAmount(dividends.next.amountPerShare, dividends.next.currency, 'unit')} на {PAYOUT_UNIT_NOUN[dividends.next.kind]} ×{' '}
+              {dividends.next.quantity} шт после НДФЛ · {formatDividendDateLabel(dividends.next, 'upcoming')}
             </span>
           </>
         ) : (

@@ -3,7 +3,8 @@ import { formatCurrency, formatDividendAmount, formatDividendDateLabel, formatQu
 import { signClass } from '@/pages/investments/investmentsFormat';
 import { SecurityPnlBadge } from '@/pages/security/SecurityPnlBadge';
 import { describePnlRow, SIGN_AMOUNT_CLASS } from '@/pages/security/securityFormat';
-import type { SecurityPageDividends, SecurityPagePosition, SecurityPageResult } from '@/types/investment';
+import { isBondSecurityType } from '@/lib/securityType';
+import type { SecurityPageDividends, SecurityPagePosition, SecurityPageResult, SecurityType } from '@/types/investment';
 
 function CompactRow({ label, children, isTotal = false }: { label: string; children: ReactNode; isTotal?: boolean }) {
   return (
@@ -22,11 +23,13 @@ interface SecuritySummaryCompactCardProps {
   position?: SecurityPagePosition;
   dividends: SecurityPageDividends;
   result: SecurityPageResult;
+  securityType: SecurityType;
 }
 
 // Phone summary (p.14): one compact card above the timeline instead of the desktop pair
-export function SecuritySummaryCompactCard({ position, dividends, result }: SecuritySummaryCompactCardProps) {
+export function SecuritySummaryCompactCard({ position, dividends, result, securityType }: SecuritySummaryCompactCardProps) {
   const pnlRow = describePnlRow(position, result);
+  const payoutNounPlural = isBondSecurityType(securityType) ? 'Купоны' : 'Дивиденды';
 
   return (
     <div className="lg:hidden glass-card px-3.5 py-2">
@@ -41,7 +44,7 @@ export function SecuritySummaryCompactCard({ position, dividends, result }: Secu
         <span className={`font-semibold ${SIGN_AMOUNT_CLASS[pnlRow.variant]}`}>{pnlRow.amountText}</span>
         {pnlRow.badgePercent != null && <SecurityPnlBadge percent={pnlRow.badgePercent} />}
       </CompactRow>
-      <CompactRow label="Дивиденды за всё время">
+      <CompactRow label={`${payoutNounPlural} за всё время`}>
         <span className="font-semibold text-app-good">{formatCurrency(dividends.totalAll)}</span>
       </CompactRow>
       <CompactRow label="Итого" isTotal>

@@ -10,6 +10,7 @@ import { useProjection } from '@/hooks/useProjection';
 import { ForecastForm } from '@/pages/forecast/ForecastForm';
 import { ForecastTiles } from '@/pages/forecast/ForecastTiles';
 import { ForecastChart } from '@/pages/forecast/ForecastChart';
+import { ForecastBreakdownCard } from '@/pages/forecast/ForecastBreakdownCard';
 import type { ProjectionRequest } from '@/types/investment';
 
 export function ForecastPage() {
@@ -66,6 +67,7 @@ export function ForecastPage() {
         <>
           <ForecastTiles result={result} horizonYears={horizonYears} />
           <ForecastChart series={result.series} pendingHistoryTickers={result.pendingHistoryTickers} />
+          <ForecastBreakdownCard result={result} />
         </>
       )}
     </div>

@@ -21,6 +21,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useCreateManualDividend } from '@/hooks/useCreateManualDividend';
 import { ApiError } from '@/lib/api';
 import { formatDayMonth, toApiDateString } from '@/lib/dateOptions';
+import { isBondSecurityType } from '@/lib/securityType';
+import type { SecurityType } from '@/types/investment';
 
 const schema = z.object({
   recordDate: z.date({ required_error: 'Обязательное поле' }),
@@ -83,12 +85,14 @@ function DividendDateField({ label, value, onChange, placeholder }: DividendDate
 
 interface SecurityDividendDialogProps {
   ticker: string;
+  securityType: SecurityType;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function SecurityDividendDialog({ ticker, open, onOpenChange }: SecurityDividendDialogProps) {
+export function SecurityDividendDialog({ ticker, securityType, open, onOpenChange }: SecurityDividendDialogProps) {
   const { toast } = useToast();
+  const isBond = isBondSecurityType(securityType);
   const { mutateAsync, isPending } = useCreateManualDividend();
 
   const form = useForm<FormValues>({
@@ -113,17 +117,19 @@ export function SecurityDividendDialog({ ticker, open, onOpenChange }: SecurityD
         paymentDate: values.paymentDate ? toApiDateString(values.paymentDate) : undefined,
         amountPerShare: values.amountPerShare,
       });
-      toast({ title: 'Дивиденд добавлен' });
+      toast({ title: isBond ? 'Купон добавлен' : 'Дивиденд добавлен' });
       form.reset();
       onOpenChange(false);
     } catch (error) {
       if (error instanceof ApiError && error.code === 'DIVIDEND_EXISTS') {
-        form.setError('recordDate', { message: 'На эту дату отсечки уже есть дивиденд' });
+        form.setError('recordDate', {
+          message: isBond ? 'На эту дату фиксации уже есть купон' : 'На эту дату отсечки уже есть дивиденд',
+        });
         return;
       }
       toast({
         title: 'Ошибка',
-        description: error instanceof Error ? error.message : 'Не удалось добавить дивиденд',
+        description: error instanceof Error ? error.message : `Не удалось добавить ${isBond ? 'купон' : 'дивиденд'}`,
         variant: 'destructive',
       });
     }
@@ -133,7 +139,7 @@ export function SecurityDividendDialog({ ticker, open, onOpenChange }: SecurityD
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[400px] border-app-border text-app-text" style={{ background: 'rgb(var(--app-surface))' }}>
         <DialogHeader>
-          <DialogTitle className="text-app-text">Добавить дивиденд вручную</DialogTitle>
+          <DialogTitle className="text-app-text">{isBond ? 'Добавить купон вручную' : 'Добавить дивиденд вручную'}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -141,7 +147,12 @@ export function SecurityDividendDialog({ ticker, open, onOpenChange }: SecurityD
               control={form.control}
               name="recordDate"
               render={({ field }) => (
-                <DividendDateField label="Дата отсечки" value={field.value} onChange={field.onChange} placeholder="Выберите дату" />
+                <DividendDateField
+                  label={isBond ? 'Дата фиксации' : 'Дата отсечки'}
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Выберите дату"
+                />
               )}
             />
 
@@ -158,7 +169,7 @@ export function SecurityDividendDialog({ ticker, open, onOpenChange }: SecurityD
               name="amountPerShare"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-app-text-muted">Сумма на акцию, ₽</FormLabel>
+                  <FormLabel className="text-app-text-muted">{isBond ? 'Сумма на облигацию, ₽' : 'Сумма на акцию, ₽'}</FormLabel>
                   <FormControl>
                     <Input
                       type="number"

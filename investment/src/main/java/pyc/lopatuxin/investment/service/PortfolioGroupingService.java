@@ -1,5 +1,6 @@
 package pyc.lopatuxin.investment.service;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import pyc.lopatuxin.investment.dto.request.PortfolioSort;
 import pyc.lopatuxin.investment.dto.response.PortfolioAllocationDto;
@@ -31,11 +32,14 @@ import java.util.stream.Collectors;
  * the nested groups the /investments page renders, plus the portfolio-level totals.
  */
 @Service
+@RequiredArgsConstructor
 public class PortfolioGroupingService {
 
     private static final String NO_SECTOR = "Без сектора";
     private static final List<SecurityType> TYPE_ORDER =
             List.of(SecurityType.STOCK, SecurityType.BOND, SecurityType.OFZ, SecurityType.ETF);
+
+    private final BondPricing bondPricing;
 
     public PortfolioGroupingResult group(List<PositionResponseDto> positions,
                                          Map<String, SnapshotResult> snapshots,
@@ -96,10 +100,17 @@ public class PortfolioGroupingService {
         if (snapshot == null || snapshot.lastPrice() == null) {
             return;
         }
-        BigDecimal currentPrice = snapshot.lastPrice();
-        BigDecimal previousClose = snapshot.previousClose();
+        BigDecimal currentPrice = bondPricing.quotedToRubles(
+                position.getSecurityType(), position.getTicker(), position.getNominal(), snapshot.lastPrice());
+        BigDecimal previousClose = bondPricing.quotedToRubles(
+                position.getSecurityType(), position.getTicker(), position.getNominal(), snapshot.previousClose());
         BigDecimal quantity = position.getQuantity();
-        BigDecimal currentValue = currentPrice.multiply(quantity).setScale(2, RoundingMode.HALF_UP);
+        // A bond's/OFZ's current value matches what a broker shows only with accrued coupon
+        // interest (NKD) added on top of the ruble price (plan point 3); pnl stays price-only,
+        // same basis as averagePrice.
+        BigDecimal valuePerUnit = snapshot.accruedInterest() != null
+                ? currentPrice.add(snapshot.accruedInterest()) : currentPrice;
+        BigDecimal currentValue = valuePerUnit.multiply(quantity).setScale(2, RoundingMode.HALF_UP);
         BigDecimal pnl = currentPrice.subtract(position.getAveragePrice())
                 .multiply(quantity).setScale(2, RoundingMode.HALF_UP);
 

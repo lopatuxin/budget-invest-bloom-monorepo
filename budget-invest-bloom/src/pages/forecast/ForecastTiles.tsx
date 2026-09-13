@@ -1,5 +1,6 @@
 import { StatTile } from '@/components/StatTile';
-import { formatCurrency, formatSignedCurrency, pluralize } from '@/lib/dateOptions';
+import { formatCurrency, formatSignedCurrency, formatSignedPercent, pluralize } from '@/lib/dateOptions';
+import { formatPercent } from '@/pages/investments/investmentsFormat';
 import type { ProjectionResult } from '@/types/investment';
 
 interface ForecastTilesProps {
@@ -9,7 +10,9 @@ interface ForecastTilesProps {
 
 export function ForecastTiles({ result, horizonYears }: ForecastTilesProps) {
   const lastPoint = result.series[result.series.length - 1];
-  const annualReturnPercent = (result.portfolioWeightedAnnualReturn * 100).toLocaleString('ru-RU', {
+  // Sum of the two parts shown in the subtitle, so the tile and its subtitle never disagree by a
+  // rounding step (portfolioWeightedAnnualReturn is rounded separately on the server).
+  const annualReturnPercent = (result.priceGrowthPercent + result.payoutYieldPercent).toLocaleString('ru-RU', {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   });
@@ -25,7 +28,7 @@ export function ForecastTiles({ result, horizonYears }: ForecastTilesProps) {
       <StatTile
         label="Доходность в год"
         value={`${annualReturnPercent}%`}
-        subtitle="средняя по истории бумаг портфеля, взвешенная по долям"
+        subtitle={`рост цен ${formatSignedPercent(result.priceGrowthPercent)} · выплаты ${formatPercent(result.payoutYieldPercent)} после налога`}
       />
       <StatTile
         label="Заработано за срок"

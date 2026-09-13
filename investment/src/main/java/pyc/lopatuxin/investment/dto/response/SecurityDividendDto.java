@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import pyc.lopatuxin.investment.entity.enums.DividendSource;
 import pyc.lopatuxin.investment.entity.enums.DividendStatus;
+import pyc.lopatuxin.investment.entity.enums.PayoutKind;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -26,4 +27,5 @@ public class SecurityDividendDto {
     private String currency;
     private DividendStatus status;
     private DividendSource source;
+    private PayoutKind kind;
 }

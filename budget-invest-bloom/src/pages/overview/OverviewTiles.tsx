@@ -53,11 +53,16 @@ export function OverviewTiles({ data, hasNoRecords }: OverviewTilesProps) {
 
   // Payment date wins once T-Invest has announced one; otherwise fall back to
   // the record cutoff date — see docs/plans/dividends-tinvest.md p.22.
+  // The payout noun (дивиденд/купон) names this specific upcoming payment (p.8, p.42); the
+  // tile's own label below only widens to "Дивиденды и купоны" once this next one is a coupon —
+  // the response has no portfolio-wide "any bond pays" flag to check against instead.
+  const nextPayoutIsCoupon = portfolio.nextDividend?.kind === 'COUPON';
+  const dividendsTileLabel = nextPayoutIsCoupon ? 'Дивиденды и купоны за 12 месяцев' : 'Дивиденды за 12 месяцев';
   const nextDividendSubtitle = portfolio.nextDividend
-    ? `ближайший — ${portfolio.nextDividend.securityName}, ${formatDividendAmount(portfolio.nextDividend.totalAmount, portfolio.nextDividend.currency)}, ` +
+    ? `ближайший — ${portfolio.nextDividend.securityName}, ${nextPayoutIsCoupon ? 'купон' : 'дивиденд'} ${formatDividendAmount(portfolio.nextDividend.totalAmount, portfolio.nextDividend.currency)}, ` +
       (portfolio.nextDividend.paymentDate
         ? `выплата ${formatDayMonth(portfolio.nextDividend.paymentDate)}`
-        : `отсечка ${formatDayMonth(portfolio.nextDividend.recordDate)}`)
+        : `${nextPayoutIsCoupon ? 'фиксация' : 'отсечка'} ${formatDayMonth(portfolio.nextDividend.recordDate)}`)
     : 'ближайших выплат нет';
 
   return (
@@ -89,7 +94,7 @@ export function OverviewTiles({ data, hasNoRecords }: OverviewTilesProps) {
         <StatTile label="Дивиденды за 12 месяцев" value="—" subtitle="нет данных от биржи" />
       ) : (
         <StatTile
-          label="Дивиденды за 12 месяцев"
+          label={dividendsTileLabel}
           value={formatCurrency(portfolio.dividends12m ?? 0)}
           subtitle={nextDividendSubtitle}
         />

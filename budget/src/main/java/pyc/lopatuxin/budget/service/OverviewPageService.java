@@ -262,6 +262,7 @@ public class OverviewPageService {
                 .paymentDate(dividend.paymentDate())
                 .totalAmount(ComparisonMath.money(dividend.totalAmount()))
                 .currency(dividend.currency())
+                .kind(dividend.kind())
                 .build();
     }
 

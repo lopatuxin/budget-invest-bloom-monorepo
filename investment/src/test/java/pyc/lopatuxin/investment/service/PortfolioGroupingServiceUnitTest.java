@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("PortfolioGroupingServiceUnitTest — чистая арифметика группировки портфеля")
 class PortfolioGroupingServiceUnitTest {
 
-    private final PortfolioGroupingService service = new PortfolioGroupingService();
+    private final PortfolioGroupingService service = new PortfolioGroupingService(new BondPricing());
 
     @Test
     @DisplayName("group — порядок видов STOCK, BOND, OFZ, ETF независимо от порядка на входе")
@@ -163,7 +163,8 @@ class PortfolioGroupingServiceUnitTest {
         );
         Map<String, SnapshotResult> snapshots = Map.of(
                 "LKOH", snapshot("700", null),   // value 7000
-                "SU26238", snapshot("3000", null) // value 3000
+                // OFZ quoted as percent of a (default, unknown) 1000₽ nominal: 300 → 3000₽ value
+                "SU26238", snapshot("300", null)
         );
 
         PortfolioGroupingResult result = service.group(positions, snapshots, PortfolioSort.WEIGHT);
@@ -258,6 +259,51 @@ class PortfolioGroupingServiceUnitTest {
         assertThat(sectors).hasSize(1);
         assertThat(sectors.get(0).getSector()).isNull();
         assertThat(sectors.get(0).getPositions()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("group — ОФЗ: котировка в процентах номинала пересчитывается в рубли, НКД прибавляется к стоимости, доля считается от рублёвой стоимости")
+    void group_ofzPosition_convertsQuotedPriceToRublesAndAddsAccruedInterest() {
+        PositionResponseDto ofz = PositionResponseDto.builder()
+                .ticker("SU26219RMFS4")
+                .securityName("ОФЗ 26219")
+                .securityType(SecurityType.OFZ)
+                .nominal(new BigDecimal("1000.00"))
+                .quantity(new BigDecimal("71"))
+                .averagePrice(new BigDecimal("981.60"))
+                .totalCost(new BigDecimal("69693.60"))
+                .build();
+        // Quoted 99.95 (percent of par) → 999.50 ₽/bond; accrued interest 12.34 ₽/bond on top.
+        SnapshotResult snapshot = new SnapshotResult(new BigDecimal("99.95"), new BigDecimal("99.80"),
+                Instant.now(), false, new BigDecimal("12.34"));
+
+        PortfolioGroupingResult result = service.group(List.of(ofz), Map.of("SU26219RMFS4", snapshot), PortfolioSort.WEIGHT);
+
+        PositionResponseDto enriched = result.positions().get(0);
+        assertThat(enriched.getCurrentPrice()).isEqualByComparingTo("999.50");
+        assertThat(enriched.getPreviousClose()).isEqualByComparingTo("998.00");
+        // (999.50 + 12.34) * 71 = 71840.64
+        assertThat(enriched.getCurrentValue()).isEqualByComparingTo("71840.64");
+        assertThat(enriched.getWeightPercent()).isEqualByComparingTo("100.0");
+    }
+
+    @Test
+    @DisplayName("group — облигация без известного номинала → берётся 1000 ₽ по умолчанию")
+    void group_bondWithoutNominal_defaultsTo1000() {
+        PositionResponseDto bond = PositionResponseDto.builder()
+                .ticker("RU000A")
+                .securityName("Корп. облигация")
+                .securityType(SecurityType.BOND)
+                .nominal(null)
+                .quantity(new BigDecimal("10"))
+                .averagePrice(new BigDecimal("1000.00"))
+                .totalCost(new BigDecimal("10000.00"))
+                .build();
+        SnapshotResult snapshot = new SnapshotResult(new BigDecimal("100.00"), null, Instant.now(), false);
+
+        PortfolioGroupingResult result = service.group(List.of(bond), Map.of("RU000A", snapshot), PortfolioSort.WEIGHT);
+
+        assertThat(result.positions().get(0).getCurrentPrice()).isEqualByComparingTo("1000.00");
     }
 
     private List<PositionResponseDto> onlySectorPositions(PortfolioGroupingResult result) {

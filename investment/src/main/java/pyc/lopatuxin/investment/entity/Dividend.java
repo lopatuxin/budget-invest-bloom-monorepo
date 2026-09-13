@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import pyc.lopatuxin.investment.entity.enums.DividendSource;
 import pyc.lopatuxin.investment.entity.enums.DividendStatus;
+import pyc.lopatuxin.investment.entity.enums.PayoutKind;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -45,4 +46,12 @@ public class Dividend {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private DividendSource source;
+
+    // DIVIDEND for a stock/ETF payout, COUPON for a bond/OFZ one — same table, same merge-by
+    // (ticker, recordDate) rule (see DividendSyncService), distinguished so every consumer
+    // (projection, security page timeline, portfolio dividends card) can label it correctly.
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private PayoutKind kind = PayoutKind.DIVIDEND;
 }

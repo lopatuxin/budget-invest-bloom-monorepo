@@ -73,6 +73,7 @@ public class SecurityPageService {
     private final PortfolioGroupingService portfolioGroupingService;
     private final HoldingsOnDateService holdingsOnDateService;
     private final DividendTaxCalculator dividendTaxCalculator;
+    private final BondPricing bondPricing;
 
     // Not wrapped in a transaction, same as PortfolioService.getPortfolioPage: getSnapshots can
     // wait on MOEX, and an outer transaction would pin a Hikari connection for that round-trip
@@ -108,7 +109,7 @@ public class SecurityPageService {
 
         return SecurityPageResponseDto.builder()
                 .security(toSecurityDto(security))
-                .price(buildPriceDto(pricing.snapshot()))
+                .price(buildPriceDto(security, pricing.snapshot()))
                 .position(position)
                 .dividends(dividendsDto)
                 .result(result)
@@ -310,6 +311,7 @@ public class SecurityPageService {
                 .netAmount(netAmount)
                 .currency(dividend.getCurrency())
                 .source(dividend.getSource())
+                .payoutKind(dividend.getKind())
                 .build();
     }
 
@@ -337,6 +339,7 @@ public class SecurityPageService {
                 .currency(dividend.getCurrency())
                 .paymentDate(dividend.getPaymentDate())
                 .source(dividend.getSource())
+                .payoutKind(dividend.getKind())
                 .build();
         SecurityNextDividendDto next = SecurityNextDividendDto.builder()
                 .recordDate(dividend.getRecordDate())
@@ -345,6 +348,7 @@ public class SecurityPageService {
                 .quantity(quantity)
                 .netAmount(netAmount)
                 .currency(dividend.getCurrency())
+                .kind(dividend.getKind())
                 .build();
         return new UpcomingBuild(event, next, sortDate);
     }
@@ -384,19 +388,24 @@ public class SecurityPageService {
         return new TickerPricing(position, snapshots.get(ticker));
     }
 
-    private SecurityPagePriceDto buildPriceDto(SnapshotResult snapshot) {
+    private SecurityPagePriceDto buildPriceDto(Security security, SnapshotResult snapshot) {
         if (snapshot == null || snapshot.lastPrice() == null) {
             return null;
         }
-        BigDecimal dailyChangePercent = snapshot.previousClose() != null
-                ? portfolioGroupingService.percentOf(snapshot.lastPrice().subtract(snapshot.previousClose()), snapshot.previousClose())
+        BigDecimal current = bondPricing.quotedToRubles(security, snapshot.lastPrice());
+        BigDecimal previousClose = bondPricing.quotedToRubles(security, snapshot.previousClose());
+        BigDecimal dailyChangePercent = previousClose != null
+                ? portfolioGroupingService.percentOf(current.subtract(previousClose), previousClose)
                 : null;
+        boolean nominalDefaulted = bondPricing.isQuotedAsPercentOfPar(security.getType()) && security.getNominal() == null;
         return SecurityPagePriceDto.builder()
-                .current(snapshot.lastPrice())
-                .previousClose(snapshot.previousClose())
+                .current(current)
+                .previousClose(previousClose)
                 .dailyChangePercent(dailyChangePercent)
                 .asOf(snapshot.fetchedAt())
                 .stale(snapshot.stale())
+                .accruedInterest(snapshot.accruedInterest())
+                .nominalDefaulted(nominalDefaulted)
                 .build();
     }
 

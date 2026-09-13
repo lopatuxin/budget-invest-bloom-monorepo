@@ -21,6 +21,7 @@ import pyc.lopatuxin.investment.entity.Security;
 import pyc.lopatuxin.investment.entity.Transaction;
 import pyc.lopatuxin.investment.entity.enums.DividendSource;
 import pyc.lopatuxin.investment.entity.enums.DividendStatus;
+import pyc.lopatuxin.investment.entity.enums.PayoutKind;
 import pyc.lopatuxin.investment.entity.enums.SecurityType;
 import pyc.lopatuxin.investment.entity.enums.TransactionType;
 import pyc.lopatuxin.investment.mapper.PositionMapper;
@@ -97,8 +98,8 @@ class SecurityPageServiceTest {
         DividendTaxProperties taxProperties = new DividendTaxProperties();
         taxProperties.setRate(DEFAULT_TAX_RATE);
         securityPageService = new SecurityPageService(transactionRepository, dividendRepository, positionRepository,
-                positionMapper, marketDataService, new PortfolioGroupingService(), new HoldingsOnDateService(),
-                new DividendTaxCalculator(taxProperties));
+                positionMapper, marketDataService, new PortfolioGroupingService(new BondPricing()), new HoldingsOnDateService(),
+                new DividendTaxCalculator(taxProperties), new BondPricing());
     }
 
     @Test
@@ -353,6 +354,88 @@ class SecurityPageServiceTest {
 
         assertThat(page.getPosition().getWeightPercent()).isEqualByComparingTo("100.0");
         assertThat(page.getResult().getPricePnl()).isEqualByComparingTo("8239.92"); // (7105.83-6419.17)*12
+    }
+
+    @Test
+    @DisplayName("ОФЗ: цена в шапке — в рублях (не в процентах номинала), купон в ленте — с видом COUPON")
+    void getSecurityPage_ofz_priceInRublesAndCouponEventHasCouponKind() {
+        String ofzTicker = "SU26219RMFS4";
+        Security ofz = Security.builder()
+                .ticker(ofzTicker).name("ОФЗ 26219").type(SecurityType.OFZ)
+                .nominal(new BigDecimal("1000.00")).build();
+        Transaction buy = Transaction.builder()
+                .id(UUID.randomUUID()).userId(userId).security(ofz).type(TransactionType.BUY)
+                .quantity(new BigDecimal("71")).price(new BigDecimal("981.60"))
+                .executedAt(Instant.parse("2026-01-10T10:00:00Z")).createdAt(Instant.parse("2026-01-10T10:00:00Z"))
+                .build();
+        when(transactionRepository.findByUserIdAndTickerWithSecurity(userId, ofzTicker)).thenReturn(List.of(buy));
+
+        Dividend coupon = Dividend.builder()
+                .id(UUID.randomUUID()).security(ofz)
+                .recordDate(TODAY.minusMonths(1).minusDays(1)).paymentDate(TODAY.minusMonths(1))
+                .amountPerShare(new BigDecimal("38.64")).currency("RUB")
+                .status(DividendStatus.PAID).source(DividendSource.TINVEST).kind(PayoutKind.COUPON)
+                .build();
+        when(dividendRepository.findBySecurity_Ticker(ofzTicker)).thenReturn(List.of(coupon));
+
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of());
+        // Quoted 99.95% of a 1000₽ nominal → 999.50₽ a bond.
+        when(marketDataService.getSnapshots(anySet()))
+                .thenReturn(Map.of(ofzTicker, new SnapshotResult(new BigDecimal("99.95"), new BigDecimal("99.80"), Instant.now(), false)));
+
+        SecurityPageResponseDto page = securityPageService.getSecurityPage(userId, ofzTicker, TODAY);
+
+        assertThat(page.getPrice().getCurrent()).isEqualByComparingTo("999.50");
+        assertThat(page.getPrice().getPreviousClose()).isEqualByComparingTo("998.00");
+        SecurityEventDto couponEvent = onlyEventOfKind(page, SecurityEventKind.DIVIDEND_PAID);
+        assertThat(couponEvent.getPayoutKind()).isEqualTo(PayoutKind.COUPON);
+    }
+
+    @Test
+    @DisplayName("ОФЗ: НКД из снимка попадает в price.accruedInterest, номинал известен → nominalDefaulted = false")
+    void getSecurityPage_ofz_priceCarriesAccruedInterestAndNominalDefaultedFalse() {
+        String ofzTicker = "SU26219RMFS4";
+        Security ofz = Security.builder()
+                .ticker(ofzTicker).name("ОФЗ 26219").type(SecurityType.OFZ)
+                .nominal(new BigDecimal("1000.00")).build();
+        Transaction buy = Transaction.builder()
+                .id(UUID.randomUUID()).userId(userId).security(ofz).type(TransactionType.BUY)
+                .quantity(new BigDecimal("71")).price(new BigDecimal("981.60"))
+                .executedAt(Instant.parse("2026-01-10T10:00:00Z")).createdAt(Instant.parse("2026-01-10T10:00:00Z"))
+                .build();
+        when(transactionRepository.findByUserIdAndTickerWithSecurity(userId, ofzTicker)).thenReturn(List.of(buy));
+        when(dividendRepository.findBySecurity_Ticker(ofzTicker)).thenReturn(List.of());
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of());
+        when(marketDataService.getSnapshots(anySet()))
+                .thenReturn(Map.of(ofzTicker, new SnapshotResult(new BigDecimal("99.95"), new BigDecimal("99.80"),
+                        Instant.now(), false, new BigDecimal("12.34"))));
+
+        SecurityPageResponseDto page = securityPageService.getSecurityPage(userId, ofzTicker, TODAY);
+
+        assertThat(page.getPrice().getAccruedInterest()).isEqualByComparingTo("12.34");
+        assertThat(page.getPrice().isNominalDefaulted()).isFalse();
+    }
+
+    @Test
+    @DisplayName("облигация без известного номинала (биржа не вернула FACEVALUE) → nominalDefaulted = true")
+    void getSecurityPage_bondWithoutNominal_nominalDefaultedTrue() {
+        String bondTicker = "RU000A10FAK6";
+        Security bond = Security.builder()
+                .ticker(bondTicker).name("Облигация").type(SecurityType.BOND).nominal(null).build();
+        Transaction buy = Transaction.builder()
+                .id(UUID.randomUUID()).userId(userId).security(bond).type(TransactionType.BUY)
+                .quantity(new BigDecimal("10")).price(new BigDecimal("950.00"))
+                .executedAt(Instant.parse("2026-01-10T10:00:00Z")).createdAt(Instant.parse("2026-01-10T10:00:00Z"))
+                .build();
+        when(transactionRepository.findByUserIdAndTickerWithSecurity(userId, bondTicker)).thenReturn(List.of(buy));
+        when(dividendRepository.findBySecurity_Ticker(bondTicker)).thenReturn(List.of());
+        when(positionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of());
+        when(marketDataService.getSnapshots(anySet()))
+                .thenReturn(Map.of(bondTicker, new SnapshotResult(new BigDecimal("95.00"), null, Instant.now(), false)));
+
+        SecurityPageResponseDto page = securityPageService.getSecurityPage(userId, bondTicker, TODAY);
+
+        assertThat(page.getPrice().isNominalDefaulted()).isTrue();
     }
 
     @Test

@@ -24,3 +24,9 @@ databaseChangeLog:
       file: db/changelog/investment/v1.0.0/012-price-snapshots-last-price-nullable.yml
   - include:
       file: db/changelog/investment/v1.0.0/013-add-tinvest-columns.yml
+  - include:
+      file: db/changelog/investment/v1.0.0/014-add-security-nominal.yml
+  - include:
+      file: db/changelog/investment/v1.0.0/015-add-dividend-kind.yml
+  - include:
+      file: db/changelog/investment/v1.0.0/016-add-snapshot-accrued-interest.yml

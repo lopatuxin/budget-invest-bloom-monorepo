@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import pyc.lopatuxin.investment.entity.enums.DividendSource;
+import pyc.lopatuxin.investment.entity.enums.PayoutKind;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -44,6 +45,10 @@ public class SecurityEventDto {
     private String currency;
     private LocalDate paymentDate;
     private DividendSource source;
+    // DIVIDEND for a stock/ETF payout, COUPON for a bond/OFZ one (plan point 8) — named
+    // differently from the discriminator field `kind` above (BUY/SELL/DIVIDEND_PAID/...),
+    // which already owns that name.
+    private PayoutKind payoutKind;
 
     // Sort-only tie-break for events sharing the same `date` (plan point 4: "по времени
     // создания"); a Transaction carries a real creation instant, a Dividend does not, so this is

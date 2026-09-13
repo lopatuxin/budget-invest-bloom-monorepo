@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { SecurityLogo } from '@/components/SecurityLogo';
 import { formatDateTime, formatTime, NO_SECTOR_LABEL, signClass } from '@/pages/investments/investmentsFormat';
 import { formatSignedPercent, formatUnitPrice } from '@/lib/dateOptions';
-import { SECURITY_TYPE_LABEL_SINGULAR } from '@/lib/securityType';
+import { isBondSecurityType, SECURITY_TYPE_LABEL_SINGULAR } from '@/lib/securityType';
 import { SIGN_TEXT_CLASS } from '@/pages/security/securityFormat';
 import type { SecurityPagePrice, SecurityPageSecurity } from '@/types/investment';
 
@@ -25,6 +25,20 @@ function PriceCaption({ price }: { price: SecurityPagePrice }) {
       {formatSignedPercent(price.dailyChangePercent)} сегодня <span className="font-sans text-app-text-dim">·</span> {asOf}
     </span>
   );
+}
+
+// Bond-only note under the price (p.3, p.17): accrued interest on top of the ruble price once
+// the exchange reports it, or a warning that the exchange never sent a nominal at all and 1000 ₽
+// was assumed — the two never apply together, a defaulted nominal makes accrued interest untrustworthy.
+function BondPriceNote({ security, price }: { security: SecurityPageSecurity; price: SecurityPagePrice }) {
+  if (!isBondSecurityType(security.securityType)) return null;
+  if (price.nominalDefaulted) {
+    return <span className="font-sans text-xs text-app-warn">номинал не получен с биржи, принят 1000 ₽</span>;
+  }
+  if (price.accruedInterest) {
+    return <span className="font-sans text-xs text-app-text-dim">с НКД {formatUnitPrice(price.accruedInterest)}</span>;
+  }
+  return null;
 }
 
 interface SecurityHeaderProps {
@@ -65,6 +79,11 @@ export function SecurityHeader({ security, price, onOpenTransactionDialog }: Sec
           <span className="lg:hidden block truncate font-mono text-app-text-muted text-[11px]">
             {security.ticker} · {sectorChip}
           </span>
+          {price && (
+            <div className="lg:hidden mt-0.5">
+              <BondPriceNote security={security} price={price} />
+            </div>
+          )}
         </div>
       </div>
 
@@ -72,6 +91,7 @@ export function SecurityHeader({ security, price, onOpenTransactionDialog }: Sec
         <div className="hidden lg:flex flex-col items-end gap-0.5">
           <span className="font-mono text-2xl font-semibold leading-none text-app-text">{price ? formatUnitPrice(price.current) : '—'}</span>
           {price && <PriceCaption price={price} />}
+          {price && <BondPriceNote security={security} price={price} />}
         </div>
         <Button size="sm" className="h-10 lg:h-[34px] gap-1.5 bg-app-accent text-app-accent-ink hover:bg-app-accent/90" onClick={onOpenTransactionDialog}>
           <Plus aria-hidden="true" className="w-3.5 h-3.5" />
