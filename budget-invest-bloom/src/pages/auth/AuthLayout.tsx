@@ -9,7 +9,7 @@ interface AuthLayoutProps {
 
 // Shared "разворот" (split) layout for /login and /register: a 640px accent promise
 // panel next to a 380px-wide form on paper (desktop, >=1024px), or a green band on
-// top of the form (mobile) — see docs/plans/auth-and-shell-redesign.md.
+// top of the form (mobile) — see Фазы Финансов/Фаза-09-вход-и-служебные-экраны.md.
 export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
   return (
     <div className="min-h-screen bg-app-bg lg:grid lg:grid-cols-[640px_minmax(0,1fr)]">

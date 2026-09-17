@@ -26,7 +26,7 @@ export function securityTypeLabel(securityType: SecurityType | null): string {
 }
 
 // A bond/OFZ pays coupons instead of dividends and is priced through its nominal (BondPricing) —
-// every "дивиденд"→"купон" label swap keys off this (see docs/plans/forecast-coupons-and-bond-prices.md p.8).
+// every "дивиденд"→"купон" label swap keys off this (see Фазы Финансов/Фаза-10-купоны-и-цены-облигаций.md p.8).
 export function isBondSecurityType(securityType: SecurityType): boolean {
   return securityType === 'BOND' || securityType === 'OFZ';
 }

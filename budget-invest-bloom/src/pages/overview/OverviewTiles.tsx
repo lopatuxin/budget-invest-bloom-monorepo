@@ -52,7 +52,7 @@ export function OverviewTiles({ data, hasNoRecords }: OverviewTilesProps) {
       : `в среднем за 12 месяцев · в ${monthLabel} пока ${savings.currentMonthRate}%`;
 
   // Payment date wins once T-Invest has announced one; otherwise fall back to
-  // the record cutoff date — see docs/plans/dividends-tinvest.md p.22.
+  // the record cutoff date — see Фазы Финансов/Фаза-04-дивиденды-из-t-invest.md p.22.
   // The payout noun (дивиденд/купон) names this specific upcoming payment (p.8, p.42); the
   // tile's own label below only widens to "Дивиденды и купоны" once this next one is a coupon —
   // the response has no portfolio-wide "any bond pays" flag to check against instead.

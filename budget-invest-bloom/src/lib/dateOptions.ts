@@ -51,7 +51,7 @@ export const formatUnitPrice = (value: number): string =>
 /**
  * A dividend amount in its own currency: RUB keeps formatCurrency/formatUnitPrice's
  * ₽ symbol, any other currency shows the number with its code instead — the rule from
- * docs/plans/dividends-tinvest.md Edge cases (dividend paid in a foreign currency).
+ * Фазы Финансов/Фаза-04-дивиденды-из-t-invest.md «Крайние случаи и ошибки» (dividend paid in a foreign currency).
  */
 export const formatDividendAmount = (value: number, currency: string, variant: 'unit' | 'total' = 'total'): string => {
   // Rows synced by the retired MOEX source kept the exchange's own code ("SUR") and are
@@ -115,16 +115,16 @@ interface DividendDates {
   recordDate: string;
   paymentDate?: string | null;
   // Absent for callers that pre-date the coupon rollout (e.g. CreateManualDividendRequest
-  // echoes) — treated as a dividend, same as backend's default (docs/plans/forecast-coupons-and-bond-prices.md p.7).
+  // echoes) — treated as a dividend, same as backend's default (Фазы Финансов/Фаза-10-купоны-и-цены-облигаций.md p.7).
   kind?: PayoutKind;
 }
 
 /** "отсечка 18 июля" / "фиксация 18 июля" / "выплата 1 августа" / "выплачено 1 августа" — the
- * row label rule from docs/plans/dividends-tinvest.md p.21: an upcoming dividend is labelled by
+ * row label rule from Фазы Финансов/Фаза-04-дивиденды-из-t-invest.md p.21: an upcoming dividend is labelled by
  * the record date while it is still ahead, otherwise by the payment date; a received one is
  * labelled by the payment date, falling back to the record date when no payment date is known.
  * A coupon's record date is its fix date, worded "фиксация" instead of "отсечка"
- * (docs/plans/forecast-coupons-and-bond-prices.md p.101). */
+ * (Фазы Финансов/Фаза-10-купоны-и-цены-облигаций.md p.101). */
 export const formatDividendDateLabel = (dividend: DividendDates, variant: 'upcoming' | 'received'): string => {
   const recordLabel = dividend.kind === 'COUPON' ? 'фиксация' : 'отсечка';
   if (variant === 'received') {

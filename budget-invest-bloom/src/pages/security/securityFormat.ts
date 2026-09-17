@@ -6,13 +6,13 @@ import { MONTH_SHORT } from '@/lib/dateOptions';
 import { signClass } from '@/pages/investments/investmentsFormat';
 import type { PayoutKind, SecurityEvent, SecurityPagePosition, SecurityPageResult } from '@/types/investment';
 
-// "дивиденд"/"купон" wording swap (docs/plans/forecast-coupons-and-bond-prices.md p.8), keyed by
+// "дивиденд"/"купон" wording swap (Фазы Финансов/Фаза-10-купоны-и-цены-облигаций.md p.8), keyed by
 // the payout's own kind rather than the security's type so a page never has to pass both down.
 export const PAYOUT_NOUN_SINGULAR: Record<PayoutKind, string> = { DIVIDEND: 'дивиденд', COUPON: 'купон' };
 export const PAYOUT_NOUN_PLURAL: Record<PayoutKind, string> = { DIVIDEND: 'дивиденды', COUPON: 'купоны' };
 export const PAYOUT_UNIT_NOUN: Record<PayoutKind, string> = { DIVIDEND: 'акцию', COUPON: 'облигацию' };
 
-// Dot/marker colors from docs/plans/security-page-redesign.md "UI": the price line
+// Dot/marker colors from Фазы Финансов/Фаза-08-страница-бумаги-и-прогноз.md "UI": the price line
 // itself reuses PORTFOLIO_CHART_COLOR from pages/investments/investmentsFormat.
 export const SECURITY_BUY_COLOR = '#2A78D6';
 export const SECURITY_SELL_COLOR = '#B0392B';
@@ -76,7 +76,7 @@ export interface EventDisplay {
 }
 
 /** Renders one timeline row's title, subtitle and right-hand amount — the text
- * templates from docs/plans/security-page-redesign.md p.51. */
+ * templates from Фазы Финансов/Фаза-08-страница-бумаги-и-прогноз.md p.51. */
 export function describeEvent(event: SecurityEvent): EventDisplay {
   if (event.kind === 'BUY') {
     const subtitle = event.first

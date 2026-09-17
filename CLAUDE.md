@@ -4,6 +4,8 @@
 Modular monolith in one git repository: Gradle modules `shared`, `security`, `auth`, `budget`, `investment` run as one Spring Boot process assembled by `app`; the frontend is `budget-invest-bloom/` (React). The root `docker-compose.yml` runs postgres, app, frontend and backup-service.
 Code comments are written in English.
 
+Design documentation is in Russian and lives OUTSIDE this repo, in the Obsidian vault `C:\projects\obsidian\Проекты\Финансы\` (synced by the vault's own git — never commit it from here). Start from the hub `Архитектура Финансов/Архитектура Финансов.md`; every area is a note in the same folder. Feature plans are phase notes in `Фазы Финансов/` (`Фаза-NN-<короткое-имя>.md` with `фаза` and `статус` in the frontmatter) — this is where feature plans go, not `docs/plans/`. The folder follows `C:\projects\obsidian\Проекты\Шаблон проекта.md`. Area notes are short references — tables, small mermaid diagrams, about 8 KB each, no reasons or history (reasons go to `Журнал Финансов/`, written only by `/close-session`); when behaviour, an interface or the stand changes, update the notes it touches in the same piece of work, replacing rows in place. Links between notes are wikilinks by note name, never paths; note names must stay unique across the vault.
+
 # Stack & Build
 
 | Area | Non-standard |

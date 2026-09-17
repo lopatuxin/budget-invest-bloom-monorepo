@@ -3,7 +3,7 @@ import { formatCompact, formatCurrency } from '@/lib/dateOptions';
 import { CHART_GRID_COLOR, CHART_TEXT_DIM_COLOR, PORTFOLIO_CHART_COLOR } from '@/pages/investments/investmentsFormat';
 import type { ProjectionPoint } from '@/types/investment';
 
-// "Внесено" dashed line — the one color from docs/plans/security-page-redesign.md
+// "Внесено" dashed line — the one color from Фазы Финансов/Фаза-08-страница-бумаги-и-прогноз.md
 // "UI" not already exported by an existing format module.
 const CONTRIBUTED_COLOR = '#CFC9BD';
 

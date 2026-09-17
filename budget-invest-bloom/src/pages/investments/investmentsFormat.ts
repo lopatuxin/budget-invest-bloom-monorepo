@@ -5,7 +5,7 @@ import { MONTH_SHORT, pluralize } from '@/lib/dateOptions';
 
 // Colors that recharts needs as literal values (SVG fill/stroke props take
 // plain strings, not Tailwind classes) — kept in sync with the app-* CSS
-// tokens in index.css and the sector palette in docs/plans/investments-page-redesign.md.
+// tokens in index.css and the sector palette in Фазы Финансов/Фаза-03-страница-инвестиций.md.
 // CHART_GRID_COLOR itself lives in '@/lib/dateOptions', shared with the overview page.
 export { CHART_GRID_COLOR } from '@/lib/dateOptions';
 export const PORTFOLIO_CHART_COLOR = '#1E8A4F';

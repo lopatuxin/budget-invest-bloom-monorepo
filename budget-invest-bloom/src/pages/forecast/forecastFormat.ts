@@ -1,5 +1,5 @@
 // Formatting and text helpers specific to the forecast page's breakdown card
-// (docs/plans/forecast-coupons-and-bond-prices.md p.15).
+// (Фазы Финансов/Фаза-10-купоны-и-цены-облигаций.md p.15).
 import type { ProjectionBreakdownItem } from '@/types/investment';
 
 /** "дивиденды" / "купоны" / "выплат нет" — the payout-kind subtitle under the Выплаты column

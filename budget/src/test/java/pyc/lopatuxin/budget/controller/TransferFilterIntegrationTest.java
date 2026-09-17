@@ -58,7 +58,7 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
 
     // ─── Overview: свободные деньги капитала (lifetime, transfers included) ───
     // The overview page no longer has a categories widget or per-month income/expenses fields
-    // (redesigned into a capital page — see docs/plans/overview-page-redesign.md); transfer
+    // (redesigned into a capital page — see Фазы Финансов/Фаза-02-страница-капитала.md); transfer
     // filtering on the overview endpoint is now checked through capital.freeMoney instead.
     // Unlike every other statistic, capital.freeMoney DOES include isTransfer=true records:
     // an investment purchase/sale moves money between free cash and the portfolio, it does not

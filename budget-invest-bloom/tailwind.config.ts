@@ -41,7 +41,7 @@ export default {
 					DEFAULT: 'hsl(var(--popover))',
 					foreground: 'hsl(var(--popover-foreground))'
 				},
-				// "Гроссбух" light theme tokens — see the token table in docs/plans/budget-page-redesign.md
+				// "Гроссбух" light theme tokens — see the token table in Фазы Финансов/Фаза-01-страница-бюджета.md
 				app: {
 					bg: 'rgb(var(--app-bg) / <alpha-value>)',
 					surface: 'rgb(var(--app-surface) / <alpha-value>)',

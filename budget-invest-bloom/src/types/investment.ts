@@ -52,7 +52,7 @@ export interface PortfolioOverview {
   pricesStale: boolean;
   unpricedCount: number;
   // false when TINVEST_TOKEN is unset or dividends have never synced — see
-  // docs/plans/dividends-tinvest.md p.24
+  // Фазы Финансов/Фаза-04-дивиденды-из-t-invest.md p.24
   dividendsSourceConfigured: boolean;
 }
 
@@ -93,7 +93,7 @@ export interface PositionGroup {
 }
 
 // A payout's underlying instrument: a stock/ETF dividend or a bond/OFZ coupon
-// (plan docs/plans/forecast-coupons-and-bond-prices.md p.8, p.91). Named
+// (plan Фазы Финансов/Фаза-10-купоны-и-цены-облигаций.md p.8, p.91). Named
 // `payoutKind` everywhere it sits next to an existing `kind` discriminant
 // (SecurityEvent) to avoid colliding with it; plain `kind` elsewhere.
 export type PayoutKind = 'DIVIDEND' | 'COUPON';
@@ -221,7 +221,7 @@ export interface ProjectionRequest {
 export type DividendSource = 'MOEX' | 'TINVEST' | 'MANUAL';
 
 // CANCELLED exists in the backend enum but nothing in this task sets it
-// automatically — see docs/plans/dividends-tinvest.md scope.
+// automatically — see Фазы Финансов/Фаза-04-дивиденды-из-t-invest.md scope.
 export type DividendStatus = 'ANNOUNCED' | 'PAID' | 'CANCELLED';
 
 export interface SecurityDividend {
@@ -243,7 +243,7 @@ export interface CreateManualDividendRequest {
 }
 
 // --- Security page (/investments/security/:ticker), POST /api/investment/securities/page ---
-// See docs/plans/security-page-redesign.md "API" section for the full response shape.
+// See Фазы Финансов/Фаза-08-страница-бумаги-и-прогноз.md "API" section for the full response shape.
 // Optional (?) fields come from DTOs serialised with @JsonInclude(NON_NULL): when empty they
 // are absent, i.e. undefined rather than null — check them with `!= null`, never `!== null`.
 
