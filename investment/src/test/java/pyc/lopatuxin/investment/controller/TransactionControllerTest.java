@@ -147,6 +147,16 @@ class TransactionControllerTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.message", containsString("Insufficient shares for SELL")));
     }
 
+    @Test
+    @DisplayName("POST — type=REDEMPTION → 400 (создаётся только автоматически)")
+    void shouldReturn400WhenCreatingRedemptionThroughApi() throws Exception {
+        mockMvc.perform(post(BASE_URL)
+                        .content(buildCreateRequest(userId, "SU26219RMFS4", "REDEMPTION", "71", "1000.00"))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status", is(400)));
+    }
+
     private String buildCreateRequest(UUID reqUserId, String ticker, String type, String quantity, String price) {
         return """
                 {

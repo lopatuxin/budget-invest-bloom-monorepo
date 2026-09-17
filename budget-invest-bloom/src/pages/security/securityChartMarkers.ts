@@ -140,7 +140,8 @@ export function layoutChartLabels(
   }
 
   for (const { group, point } of markers) {
-    const text = `${group.kind === 'BUY' ? 'покупка' : 'продажа'} ${joinQuantities(group.quantities)} шт`;
+    const verb = group.kind === 'BUY' ? 'покупка' : group.kind === 'REDEMPTION' ? 'погашение' : 'продажа';
+    const text = `${verb} ${joinQuantities(group.quantities)} шт`;
     const halfWidth = (text.length * CHAR_WIDTH) / 2;
     const x = Math.min(Math.max(point.x, plot.left + halfWidth), plot.right - halfWidth);
     const belowBaseline = point.y + DOT_CLEARANCE + TEXT_HEIGHT - 2;

@@ -6,6 +6,7 @@ import pyc.lopatuxin.investment.dto.response.PortfolioSummaryDto;
 import pyc.lopatuxin.investment.dto.response.UpcomingDividendDto;
 import pyc.lopatuxin.shared.port.PortfolioCurrentValuation;
 import pyc.lopatuxin.shared.port.PortfolioNextDividend;
+import pyc.lopatuxin.shared.port.PortfolioReceivedPayout;
 import pyc.lopatuxin.shared.port.PortfolioValuation;
 import pyc.lopatuxin.shared.port.PortfolioValueSeries;
 import pyc.lopatuxin.shared.port.PayoutKind;
@@ -54,6 +55,14 @@ public class PortfolioValuationAdapter implements PortfolioValuation {
     @Override
     public PortfolioValueSeries valueAt(UUID userId, List<LocalDate> dates) {
         return analyticsService.valueAtDates(userId, dates);
+    }
+
+    @Override
+    public List<PortfolioReceivedPayout> receivedPayouts(UUID userId) {
+        return portfolioService.getReceivedPayouts(userId).stream()
+                .map(d -> new PortfolioReceivedPayout(
+                        DividendTiming.receivedDate(d.getRecordDate(), d.getPaymentDate()), d.getTotalAmount()))
+                .toList();
     }
 
     private PortfolioNextDividend findNextDividend(List<UpcomingDividendDto> upcomingDividends, LocalDate today) {

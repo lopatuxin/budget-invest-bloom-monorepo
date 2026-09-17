@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/017-add-security-maturity-date.yml
+  - changeSet:
+      id: 017-add-security-maturity-date
+      author: investment
+      changes:
+        - addColumn:
+            tableName: securities
+            columns:
+              - column:
+                  name: maturity_date
+                  type: date
+      rollback:
+        - dropColumn:
+            tableName: securities
+            columnName: maturity_date

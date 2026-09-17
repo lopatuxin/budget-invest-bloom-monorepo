@@ -116,6 +116,26 @@ public class PortfolioService {
                 ctx.positions().size(), dividends12m, upcomingDividends, today);
     }
 
+    // All-time received payouts (dividends and coupons), RUB only and net of tax — for the
+    // "capital" page's free money, which must include payout money the user has already
+    // received even though it is not a budget record. Unlike getPortfolioPage/getPortfolioSummary
+    // this only touches the database (trade journal + dividend history), never the exchange:
+    // it uses loadJournalContext instead of loadPositionContext, skipping the live-price fetch
+    // that neither the ticker universe nor the received-payout rules (see buildRecentDividends)
+    // need.
+    public List<UpcomingDividendDto> getReceivedPayouts(UUID userId) {
+        LocalDate today = LocalDate.now();
+        JournalContext journalCtx = loadJournalContext(userId);
+        if (journalCtx.dividendTickers().isEmpty()) {
+            return List.of();
+        }
+        List<Dividend> dividends = dividendRepository.findByTickerInAndReceivedDateBeforeWithSecurity(
+                journalCtx.dividendTickers(), today);
+        List<UpcomingDividendDto> dividendDtos = toDividendDtos(dividends,
+                d -> holdingsOnDateService.quantityAt(journalCtx.journalByTicker(), d.getSecurity().getTicker(), d.getRecordDate()));
+        return dividendDtos.stream().filter(d -> SUMMED_CURRENCY.equals(d.getCurrency())).toList();
+    }
+
     // Shared prefix of getPortfolioPage and getPortfolioSummary: positions, market snapshots
     // (this is what actually fetches/upserts prices), the full trade journal and the DTOs both
     // callers enrich further, each in its own way.
@@ -134,14 +154,18 @@ public class PortfolioService {
                 .collect(Collectors.toMap(p -> p.getSecurity().getTicker(), Position::getQuantity, BigDecimal::add));
         List<PositionResponseDto> basePositions = positions.stream().map(positionMapper::toDto).toList();
 
-        // The dividend ticker universe is the trade journal, not active positions (plan point 3):
-        // a security sold in full still owes its past payouts to dividends12m/recentDividends.
-        // Read once here and folded in memory by HoldingsOnDateService — never per dividend line.
+        JournalContext journalCtx = loadJournalContext(userId);
+        return new PositionContext(positions, snapshots, currentQuantityByTicker, basePositions,
+                journalCtx.journalByTicker(), journalCtx.dividendTickers());
+    }
+
+    // The dividend ticker universe is the trade journal, not active positions (plan point 3):
+    // a security sold in full still owes its past payouts to dividends12m/recentDividends.
+    // Read once here and folded in memory by HoldingsOnDateService — never per dividend line.
+    private JournalContext loadJournalContext(UUID userId) {
         List<Transaction> journal = transactionRepository.findByUserIdWithSecurity(userId);
         Map<String, List<Transaction>> journalByTicker = holdingsOnDateService.groupSortedByTicker(journal);
-
-        return new PositionContext(positions, snapshots, currentQuantityByTicker, basePositions,
-                journalByTicker, journalByTicker.keySet());
+        return new JournalContext(journalByTicker, journalByTicker.keySet());
     }
 
     // "Received" — paymentDate when known, recordDate otherwise (plan point 20). Currency is not
@@ -165,6 +189,9 @@ public class PortfolioService {
                                    List<PositionResponseDto> basePositions,
                                    Map<String, List<Transaction>> journalByTicker,
                                    Set<String> dividendTickers) {
+    }
+
+    private record JournalContext(Map<String, List<Transaction>> journalByTicker, Set<String> dividendTickers) {
     }
 
     private PortfolioPageResponseDto emptyPage(List<TransactionResponseDto> recentTransactions, long transactionsTotal) {

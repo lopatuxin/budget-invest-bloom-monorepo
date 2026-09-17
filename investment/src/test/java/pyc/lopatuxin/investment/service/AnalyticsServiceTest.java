@@ -682,6 +682,23 @@ class AnalyticsServiceTest {
     }
 
     @Test
+    @DisplayName("valueAtDates — REDEMPTION уменьшает количество как SELL, а не увеличивает (регрессия на баг «непокупка → плюс»)")
+    void valueAtDates_redemptionReducesQuantity_likeSell() {
+        Security bond = buildSecurity("SU26219RMFS4", HistoryStatus.READY);
+        LocalDate buyDate = LocalDate.of(2025, 1, 10);
+        LocalDate maturityDate = LocalDate.of(2026, 9, 16);
+        Transaction buy = buildTransaction(bond, TransactionType.BUY, "71", instantAt(buyDate, 10, 0, 0));
+        Transaction redemption = buildTransaction(bond, TransactionType.REDEMPTION, "71", instantAt(maturityDate, 12, 0, 0));
+        when(transactionRepository.findByUserIdWithSecurity(userId)).thenReturn(List.of(buy, redemption));
+        when(priceHistoryRepository.findByTickerInAndTradeDateBetweenOrderByTradeDateAsc(any(), any(), any()))
+                .thenReturn(List.of(buildPriceHistory("SU26219RMFS4", buyDate, "100.00")));
+
+        PortfolioValueSeries result = analyticsService.valueAtDates(userId, List.of(maturityDate.plusDays(1)));
+
+        assertThat(valueAt(result, maturityDate.plusDays(1))).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
     @DisplayName("valueAtDates — сделка в 23:59:59 дня d учитывается в d, но не в d-1 (граница конца дня)")
     void valueAtDates_endOfDayBoundary() {
         Security sber = buildSecurity("SBER", HistoryStatus.READY);

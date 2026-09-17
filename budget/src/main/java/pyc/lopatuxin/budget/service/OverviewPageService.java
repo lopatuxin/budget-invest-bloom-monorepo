@@ -20,6 +20,7 @@ import pyc.lopatuxin.budget.repository.IncomeRepository;
 import pyc.lopatuxin.budget.util.ComparisonMath;
 import pyc.lopatuxin.shared.port.PortfolioCurrentValuation;
 import pyc.lopatuxin.shared.port.PortfolioNextDividend;
+import pyc.lopatuxin.shared.port.PortfolioReceivedPayout;
 import pyc.lopatuxin.shared.port.PortfolioValuation;
 import pyc.lopatuxin.shared.port.PortfolioValueAt;
 import pyc.lopatuxin.shared.port.PortfolioValueSeries;
@@ -78,12 +79,18 @@ public class OverviewPageService {
 
         MonthlyAmounts monthly = loadMonthlyAmounts(userId, windows.p().getFirst().atDay(1), today);
 
-        BigDecimal freeMoneyNow = incomeRepository.sumNonTransferByUserId(userId)
-                .subtract(expenseRepository.sumNonTransferByUserId(userId));
+        // Free money for capital includes isTransfer=true records, unlike monthly.income()/expenses()
+        // above: an investment purchase or sale must not disappear from or double-count in capital.
+        // Received dividends/coupons are added on top of that: they are never budget records at
+        // all (see loadReceivedPayouts), so without this they would be missing from capital entirely.
+        List<PortfolioReceivedPayout> receivedPayouts = loadReceivedPayouts(userId);
+        BigDecimal freeMoneyNow = incomeRepository.sumByUserId(userId)
+                .subtract(expenseRepository.sumByUserId(userId))
+                .add(sumPayoutsUpTo(receivedPayouts, today));
         PortfolioSnapshot currentPortfolio = loadCurrentPortfolio(userId);
 
         CapitalSectionDto capital = buildCapitalSection(
-                userId, currentMonth, today, windows.history(), monthly, freeMoneyNow, currentPortfolio);
+                userId, currentMonth, today, windows.history(), freeMoneyNow, currentPortfolio, receivedPayouts);
 
         BigDecimal personalInflationPercent = personalInflationCalculator
                 .calculateOptional(userId, today.getMonthValue(), today.getYear(), new HashMap<>())
@@ -125,15 +132,18 @@ public class OverviewPageService {
     // ─── Capital section ──────────────────────────────────────────────────────
 
     private CapitalSectionDto buildCapitalSection(UUID userId, YearMonth currentMonth, LocalDate today,
-                                                  List<YearMonth> historyMonths, MonthlyAmounts monthly,
-                                                  BigDecimal freeMoneyNow, PortfolioSnapshot currentPortfolio) {
+                                                  List<YearMonth> historyMonths,
+                                                  BigDecimal freeMoneyNow, PortfolioSnapshot currentPortfolio,
+                                                  List<PortfolioReceivedPayout> receivedPayouts) {
         List<LocalDate> historyDates = historyMonths.stream().map(YearMonth::atEndOfMonth).toList();
-        BigDecimal baseIncome = incomeRepository.sumNonTransferByUserIdAndDateLessThanEqual(userId, historyDates.getFirst());
-        BigDecimal baseExpense = expenseRepository.sumNonTransferByUserIdAndDateLessThanEqual(userId, historyDates.getFirst());
+        // History points include isTransfer=true records too — same rule as freeMoneyNow above.
+        BigDecimal baseIncome = incomeRepository.sumByUserIdAndDateLessThanEqual(userId, historyDates.getFirst());
+        BigDecimal baseExpense = expenseRepository.sumByUserIdAndDateLessThanEqual(userId, historyDates.getFirst());
+        MonthlyAmounts monthlyAll = loadMonthlyAllAmounts(userId, historyMonths.getFirst().atDay(1), historyDates.getLast());
 
         PortfolioHistoryResult portfolioHistory = loadPortfolioHistory(userId, historyDates);
         List<CapitalPointDto> points = buildHistoryPoints(
-                historyMonths, historyDates, monthly, baseIncome, baseExpense, portfolioHistory.valueByDate());
+                historyMonths, historyDates, monthlyAll, baseIncome, baseExpense, portfolioHistory.valueByDate(), receivedPayouts);
 
         BigDecimal lastPortfolioValue = currentPortfolio.available()
                 ? currentPortfolio.valuation().totalValue() : BigDecimal.ZERO;
@@ -147,7 +157,8 @@ public class OverviewPageService {
                 .total(ComparisonMath.money(capitalTotal))
                 .build());
 
-        YearOverYearChange yoy = computeYearOverYearChange(baseIncome, baseExpense, points.getFirst(), capitalTotal);
+        BigDecimal payoutsAtFirstPoint = sumPayoutsUpTo(receivedPayouts, historyDates.getFirst());
+        YearOverYearChange yoy = computeYearOverYearChange(baseIncome, baseExpense, payoutsAtFirstPoint, points.getFirst(), capitalTotal);
 
         return CapitalSectionDto.builder()
                 .total(ComparisonMath.money(capitalTotal))
@@ -163,19 +174,23 @@ public class OverviewPageService {
                 .build();
     }
 
-    private List<CapitalPointDto> buildHistoryPoints(List<YearMonth> months, List<LocalDate> dates, MonthlyAmounts monthly,
+    private List<CapitalPointDto> buildHistoryPoints(List<YearMonth> months, List<LocalDate> dates, MonthlyAmounts monthlyAll,
                                                       BigDecimal baseIncome, BigDecimal baseExpense,
-                                                      Map<LocalDate, BigDecimal> portfolioByDate) {
+                                                      Map<LocalDate, BigDecimal> portfolioByDate,
+                                                      List<PortfolioReceivedPayout> receivedPayouts) {
         List<CapitalPointDto> points = new ArrayList<>();
         BigDecimal cumulativeIncome = baseIncome;
         BigDecimal cumulativeExpense = baseExpense;
         for (int i = 0; i < months.size(); i++) {
             YearMonth month = months.get(i);
             if (i > 0) {
-                cumulativeIncome = cumulativeIncome.add(monthAmount(monthly.income(), month));
-                cumulativeExpense = cumulativeExpense.add(monthAmount(monthly.expenses(), month));
+                cumulativeIncome = cumulativeIncome.add(monthAmount(monthlyAll.income(), month));
+                cumulativeExpense = cumulativeExpense.add(monthAmount(monthlyAll.expenses(), month));
             }
-            BigDecimal freeMoney = cumulativeIncome.subtract(cumulativeExpense);
+            // Received payouts are not budget records (see loadReceivedPayouts), so they are
+            // added on top of the cumulative income/expenses here instead of folded into monthlyAll.
+            BigDecimal freeMoney = cumulativeIncome.subtract(cumulativeExpense)
+                    .add(sumPayoutsUpTo(receivedPayouts, dates.get(i)));
             BigDecimal portfolioValue = portfolioByDate.getOrDefault(dates.get(i), BigDecimal.ZERO);
             BigDecimal total = freeMoney.add(portfolioValue);
             points.add(CapitalPointDto.builder()
@@ -191,14 +206,16 @@ public class OverviewPageService {
     }
 
     /**
-     * Year-over-year change is {@code NO_HISTORY} when the user had no income, no expenses and no
-     * portfolio value at all a year ago (the first history point) — a brand-new account, not just
-     * a coincidental zero total.
+     * Year-over-year change is {@code NO_HISTORY} when the user had no income, no expenses, no
+     * received payouts and no portfolio value at all a year ago (the first history point) — a
+     * brand-new account, not just a coincidental zero total. A user whose only history a year ago
+     * is a received dividend/coupon is not a brand-new account either, hence payoutsAtFirstPoint.
      */
     private YearOverYearChange computeYearOverYearChange(BigDecimal baseIncome, BigDecimal baseExpense,
+                                                          BigDecimal payoutsAtFirstPoint,
                                                           CapitalPointDto firstPoint, BigDecimal capitalTotal) {
         boolean noHistory = baseIncome.signum() == 0 && baseExpense.signum() == 0
-                && firstPoint.getPortfolioValue().signum() == 0;
+                && payoutsAtFirstPoint.signum() == 0 && firstPoint.getPortfolioValue().signum() == 0;
         if (noHistory) {
             return new YearOverYearChange(null, null, ChangeDto.builder().status(NormStatus.NO_HISTORY).build());
         }
@@ -216,6 +233,26 @@ public class OverviewPageService {
             log.warn("Не удалось получить текущую оценку портфеля для userId={}: {}", userId, e.getMessage());
             return new PortfolioSnapshot(false, null);
         }
+    }
+
+    // Received dividends/coupons are never written as budget records (unlike a buy, sale or bond
+    // redemption, which land as isTransfer=true income/expense rows) — this is the one place that
+    // pulls that money into free money, reusing the investment side's own received-payout rules
+    // (PortfolioService.getReceivedPayouts) instead of duplicating them here.
+    private List<PortfolioReceivedPayout> loadReceivedPayouts(UUID userId) {
+        try {
+            return portfolioValuation.receivedPayouts(userId);
+        } catch (RuntimeException e) {
+            log.warn("Не удалось получить полученные выплаты по портфелю для userId={}: {}", userId, e.getMessage());
+            return List.of();
+        }
+    }
+
+    private BigDecimal sumPayoutsUpTo(List<PortfolioReceivedPayout> payouts, LocalDate date) {
+        return payouts.stream()
+                .filter(p -> !p.receivedDate().isAfter(date))
+                .map(PortfolioReceivedPayout::netAmountRub)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private PortfolioHistoryResult loadPortfolioHistory(UUID userId, List<LocalDate> dates) {
@@ -331,6 +368,15 @@ public class OverviewPageService {
                 incomeRepository.findMonthlyNonTransferIncomeByUserIdAndDateBetween(userId, rangeStart, rangeEnd));
         Map<YearMonth, BigDecimal> expenses = toMonthlyMap(
                 expenseRepository.findMonthlyNonTransferExpenseByUserIdAndDateBetween(userId, rangeStart, rangeEnd));
+        return new MonthlyAmounts(income, expenses);
+    }
+
+    /** Same as {@link #loadMonthlyAmounts}, but including isTransfer=true records — for capital history only. */
+    private MonthlyAmounts loadMonthlyAllAmounts(UUID userId, LocalDate rangeStart, LocalDate rangeEnd) {
+        Map<YearMonth, BigDecimal> income = toMonthlyMap(
+                incomeRepository.findMonthlyIncomeByUserIdAndDateBetween(userId, rangeStart, rangeEnd));
+        Map<YearMonth, BigDecimal> expenses = toMonthlyMap(
+                expenseRepository.findMonthlyExpenseByUserIdAndDateBetween(userId, rangeStart, rangeEnd));
         return new MonthlyAmounts(income, expenses);
     }
 

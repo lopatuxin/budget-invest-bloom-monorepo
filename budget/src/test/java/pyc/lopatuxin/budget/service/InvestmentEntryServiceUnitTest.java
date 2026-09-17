@@ -139,6 +139,62 @@ class InvestmentEntryServiceUnitTest {
     }
 
     @Test
+    @DisplayName("create(REDEMPTION): создаёт Income с source=INVESTMENTS, description=\"Погашение облигаций\"")
+    void create_redemption_shouldCreateIncomeWithBondRedemptionDescription() {
+        UUID incomeId = UUID.randomUUID();
+        Income savedIncome = Income.builder()
+                .id(incomeId)
+                .userId(userId)
+                .source(IncomeSource.INVESTMENTS)
+                .amount(new BigDecimal("71000.00"))
+                .description("Погашение облигаций")
+                .build();
+
+        InvestmentEntryRequestDto dto = InvestmentEntryRequestDto.builder()
+                .type(EntryType.REDEMPTION)
+                .amount(new BigDecimal("71000.00"))
+                .executedAt(Instant.parse("2026-09-16T09:00:00Z"))
+                .build();
+
+        when(incomeService.createInternal(any(), any(), any(), any(), any(), anyBoolean()))
+                .thenReturn(savedIncome);
+
+        InvestmentEntryResponseDto result = investmentEntryService.create(userId, dto);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getEntryId()).isEqualTo(incomeId);
+
+        ArgumentCaptor<IncomeSource> sourceCaptor = ArgumentCaptor.forClass(IncomeSource.class);
+        ArgumentCaptor<String> descCaptor = ArgumentCaptor.forClass(String.class);
+        verify(incomeService).createInternal(
+                eq(userId), sourceCaptor.capture(), eq(new BigDecimal("71000.00")), any(), descCaptor.capture(), eq(true));
+        assertThat(sourceCaptor.getValue()).isEqualTo(IncomeSource.INVESTMENTS);
+        assertThat(descCaptor.getValue()).isEqualTo("Погашение облигаций");
+
+        verify(categoryService, never()).ensureSystemCategory(any(), any(), any());
+        verify(expenseService, never()).createInternal(any(), any(), any(), any(), any(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("delete(entryId, REDEMPTION): удаляет Income")
+    void delete_redemption_shouldDeleteIncome() {
+        UUID incomeId = UUID.randomUUID();
+        Income income = Income.builder()
+                .id(incomeId)
+                .userId(userId)
+                .source(IncomeSource.INVESTMENTS)
+                .amount(new BigDecimal("71000.00"))
+                .build();
+
+        when(incomeRepository.findById(incomeId)).thenReturn(Optional.of(income));
+
+        investmentEntryService.delete(userId, incomeId, EntryType.REDEMPTION);
+
+        verify(incomeRepository).delete(income);
+        verify(expenseRepository, never()).delete(any());
+    }
+
+    @Test
     @DisplayName("create() повторно — переиспользует существующую системную категорию (categoryService вызывается дважды)")
     void create_buy_calledTwice_shouldReuseExistingSystemCategory() {
         Expense expense1 = Expense.builder().id(UUID.randomUUID()).userId(userId).category(systemCategory).amount(new BigDecimal("1000.00")).build();

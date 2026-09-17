@@ -23,6 +23,7 @@ import pyc.lopatuxin.shared.port.InvestmentBudgetSync;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -45,6 +46,10 @@ public class TransactionService {
 
     @Transactional("investmentTransactionManager")
     public TransactionResponseDto create(UUID userId, CreateTransactionDto dto) {
+        if (dto.getType() == TransactionType.REDEMPTION) {
+            throw new IllegalArgumentException(
+                    "Операция «Погашение» создаётся автоматически по дате погашения облигации и недоступна для ручного ввода");
+        }
         Security security = marketDataService.ensureSecurity(dto.getTicker().toUpperCase(), dto.getSecurityType());
 
         Transaction transaction = Transaction.builder()
@@ -55,18 +60,40 @@ public class TransactionService {
                 .price(dto.getPrice())
                 .executedAt(dto.getExecutedAt())
                 .build();
+        Transaction saved = saveAndSyncBudget(userId, transaction);
+        return transactionMapper.toDto(saved);
+    }
+
+    // Called by BondRedemptionService when a bond's position reaches its maturity date — the
+    // same persist-recalculate-budget path create() uses (no duplicated recalculatePosition
+    // logic), just without the REDEMPTION guard above, since this is the one legitimate way to
+    // record it.
+    @Transactional("investmentTransactionManager")
+    public void createRedemption(UUID userId, Security security, BigDecimal quantity, BigDecimal price, Instant executedAt) {
+        Transaction transaction = Transaction.builder()
+                .userId(userId)
+                .security(security)
+                .type(TransactionType.REDEMPTION)
+                .quantity(quantity)
+                .price(price)
+                .executedAt(executedAt)
+                .build();
+        saveAndSyncBudget(userId, transaction);
+    }
+
+    private Transaction saveAndSyncBudget(UUID userId, Transaction transaction) {
         Transaction saved = transactionRepository.save(transaction);
         transactionRepository.flush();  // ensure visibility for recalculatePosition
 
-        recalculatePosition(userId, security.getTicker());
+        recalculatePosition(userId, saved.getSecurity().getTicker());
 
         BigDecimal amount = saved.getQuantity().multiply(saved.getPrice());
         UUID budgetEntryId = investmentBudgetSync.createEntry(userId, toEntryType(saved.getType()), amount, saved.getExecutedAt());
         saved.setBudgetEntryId(budgetEntryId);
         transactionRepository.save(saved);
 
-        log.info("Transaction created: userId={}, ticker={}, type={}", userId, security.getTicker(), dto.getType());
-        return transactionMapper.toDto(saved);
+        log.info("Transaction created: userId={}, ticker={}, type={}", userId, saved.getSecurity().getTicker(), saved.getType());
+        return saved;
     }
 
     @Transactional(value = "investmentTransactionManager", readOnly = true)

@@ -1,4 +1,4 @@
-export type TransactionType = 'BUY' | 'SELL';
+export type TransactionType = 'BUY' | 'SELL' | 'REDEMPTION';
 export type SecurityType = 'STOCK' | 'BOND' | 'ETF' | 'OFZ';
 export type SecurityHistoryStatus = 'PENDING' | 'READY';
 export type PortfolioSort = 'WEIGHT' | 'PNL' | 'DAY';
@@ -344,6 +344,17 @@ export interface SecuritySellEvent {
   positionAfter: SecurityPositionAfter;
 }
 
+export interface SecurityRedemptionEvent {
+  kind: 'REDEMPTION';
+  date: string;
+  transactionId: string;
+  quantity: number;
+  price: number;
+  amount: number;
+  realizedPnl: number;
+  positionAfter: SecurityPositionAfter;
+}
+
 export interface SecurityDividendPaidEvent {
   kind: 'DIVIDEND_PAID';
   date: string;
@@ -374,6 +385,7 @@ export interface SecurityDividendUpcomingEvent {
 export type SecurityEvent =
   | SecurityBuyEvent
   | SecuritySellEvent
+  | SecurityRedemptionEvent
   | SecurityDividendPaidEvent
   | SecurityDividendUpcomingEvent;
 

@@ -405,8 +405,9 @@ public class MarketDataService {
         return security;
     }
 
-    // Fills the security dictionary fields (name, type, sector, board, currency) from a MOEX
-    // response; shared by first-time creation (buildReadySecurity) and PENDING self-healing.
+    // Fills the security dictionary fields (name, type, sector, board, currency, maturity date)
+    // from a MOEX response; shared by first-time creation (buildReadySecurity) and PENDING
+    // self-healing.
     private void applyMoexInfo(Security security, String ticker, MoexSecurityDto dto) {
         // If MOEX did not return a sector, resolve from local dictionary
         String sector = dto.sector() != null
@@ -417,6 +418,7 @@ public class MarketDataService {
         security.setType(dto.securityType());
         security.setSector(sector);
         security.setCurrency(dto.currency());
+        security.setMaturityDate(dto.maturityDate());
     }
 
     // Self-healing for securities saved as PENDING while MOEX was unavailable: re-fetches

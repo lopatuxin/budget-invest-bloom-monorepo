@@ -55,6 +55,7 @@ public class SecurityPageService {
     private static final int SCALE = 2;
     private static final BigDecimal ZERO2 = BigDecimal.ZERO.setScale(SCALE, RM);
     private static final String RUB = "RUB";
+    private static final Set<SecurityEventKind> SELL_LIKE_KINDS = Set.of(SecurityEventKind.SELL, SecurityEventKind.REDEMPTION);
 
     // Same primary-then-tie-break rule as the "Мои операции" journal replay (TransactionService.
     // recalculatePosition): a Dividend has no creation timestamp, so it sorts after a transaction
@@ -159,19 +160,23 @@ public class SecurityPageService {
                 state = applyBuy(state, t, events, i == 0);
                 buysCount++;
             } else {
-                state = applySell(state, t, events);
+                SecurityEventKind kind = t.getType() == TransactionType.REDEMPTION
+                        ? SecurityEventKind.REDEMPTION : SecurityEventKind.SELL;
+                state = applySell(state, t, events, kind);
                 sellsCount++;
             }
         }
-        BigDecimal investedAllGross = sumByKind(events, SecurityEventKind.BUY, SecurityEventDto::getAmount);
-        BigDecimal realizedPnlTotal = sumByKind(events, SecurityEventKind.SELL, SecurityEventDto::getRealizedPnl);
+        BigDecimal investedAllGross = sumByKinds(events, Set.of(SecurityEventKind.BUY), SecurityEventDto::getAmount);
+        // A bond redemption reduces the position exactly like a sale, so its profit joins the
+        // same "realized" total (plan point 2).
+        BigDecimal realizedPnlTotal = sumByKinds(events, SELL_LIKE_KINDS, SecurityEventDto::getRealizedPnl);
         return new JournalReplay(events, markers, state.quantity(), investedAllGross, realizedPnlTotal, buysCount, sellsCount);
     }
 
-    private BigDecimal sumByKind(List<SecurityEventDto> events, SecurityEventKind kind,
-                                 Function<SecurityEventDto, BigDecimal> field) {
+    private BigDecimal sumByKinds(List<SecurityEventDto> events, Set<SecurityEventKind> kinds,
+                                  Function<SecurityEventDto, BigDecimal> field) {
         return events.stream()
-                .filter(e -> e.getKind() == kind)
+                .filter(e -> kinds.contains(e.getKind()))
                 .map(field)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(SCALE, RM);
@@ -213,7 +218,7 @@ public class SecurityPageService {
     // larger than the holding, so a drifted journal is the only way here; it must not turn the
     // page into a 500, hence a zero average when nothing is held and a negative remainder clamped
     // to zero and logged (same defensive guard as HoldingsOnDateService.quantityAt).
-    private PositionState applySell(PositionState state, Transaction t, List<SecurityEventDto> events) {
+    private PositionState applySell(PositionState state, Transaction t, List<SecurityEventDto> events, SecurityEventKind kind) {
         BigDecimal averageBefore = state.quantity().signum() > 0
                 ? state.costBasis().divide(state.quantity(), 8, RM)
                 : BigDecimal.ZERO;
@@ -228,7 +233,7 @@ public class SecurityPageService {
         BigDecimal costBasis = quantity.signum() == 0 ? BigDecimal.ZERO : state.costBasis().subtract(averageBefore.multiply(t.getQuantity()));
         BigDecimal average = quantity.signum() == 0 ? BigDecimal.ZERO : costBasis.divide(quantity, SCALE, RM);
         events.add(SecurityEventDto.builder()
-                .kind(SecurityEventKind.SELL)
+                .kind(kind)
                 .date(toLocalDate(t.getExecutedAt()))
                 .createdAt(t.getCreatedAt())
                 .transactionId(t.getId())

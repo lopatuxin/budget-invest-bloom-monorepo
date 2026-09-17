@@ -449,6 +449,103 @@ class MoexResponseParserTest {
         assertThat(result.get().currency()).isEqualTo("RUB");
     }
 
+    @Test
+    @DisplayName("parseSecurity — MATDATE в описании → maturityDate заполнена")
+    void parseSecurity_parsesMaturityDate() throws Exception {
+        JsonNode root = MAPPER.readTree("""
+                {
+                  "description": {
+                    "columns": ["name","title","value"],
+                    "data": [
+                      ["SECID","Код","SU26219RMFS4"],
+                      ["NAME","Наименование","ОФЗ 26219"],
+                      ["GROUP","Группа","stock_bonds"],
+                      ["MATDATE","Дата погашения","2026-09-16"]
+                    ]
+                  },
+                  "boards": {"columns": ["secid","boardid","is_primary","is_traded"], "data": []}
+                }
+                """);
+
+        var result = MoexResponseParser.parseSecurity(root, "SU26219RMFS4");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().maturityDate()).isEqualTo(LocalDate.of(2026, 9, 16));
+    }
+
+    @Test
+    @DisplayName("parseSecurity — MATDATE отсутствует (бессрочная облигация) → maturityDate пустая")
+    void parseSecurity_missingMatDate_maturityDateNull() throws Exception {
+        JsonNode root = MAPPER.readTree("""
+                {
+                  "description": {
+                    "columns": ["name","title","value"],
+                    "data": [
+                      ["SECID","Код","SOMEPERP"],
+                      ["NAME","Наименование","Бессрочная облигация"],
+                      ["GROUP","Группа","stock_bonds"]
+                    ]
+                  },
+                  "boards": {"columns": ["secid","boardid","is_primary","is_traded"], "data": []}
+                }
+                """);
+
+        var result = MoexResponseParser.parseSecurity(root, "SOMEPERP");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().maturityDate()).isNull();
+    }
+
+    @Test
+    @DisplayName("parseSecurity — MATDATE пустая строка → maturityDate пустая, остальные поля разобраны")
+    void parseSecurity_blankMatDate_maturityDateNull() throws Exception {
+        JsonNode root = MAPPER.readTree("""
+                {
+                  "description": {
+                    "columns": ["name","title","value"],
+                    "data": [
+                      ["SECID","Код","SOMEPERP"],
+                      ["NAME","Наименование","Бессрочная облигация"],
+                      ["GROUP","Группа","stock_bonds"],
+                      ["MATDATE","Дата погашения",""]
+                    ]
+                  },
+                  "boards": {"columns": ["secid","boardid","is_primary","is_traded"], "data": []}
+                }
+                """);
+
+        var result = MoexResponseParser.parseSecurity(root, "SOMEPERP");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().maturityDate()).isNull();
+        assertThat(result.get().name()).isEqualTo("Бессрочная облигация");
+    }
+
+    @Test
+    @DisplayName("parseSecurity — MATDATE в некорректном формате → maturityDate пустая, парсинг бумаги не падает")
+    void parseSecurity_malformedMatDate_maturityDateNullButSecurityStillParsed() throws Exception {
+        JsonNode root = MAPPER.readTree("""
+                {
+                  "description": {
+                    "columns": ["name","title","value"],
+                    "data": [
+                      ["SECID","Код","BADDATE"],
+                      ["NAME","Наименование","Облигация с кривой датой"],
+                      ["GROUP","Группа","stock_bonds"],
+                      ["MATDATE","Дата погашения","not-a-date"]
+                    ]
+                  },
+                  "boards": {"columns": ["secid","boardid","is_primary","is_traded"], "data": []}
+                }
+                """);
+
+        var result = MoexResponseParser.parseSecurity(root, "BADDATE");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().maturityDate()).isNull();
+        assertThat(result.get().name()).isEqualTo("Облигация с кривой датой");
+    }
+
     // ------------------------------------------------------------------
     // Параметризованные: cursor pageSize <= 0
     // ------------------------------------------------------------------

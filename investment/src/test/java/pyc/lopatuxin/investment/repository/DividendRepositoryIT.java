@@ -137,6 +137,31 @@ class DividendRepositoryIT extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("findByTickerInAndReceivedDateBeforeWithSecurity — не ограничен 12 месяцами, но исключает отсечку сегодня и CANCELLED")
+    void receivedBeforeToday_hasNoTwelveMonthFloor_excludesTodayAndCancelled() {
+        Security security = saveSber();
+
+        Dividend old = Dividend.builder().security(security)
+                .recordDate(LocalDate.now().minusYears(2))
+                .amountPerShare(new BigDecimal("10.00"))
+                .currency("RUB").status(DividendStatus.PAID).source(DividendSource.TINVEST).build();
+        Dividend today = Dividend.builder().security(security)
+                .recordDate(LocalDate.now())
+                .amountPerShare(new BigDecimal("20.00"))
+                .currency("RUB").status(DividendStatus.ANNOUNCED).source(DividendSource.TINVEST).build();
+        Dividend cancelled = Dividend.builder().security(security)
+                .recordDate(LocalDate.now().minusMonths(1))
+                .amountPerShare(new BigDecimal("30.00"))
+                .currency("RUB").status(DividendStatus.CANCELLED).source(DividendSource.TINVEST).build();
+        dividendRepository.saveAll(List.of(old, today, cancelled));
+
+        List<Dividend> received = dividendRepository.findByTickerInAndReceivedDateBeforeWithSecurity(
+                List.of("SBER"), LocalDate.now());
+
+        assertThat(received).extracting(Dividend::getRecordDate).containsExactly(LocalDate.now().minusYears(2));
+    }
+
+    @Test
     @DisplayName("findBySecurity_TickerAndRecordDate — находит существующую запись по ключу тикер+дата отсечки")
     void findBySecurityTickerAndRecordDate_findsExisting() {
         Security security = saveSber();

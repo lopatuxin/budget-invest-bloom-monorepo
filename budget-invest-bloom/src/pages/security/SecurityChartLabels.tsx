@@ -5,6 +5,7 @@ import { SECURITY_BUY_COLOR, SECURITY_SELL_COLOR } from '@/pages/security/securi
 const LABEL_COLOR: Record<ChartLabel['kind'], string> = {
   BUY: SECURITY_BUY_COLOR,
   SELL: SECURITY_SELL_COLOR,
+  REDEMPTION: SECURITY_SELL_COLOR,
   AVERAGE: CHART_TEXT_COLOR,
 };
 

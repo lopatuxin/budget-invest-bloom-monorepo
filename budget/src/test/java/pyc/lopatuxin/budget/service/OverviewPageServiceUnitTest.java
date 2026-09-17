@@ -17,6 +17,7 @@ import pyc.lopatuxin.budget.repository.ExpenseRepository;
 import pyc.lopatuxin.budget.repository.IncomeRepository;
 import pyc.lopatuxin.shared.port.PortfolioCurrentValuation;
 import pyc.lopatuxin.shared.port.PortfolioNextDividend;
+import pyc.lopatuxin.shared.port.PortfolioReceivedPayout;
 import pyc.lopatuxin.shared.port.PortfolioValuation;
 import pyc.lopatuxin.shared.port.PortfolioValueAt;
 import pyc.lopatuxin.shared.port.PortfolioValueSeries;
@@ -62,18 +63,23 @@ class OverviewPageServiceUnitTest {
     @BeforeEach
     void setUp() {
         // Default lenient stubs — a brand-new user with no records, no portfolio, no history.
-        lenient().when(incomeRepository.sumNonTransferByUserId(userId)).thenReturn(BigDecimal.ZERO);
-        lenient().when(expenseRepository.sumNonTransferByUserId(userId)).thenReturn(BigDecimal.ZERO);
-        lenient().when(incomeRepository.sumNonTransferByUserIdAndDateLessThanEqual(eq(userId), any()))
+        lenient().when(incomeRepository.sumByUserId(userId)).thenReturn(BigDecimal.ZERO);
+        lenient().when(expenseRepository.sumByUserId(userId)).thenReturn(BigDecimal.ZERO);
+        lenient().when(incomeRepository.sumByUserIdAndDateLessThanEqual(eq(userId), any()))
                 .thenReturn(BigDecimal.ZERO);
-        lenient().when(expenseRepository.sumNonTransferByUserIdAndDateLessThanEqual(eq(userId), any()))
+        lenient().when(expenseRepository.sumByUserIdAndDateLessThanEqual(eq(userId), any()))
                 .thenReturn(BigDecimal.ZERO);
         lenient().when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndDateBetween(eq(userId), any(), any()))
                 .thenReturn(Collections.emptyList());
         lenient().when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndDateBetween(eq(userId), any(), any()))
                 .thenReturn(Collections.emptyList());
+        lenient().when(incomeRepository.findMonthlyIncomeByUserIdAndDateBetween(eq(userId), any(), any()))
+                .thenReturn(Collections.emptyList());
+        lenient().when(expenseRepository.findMonthlyExpenseByUserIdAndDateBetween(eq(userId), any(), any()))
+                .thenReturn(Collections.emptyList());
         lenient().when(portfolioValuation.current(userId)).thenReturn(
                 new PortfolioCurrentValuation(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 0, BigDecimal.ZERO, null));
+        lenient().when(portfolioValuation.receivedPayouts(userId)).thenReturn(List.of());
         lenient().when(portfolioValuation.valueAt(eq(userId), any())).thenAnswer(invocation -> {
             List<LocalDate> dates = invocation.getArgument(1);
             return new PortfolioValueSeries(dates.stream().map(date -> new PortfolioValueAt(date, BigDecimal.ZERO)).toList(),
@@ -148,11 +154,11 @@ class OverviewPageServiceUnitTest {
     void shouldAccumulateFreeMoneyAcrossHistoryPoints() {
         LocalDate firstHistoryDate = currentMonth.minusMonths(12).atEndOfMonth();
         YearMonth secondMonth = currentMonth.minusMonths(11);
-        when(incomeRepository.sumNonTransferByUserIdAndDateLessThanEqual(userId, firstHistoryDate))
+        when(incomeRepository.sumByUserIdAndDateLessThanEqual(userId, firstHistoryDate))
                 .thenReturn(new BigDecimal("100000.00"));
-        when(expenseRepository.sumNonTransferByUserIdAndDateLessThanEqual(userId, firstHistoryDate))
+        when(expenseRepository.sumByUserIdAndDateLessThanEqual(userId, firstHistoryDate))
                 .thenReturn(new BigDecimal("40000.00"));
-        stubMonthlyAmounts(
+        stubMonthlyAllAmounts(
                 List.<Object[]>of(new Object[]{secondMonth.getYear(), secondMonth.getMonthValue(), new BigDecimal("20000.00")}),
                 List.<Object[]>of(new Object[]{secondMonth.getYear(), secondMonth.getMonthValue(), new BigDecimal("5000.00")}));
 
@@ -164,10 +170,32 @@ class OverviewPageServiceUnitTest {
     }
 
     @Test
+    @DisplayName("История капитала должна накапливать transfer-записи (инвестиционные операции), а не только обычные доходы/расходы")
+    void shouldAccumulateTransferRecordsInHistoryToo() {
+        LocalDate firstHistoryDate = currentMonth.minusMonths(12).atEndOfMonth();
+        YearMonth secondMonth = currentMonth.minusMonths(11);
+        when(incomeRepository.sumByUserIdAndDateLessThanEqual(userId, firstHistoryDate))
+                .thenReturn(new BigDecimal("100000.00"));
+        when(expenseRepository.sumByUserIdAndDateLessThanEqual(userId, firstHistoryDate))
+                .thenReturn(new BigDecimal("40000.00"));
+        // Only a transfer expense (e.g. a BUY) in the second month — findMonthlyNonTransfer... stays empty
+        // (default stub), only the all-records findMonthlyExpenseByUserIdAndDateBetween sees it.
+        stubMonthlyAllAmounts(
+                Collections.emptyList(),
+                List.<Object[]>of(new Object[]{secondMonth.getYear(), secondMonth.getMonthValue(), new BigDecimal("15000.00")}));
+
+        OverviewPageResponseDto result = overviewPageService.getOverview(userId);
+
+        List<CapitalPointDto> history = result.getCapital().getHistory();
+        assertThat(history.get(0).getFreeMoney()).isEqualByComparingTo("60000.00");
+        assertThat(history.get(1).getFreeMoney()).isEqualByComparingTo("45000.00");
+    }
+
+    @Test
     @DisplayName("Капитал должен равняться сумме свободных денег и текущей стоимости портфеля")
     void shouldSumFreeMoneyAndPortfolioIntoCapitalTotal() {
-        when(incomeRepository.sumNonTransferByUserId(userId)).thenReturn(new BigDecimal("500000.00"));
-        when(expenseRepository.sumNonTransferByUserId(userId)).thenReturn(new BigDecimal("200000.00"));
+        when(incomeRepository.sumByUserId(userId)).thenReturn(new BigDecimal("500000.00"));
+        when(expenseRepository.sumByUserId(userId)).thenReturn(new BigDecimal("200000.00"));
         when(portfolioValuation.current(userId)).thenReturn(new PortfolioCurrentValuation(
                 new BigDecimal("100000.00"), new BigDecimal("80000.00"), new BigDecimal("20000.00"), 5, BigDecimal.ZERO, null));
 
@@ -176,6 +204,160 @@ class OverviewPageServiceUnitTest {
         assertThat(result.getCapital().getFreeMoney()).isEqualByComparingTo("300000.00");
         assertThat(result.getCapital().getPortfolioValue()).isEqualByComparingTo("100000.00");
         assertThat(result.getCapital().getTotal()).isEqualByComparingTo("400000.00");
+    }
+
+    // ─── Free money / capital include transfer records ────────────────────────
+
+    @Test
+    @DisplayName("Transfer-расход (например, покупка бумаги) должен снижать свободные деньги и капитал")
+    void transferExpenseShouldLowerFreeMoneyAndCapital() {
+        when(incomeRepository.sumByUserId(userId)).thenReturn(new BigDecimal("500000.00"));
+        // 200000 non-transfer + 50000 transfer (BUY), lumped into the same lifetime sum.
+        when(expenseRepository.sumByUserId(userId)).thenReturn(new BigDecimal("250000.00"));
+
+        OverviewPageResponseDto result = overviewPageService.getOverview(userId);
+
+        assertThat(result.getCapital().getFreeMoney()).isEqualByComparingTo("250000.00");
+        assertThat(result.getCapital().getTotal()).isEqualByComparingTo("250000.00");
+    }
+
+    @Test
+    @DisplayName("Transfer-доход (например, продажа или погашение облигации) должен повышать свободные деньги и капитал")
+    void transferIncomeShouldRaiseFreeMoneyAndCapital() {
+        // 300000 non-transfer + 71000 transfer (bond redemption), lumped into the same lifetime sum.
+        when(incomeRepository.sumByUserId(userId)).thenReturn(new BigDecimal("371000.00"));
+        when(expenseRepository.sumByUserId(userId)).thenReturn(new BigDecimal("200000.00"));
+
+        OverviewPageResponseDto result = overviewPageService.getOverview(userId);
+
+        assertThat(result.getCapital().getFreeMoney()).isEqualByComparingTo("171000.00");
+        assertThat(result.getCapital().getTotal()).isEqualByComparingTo("171000.00");
+    }
+
+    @Test
+    @DisplayName("Погашение облигации не должно менять капитал: стоимость портфеля падает на X, свободные деньги растут на X")
+    void bondRedemptionShouldLeaveCapitalTotalUnchanged() {
+        // Before redemption: free money 100000, portfolio value 71000 (the bond about to be redeemed) → capital 171000.
+        // After redemption: 71000 leaves the portfolio and arrives as isTransfer=true income, so lifetime income
+        // grows by 71000 and free money becomes 171000, while portfolio value drops to 0. Capital must stay 171000.
+        when(incomeRepository.sumByUserId(userId)).thenReturn(new BigDecimal("171000.00"));
+        when(expenseRepository.sumByUserId(userId)).thenReturn(BigDecimal.ZERO);
+        when(portfolioValuation.current(userId)).thenReturn(
+                new PortfolioCurrentValuation(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 0, BigDecimal.ZERO, null));
+
+        OverviewPageResponseDto result = overviewPageService.getOverview(userId);
+
+        assertThat(result.getCapital().getFreeMoney()).isEqualByComparingTo("171000.00");
+        assertThat(result.getCapital().getPortfolioValue()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.getCapital().getTotal()).isEqualByComparingTo("171000.00");
+    }
+
+    // ─── Received payouts (dividends/coupons) raise free money and capital ────
+
+    @Test
+    @DisplayName("Полученная выплата (дивиденд/купон) должна повышать свободные деньги и капитал")
+    void receivedPayoutsShouldRaiseFreeMoneyAndCapital() {
+        when(incomeRepository.sumByUserId(userId)).thenReturn(new BigDecimal("500000.00"));
+        when(expenseRepository.sumByUserId(userId)).thenReturn(new BigDecimal("200000.00"));
+        when(portfolioValuation.receivedPayouts(userId)).thenReturn(List.of(
+                new PortfolioReceivedPayout(today.minusDays(10), new BigDecimal("1000.00")),
+                new PortfolioReceivedPayout(today.minusDays(5), new BigDecimal("500.00"))));
+
+        OverviewPageResponseDto result = overviewPageService.getOverview(userId);
+
+        assertThat(result.getCapital().getFreeMoney()).isEqualByComparingTo("301500.00");
+        assertThat(result.getCapital().getTotal()).isEqualByComparingTo("301500.00");
+    }
+
+    @Test
+    @DisplayName("История капитала должна учитывать полученную выплату только с точки, дата которой не раньше даты её получения")
+    void historyShouldAccumulateReceivedPayoutsOnlyFromTheirDateOnward() {
+        LocalDate firstHistoryDate = currentMonth.minusMonths(12).atEndOfMonth();
+        LocalDate payoutDate = firstHistoryDate.plusDays(3);
+        when(portfolioValuation.receivedPayouts(userId)).thenReturn(
+                List.of(new PortfolioReceivedPayout(payoutDate, new BigDecimal("1000.00"))));
+
+        OverviewPageResponseDto result = overviewPageService.getOverview(userId);
+
+        List<CapitalPointDto> history = result.getCapital().getHistory();
+        assertThat(history.get(0).getFreeMoney()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(history.get(1).getFreeMoney()).isEqualByComparingTo("1000.00");
+    }
+
+    @Test
+    @DisplayName("Год назад была только полученная выплата — изменение капитала за год не должно считаться NO_HISTORY")
+    void yearAgoOnlyReceivedPayoutShouldNotBeNoHistory() {
+        LocalDate firstHistoryDate = currentMonth.minusMonths(12).atEndOfMonth();
+        when(portfolioValuation.receivedPayouts(userId)).thenReturn(
+                List.of(new PortfolioReceivedPayout(firstHistoryDate, new BigDecimal("1000.00"))));
+
+        OverviewPageResponseDto result = overviewPageService.getOverview(userId);
+
+        assertThat(result.getCapital().getYearAgo()).isEqualByComparingTo("1000.00");
+        assertThat(result.getCapital().getChange().getStatus()).isNotEqualTo(NormStatus.NO_HISTORY);
+    }
+
+    @Test
+    @DisplayName("Исключение порта при получении выплат не должно ронять обзор — свободные деньги считаются без них")
+    void shouldHandleReceivedPayoutsPortException() {
+        when(portfolioValuation.receivedPayouts(userId)).thenThrow(new RuntimeException("биржа недоступна"));
+        when(incomeRepository.sumByUserId(userId)).thenReturn(new BigDecimal("500000.00"));
+        when(expenseRepository.sumByUserId(userId)).thenReturn(new BigDecimal("200000.00"));
+
+        OverviewPageResponseDto result = overviewPageService.getOverview(userId);
+
+        assertThat(result.getCapital().getFreeMoney()).isEqualByComparingTo("300000.00");
+        assertThat(result.getCapital().getTotal()).isEqualByComparingTo("300000.00");
+    }
+
+    @Test
+    @DisplayName("Столбики месяцев, итоги за 12 месяцев, норма сбережений, баланс месяца и dividends12m портфеля не должны меняться от полученных выплат")
+    void barsAndTotalsAndPortfolioDividends12mShouldIgnoreReceivedPayouts() {
+        stubMonthlyAmounts(
+                List.<Object[]>of(new Object[]{currentMonth.getYear(), currentMonth.getMonthValue(), new BigDecimal("100000.00")}),
+                List.<Object[]>of(new Object[]{currentMonth.getYear(), currentMonth.getMonthValue(), new BigDecimal("40000.00")}));
+        when(portfolioValuation.receivedPayouts(userId)).thenReturn(
+                List.of(new PortfolioReceivedPayout(today.minusDays(2), new BigDecimal("5000.00"))));
+        when(portfolioValuation.current(userId)).thenReturn(new PortfolioCurrentValuation(
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 0, new BigDecimal("38200.00"), null));
+
+        OverviewPageResponseDto result = overviewPageService.getOverview(userId);
+
+        MonthTotalsDto currentMonthTotals = findMonth(result, currentMonth);
+        assertThat(currentMonthTotals.getIncome()).isEqualByComparingTo("100000.00");
+        assertThat(currentMonthTotals.getExpenses()).isEqualByComparingTo("40000.00");
+        assertThat(currentMonthTotals.getSaved()).isEqualByComparingTo("60000.00");
+        assertThat(result.getCurrentMonthBalance()).isEqualByComparingTo("60000.00");
+        assertThat(result.getSavings().getCurrentMonthRate()).isEqualTo(60);
+        assertThat(result.getTotals12m().getIncome().getAmount()).isEqualByComparingTo("100000.00");
+        assertThat(result.getPortfolio().getDividends12m()).isEqualByComparingTo("38200.00");
+    }
+
+    // ─── Statistics other than capital keep ignoring transfer records ────────
+
+    @Test
+    @DisplayName("Столбики месяцев, итоги за 12 месяцев, норма сбережений и баланс месяца должны игнорировать transfer-записи")
+    void barsAndTotalsAndSavingsAndCurrentMonthBalanceShouldIgnoreTransfers() {
+        // The non-transfer monthly map (bars/totals/savings/currentMonthBalance) sees only 100000/40000.
+        // The all-records monthly map (capital history only) additionally carries a 50000 transfer expense —
+        // it must not leak into any of the statistics asserted below.
+        stubMonthlyAmounts(
+                List.<Object[]>of(new Object[]{currentMonth.getYear(), currentMonth.getMonthValue(), new BigDecimal("100000.00")}),
+                List.<Object[]>of(new Object[]{currentMonth.getYear(), currentMonth.getMonthValue(), new BigDecimal("40000.00")}));
+        stubMonthlyAllAmounts(
+                List.<Object[]>of(new Object[]{currentMonth.getYear(), currentMonth.getMonthValue(), new BigDecimal("100000.00")}),
+                List.<Object[]>of(new Object[]{currentMonth.getYear(), currentMonth.getMonthValue(), new BigDecimal("90000.00")}));
+
+        OverviewPageResponseDto result = overviewPageService.getOverview(userId);
+
+        MonthTotalsDto currentMonthTotals = findMonth(result, currentMonth);
+        assertThat(currentMonthTotals.getIncome()).isEqualByComparingTo("100000.00");
+        assertThat(currentMonthTotals.getExpenses()).isEqualByComparingTo("40000.00");
+        assertThat(currentMonthTotals.getSaved()).isEqualByComparingTo("60000.00");
+        assertThat(result.getCurrentMonthBalance()).isEqualByComparingTo("60000.00");
+        assertThat(result.getSavings().getCurrentMonthRate()).isEqualTo(60);
+        assertThat(result.getTotals12m().getIncome().getAmount()).isEqualByComparingTo("100000.00");
+        assertThat(result.getTotals12m().getExpenses().getAmount()).isEqualByComparingTo("40000.00");
     }
 
     // ─── Year-over-year change ────────────────────────────────────────────────
@@ -195,12 +377,12 @@ class OverviewPageServiceUnitTest {
     @DisplayName("Должен рассчитать процент и статус изменения капитала за год при наличии истории")
     void shouldCalculateYearOverYearChangeWhenHistoryExists() {
         LocalDate firstHistoryDate = currentMonth.minusMonths(12).atEndOfMonth();
-        when(incomeRepository.sumNonTransferByUserIdAndDateLessThanEqual(userId, firstHistoryDate))
+        when(incomeRepository.sumByUserIdAndDateLessThanEqual(userId, firstHistoryDate))
                 .thenReturn(new BigDecimal("200000.00"));
-        when(expenseRepository.sumNonTransferByUserIdAndDateLessThanEqual(userId, firstHistoryDate))
+        when(expenseRepository.sumByUserIdAndDateLessThanEqual(userId, firstHistoryDate))
                 .thenReturn(new BigDecimal("100000.00"));
-        when(incomeRepository.sumNonTransferByUserId(userId)).thenReturn(new BigDecimal("300000.00"));
-        when(expenseRepository.sumNonTransferByUserId(userId)).thenReturn(new BigDecimal("100000.00"));
+        when(incomeRepository.sumByUserId(userId)).thenReturn(new BigDecimal("300000.00"));
+        when(expenseRepository.sumByUserId(userId)).thenReturn(new BigDecimal("100000.00"));
 
         OverviewPageResponseDto result = overviewPageService.getOverview(userId);
 
@@ -215,12 +397,12 @@ class OverviewPageServiceUnitTest {
     @DisplayName("Изменение капитала за год не должно давать процент, если год назад капитал был отрицательным")
     void shouldNotReportPercentWhenCapitalYearAgoWasNegative() {
         LocalDate firstHistoryDate = currentMonth.minusMonths(12).atEndOfMonth();
-        when(incomeRepository.sumNonTransferByUserIdAndDateLessThanEqual(userId, firstHistoryDate))
+        when(incomeRepository.sumByUserIdAndDateLessThanEqual(userId, firstHistoryDate))
                 .thenReturn(new BigDecimal("100000.00"));
-        when(expenseRepository.sumNonTransferByUserIdAndDateLessThanEqual(userId, firstHistoryDate))
+        when(expenseRepository.sumByUserIdAndDateLessThanEqual(userId, firstHistoryDate))
                 .thenReturn(new BigDecimal("150000.00"));
-        when(incomeRepository.sumNonTransferByUserId(userId)).thenReturn(new BigDecimal("200000.00"));
-        when(expenseRepository.sumNonTransferByUserId(userId)).thenReturn(new BigDecimal("150000.00"));
+        when(incomeRepository.sumByUserId(userId)).thenReturn(new BigDecimal("200000.00"));
+        when(expenseRepository.sumByUserId(userId)).thenReturn(new BigDecimal("150000.00"));
 
         OverviewPageResponseDto result = overviewPageService.getOverview(userId);
 
@@ -306,8 +488,8 @@ class OverviewPageServiceUnitTest {
     @DisplayName("Исключение порта при получении текущей оценки не должно ронять обзор")
     void shouldHandlePortfolioCurrentException() {
         when(portfolioValuation.current(userId)).thenThrow(new RuntimeException("биржа недоступна"));
-        when(incomeRepository.sumNonTransferByUserId(userId)).thenReturn(new BigDecimal("500000.00"));
-        when(expenseRepository.sumNonTransferByUserId(userId)).thenReturn(new BigDecimal("200000.00"));
+        when(incomeRepository.sumByUserId(userId)).thenReturn(new BigDecimal("500000.00"));
+        when(expenseRepository.sumByUserId(userId)).thenReturn(new BigDecimal("200000.00"));
 
         OverviewPageResponseDto result = overviewPageService.getOverview(userId);
 
@@ -462,6 +644,14 @@ class OverviewPageServiceUnitTest {
         when(incomeRepository.findMonthlyNonTransferIncomeByUserIdAndDateBetween(eq(userId), any(), any()))
                 .thenReturn(incomeRows);
         when(expenseRepository.findMonthlyNonTransferExpenseByUserIdAndDateBetween(eq(userId), any(), any()))
+                .thenReturn(expenseRows);
+    }
+
+    /** Stubs the all-records (transfers included) monthly queries used only for capital history. */
+    private void stubMonthlyAllAmounts(List<Object[]> incomeRows, List<Object[]> expenseRows) {
+        when(incomeRepository.findMonthlyIncomeByUserIdAndDateBetween(eq(userId), any(), any()))
+                .thenReturn(incomeRows);
+        when(expenseRepository.findMonthlyExpenseByUserIdAndDateBetween(eq(userId), any(), any()))
                 .thenReturn(expenseRows);
     }
 

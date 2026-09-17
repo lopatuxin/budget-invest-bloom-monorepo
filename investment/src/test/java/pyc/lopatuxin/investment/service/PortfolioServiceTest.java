@@ -212,6 +212,24 @@ class PortfolioServiceTest {
     }
 
     @Test
+    @DisplayName("getReceivedPayouts — когда все выплаты пользователя внутри последних 12 месяцев, сумма совпадает с dividends12m портфельной страницы")
+    void getReceivedPayouts_allWithinTwelveMonths_matchesPortfolioPageDividends12m() {
+        stubJournal(buy(sberSecurity(), "200", LocalDate.now().minusYears(2)));
+        Dividend dividend = Dividend.builder().security(sberSecurity())
+                .recordDate(LocalDate.now().minusMonths(2))
+                .amountPerShare(new BigDecimal("34.84"))
+                .currency("RUB").build();
+        when(dividendRepository.findByTickerInAndReceivedDateBeforeWithSecurity(Set.of("SBER"), LocalDate.now()))
+                .thenReturn(List.of(dividend));
+
+        List<UpcomingDividendDto> payouts = portfolioService.getReceivedPayouts(userId);
+
+        BigDecimal payoutsTotal = payouts.stream().map(UpcomingDividendDto::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        // Same dividend, same net-of-tax rule as getPortfolioPage_recentDividends_within12Months above: 6063.00.
+        assertThat(payoutsTotal).isEqualByComparingTo("6063.00");
+    }
+
+    @Test
     @DisplayName("getPortfolioPage — эталон живых данных: выплата ВТБ 320.43 при 33 акциях на отсечку → налог 41 → к получению 279.43")
     void getPortfolioPage_vtbReferencePayout_matchesLiveData() {
         Position position = Position.builder().id(UUID.randomUUID()).userId(userId)
@@ -473,6 +491,98 @@ class PortfolioServiceTest {
         assertThat(page.getUpcomingDividends().get(0).getQuantity()).isEqualByComparingTo("200");
         // 10.00 * 200 = 2000.00 declared, 13% withheld = 260.00 -> 1740.00 credited.
         assertThat(page.getUpcomingDividends().get(0).getTotalAmount()).isEqualByComparingTo("1740.00");
+    }
+
+    // ─── getReceivedPayouts (all-time received payouts, for the "capital" page) ───────────────
+
+    @Test
+    @DisplayName("getReceivedPayouts — не ограничен 12 месяцами и не обращается к бирже: только БД (журнал сделок + дивиденды)")
+    void getReceivedPayouts_noTwelveMonthFloor_touchesOnlyDatabase() {
+        stubJournal(buy(sberSecurity(), "200", LocalDate.now().minusYears(3)));
+
+        Dividend old = Dividend.builder().security(sberSecurity())
+                .recordDate(LocalDate.now().minusYears(2))
+                .amountPerShare(new BigDecimal("10.00"))
+                .currency("RUB").build();
+        when(dividendRepository.findByTickerInAndReceivedDateBeforeWithSecurity(Set.of("SBER"), LocalDate.now()))
+                .thenReturn(List.of(old));
+
+        List<UpcomingDividendDto> payouts = portfolioService.getReceivedPayouts(userId);
+
+        assertThat(payouts).hasSize(1);
+        // 10.00 * 200 = 2000.00 declared, 13% withheld = 260.00 -> 1740.00 credited.
+        assertThat(payouts.get(0).getTotalAmount()).isEqualByComparingTo("1740.00");
+        verifyNoInteractions(marketDataService, positionRepository, positionMapper);
+    }
+
+    @Test
+    @DisplayName("getReceivedPayouts — иностранная валюта исключена из результата (учитывается только RUB)")
+    void getReceivedPayouts_foreignCurrency_excluded() {
+        stubJournal(buy(sberSecurity(), "200", LocalDate.now().minusYears(1)));
+
+        Dividend rub = Dividend.builder().security(sberSecurity())
+                .recordDate(LocalDate.now().minusMonths(1)).amountPerShare(new BigDecimal("10.00")).currency("RUB").build();
+        Dividend usd = Dividend.builder().security(sberSecurity())
+                .recordDate(LocalDate.now().minusMonths(1)).amountPerShare(new BigDecimal("5.00")).currency("USD").build();
+        when(dividendRepository.findByTickerInAndReceivedDateBeforeWithSecurity(Set.of("SBER"), LocalDate.now()))
+                .thenReturn(List.of(rub, usd));
+
+        List<UpcomingDividendDto> payouts = portfolioService.getReceivedPayouts(userId);
+
+        assertThat(payouts).hasSize(1);
+        assertThat(payouts.get(0).getCurrency()).isEqualTo("RUB");
+    }
+
+    @Test
+    @DisplayName("getReceivedPayouts — бумага продана целиком, но прошлая выплата с отсечкой во время владения всё равно учитывается")
+    void getReceivedPayouts_fullySoldSecurity_stillCounted() {
+        Security lkoh = security("LKOH");
+        stubJournal(
+                buy(lkoh, "2", LocalDate.now().minusMonths(6)),
+                sell(lkoh, "2", LocalDate.now().minusMonths(1))
+        );
+        Dividend dividend = Dividend.builder().security(lkoh)
+                .recordDate(LocalDate.now().minusMonths(3))
+                .amountPerShare(new BigDecimal("397.00"))
+                .currency("RUB").build();
+        when(dividendRepository.findByTickerInAndReceivedDateBeforeWithSecurity(Set.of("LKOH"), LocalDate.now()))
+                .thenReturn(List.of(dividend));
+
+        List<UpcomingDividendDto> payouts = portfolioService.getReceivedPayouts(userId);
+
+        assertThat(payouts).hasSize(1);
+        assertThat(payouts.get(0).getQuantity()).isEqualByComparingTo("2");
+        // 397.00 * 2 = 794.00 declared, 13% withheld floors to 103, so 691.00 is credited.
+        assertThat(payouts.get(0).getTotalAmount()).isEqualByComparingTo("691.00");
+    }
+
+    @Test
+    @DisplayName("getReceivedPayouts — нулевой остаток на дату отсечки исключает выплату из результата")
+    void getReceivedPayouts_zeroHoldingAtRecordDate_excluded() {
+        Security lkoh = security("LKOH");
+        // Bought only after the record date — held nothing when the dividend was declared.
+        stubJournal(buy(lkoh, "2", LocalDate.now().minusDays(1)));
+        Dividend dividend = Dividend.builder().security(lkoh)
+                .recordDate(LocalDate.now().minusMonths(1))
+                .amountPerShare(new BigDecimal("397.00"))
+                .currency("RUB").build();
+        when(dividendRepository.findByTickerInAndReceivedDateBeforeWithSecurity(Set.of("LKOH"), LocalDate.now()))
+                .thenReturn(List.of(dividend));
+
+        List<UpcomingDividendDto> payouts = portfolioService.getReceivedPayouts(userId);
+
+        assertThat(payouts).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getReceivedPayouts — пустой журнал сделок → пустой результат, дивиденды не запрашиваются")
+    void getReceivedPayouts_emptyJournal_returnsEmpty_noDividendQuery() {
+        stubJournal();
+
+        List<UpcomingDividendDto> payouts = portfolioService.getReceivedPayouts(userId);
+
+        assertThat(payouts).isEmpty();
+        verifyNoInteractions(dividendRepository, marketDataService, positionRepository);
     }
 
     private UpcomingDividendDto dividendWithAmountPerShare(PortfolioPageResponseDto page, String amountPerShare) {

@@ -40,25 +40,27 @@ public interface IncomeRepository extends JpaRepository<Income, UUID> {
     );
 
     /**
-     * Returns total non-transfer income for the user over all time.
-     * Entries with isTransfer=true (investment operations and asset transfers) are excluded.
+     * Returns total income for the user over all time, including isTransfer=true records.
+     * Used only by the overview page's capital section: an investment sale or bond redemption
+     * pays isTransfer=true income back out of the portfolio, and that money must reappear as
+     * free money there, unlike in every other statistic on the page.
      *
      * @param userId identifier of the user
-     * @return sum of non-transfer incomes (0 if no records)
+     * @return sum of all incomes (0 if no records)
      */
-    @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Income i WHERE i.userId = :userId AND i.isTransfer = false")
-    BigDecimal sumNonTransferByUserId(@Param("userId") UUID userId);
+    @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Income i WHERE i.userId = :userId")
+    BigDecimal sumByUserId(@Param("userId") UUID userId);
 
     /**
-     * Возвращает суммарные не-трансферные доходы пользователя с датой не позже указанной —
-     * накопительный итог на начало точки истории капитала. Записи с isTransfer=true исключаются.
+     * Returns total income for the user with a date up to and including the given one, including
+     * isTransfer=true records — the cumulative total at the start of a capital history point.
      *
-     * @param userId идентификатор пользователя
-     * @param date   дата, до которой (включительно) считается сумма
-     * @return сумма доходов (0 если записей нет)
+     * @param userId identifier of the user
+     * @param date   date up to which (inclusive) the sum is taken
+     * @return sum of all incomes (0 if no records)
      */
-    @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Income i WHERE i.userId = :userId AND i.date <= :date AND i.isTransfer = false")
-    BigDecimal sumNonTransferByUserIdAndDateLessThanEqual(@Param("userId") UUID userId, @Param("date") LocalDate date);
+    @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Income i WHERE i.userId = :userId AND i.date <= :date")
+    BigDecimal sumByUserIdAndDateLessThanEqual(@Param("userId") UUID userId, @Param("date") LocalDate date);
 
     /**
      * Возвращает помесячные суммы не-трансферных доходов пользователя за произвольный диапазон дат
@@ -79,6 +81,30 @@ public interface IncomeRepository extends JpaRepository<Income, UUID> {
             GROUP BY YEAR(i.date), MONTH(i.date)
             """)
     List<Object[]> findMonthlyNonTransferIncomeByUserIdAndDateBetween(
+            @Param("userId") UUID userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    /**
+     * Returns monthly income sums for the user over an arbitrary date range, including
+     * isTransfer=true records. Used only for the overview page's capital history, where each
+     * month's free-money delta must include investment operations.
+     *
+     * @param userId    identifier of the user
+     * @param startDate first day of the range (inclusive)
+     * @param endDate   last day of the range (inclusive)
+     * @return list of arrays [year (Integer), month (Integer), sum (BigDecimal)]
+     */
+    @Query("""
+            SELECT YEAR(i.date), MONTH(i.date), SUM(i.amount)
+            FROM Income i
+            WHERE i.userId = :userId
+              AND i.date >= :startDate
+              AND i.date <= :endDate
+            GROUP BY YEAR(i.date), MONTH(i.date)
+            """)
+    List<Object[]> findMonthlyIncomeByUserIdAndDateBetween(
             @Param("userId") UUID userId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate

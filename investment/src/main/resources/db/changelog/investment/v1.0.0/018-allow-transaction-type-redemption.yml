@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/v1.0.0/018-allow-transaction-type-redemption.yml
+  - changeSet:
+      id: 018-allow-transaction-type-redemption
+      author: investment
+      changes:
+        - sql:
+            sql: |
+              ALTER TABLE transactions DROP CONSTRAINT chk_transactions_type;
+              ALTER TABLE transactions ADD CONSTRAINT chk_transactions_type CHECK (type IN ('BUY', 'SELL', 'REDEMPTION'));
+      rollback:
+        - sql:
+            sql: |
+              ALTER TABLE transactions DROP CONSTRAINT chk_transactions_type;
+              ALTER TABLE transactions ADD CONSTRAINT chk_transactions_type CHECK (type IN ('BUY', 'SELL'));

@@ -28,14 +28,15 @@ import type { PayoutKind, SecurityEvent, SecurityType } from '@/types/investment
 
 type PendingDelete = { kind: 'transaction'; id: string; label: string } | { kind: 'dividend'; id: string; label: string; payoutKind: PayoutKind };
 
-const DOT_COLOR: Record<'BUY' | 'SELL' | 'DIVIDEND_PAID', string> = {
+const DOT_COLOR: Record<'BUY' | 'SELL' | 'REDEMPTION' | 'DIVIDEND_PAID', string> = {
   BUY: SECURITY_BUY_COLOR,
   SELL: SECURITY_SELL_COLOR,
+  REDEMPTION: SECURITY_SELL_COLOR,
   DIVIDEND_PAID: PORTFOLIO_CHART_COLOR,
 };
 
 function eventKey(event: SecurityEvent): string {
-  return event.kind === 'BUY' || event.kind === 'SELL' ? event.transactionId : event.dividendId;
+  return event.kind === 'BUY' || event.kind === 'SELL' || event.kind === 'REDEMPTION' ? event.transactionId : event.dividendId;
 }
 
 interface SecurityTimelineProps {

@@ -8,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pyc.lopatuxin.investment.client.moex.MoexUnavailableException;
 import pyc.lopatuxin.investment.repository.PositionRepository;
+import pyc.lopatuxin.investment.service.BondRedemptionService;
 import pyc.lopatuxin.investment.service.market.DividendSyncService;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
 
@@ -33,6 +34,9 @@ class MarketDataRefreshSchedulerTest {
 
     @Mock
     private DividendSyncService dividendSyncService;
+
+    @Mock
+    private BondRedemptionService bondRedemptionService;
 
     @InjectMocks
     private MarketDataRefreshScheduler scheduler;
@@ -92,6 +96,30 @@ class MarketDataRefreshSchedulerTest {
         // second ticker must still be processed
         verify(marketDataService).triggerHistoryAsync("GAZP");
         verify(dividendSyncService).syncNightly();
+    }
+
+    @Test
+    @DisplayName("refreshHistoryAndDividends — погашение облигаций вызывается")
+    void refreshHistoryAndDividends_callsBondRedemption() {
+        when(positionRepository.findActiveTickers()).thenReturn(List.of("GAZP"));
+
+        scheduler.refreshHistoryAndDividends();
+
+        verify(bondRedemptionService).redeemMatured();
+    }
+
+    @Test
+    @DisplayName("refreshHistoryAndDividends — погашение облигаций падает → остальные шаги задания всё равно выполняются")
+    void refreshHistoryAndDividends_bondRedemptionThrows_restOfJobStillRuns() {
+        when(positionRepository.findActiveTickers()).thenReturn(List.of("GAZP"));
+        doThrow(new RuntimeException("db unavailable")).when(bondRedemptionService).redeemMatured();
+
+        assertThatCode(() -> scheduler.refreshHistoryAndDividends())
+                .doesNotThrowAnyException();
+
+        verify(marketDataService).triggerHistoryAsync("GAZP");
+        verify(dividendSyncService).syncNightly();
+        verify(dividendSyncService).markPastRecordDatesAsPaid();
     }
 
     @Test

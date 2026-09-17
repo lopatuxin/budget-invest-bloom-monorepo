@@ -164,6 +164,19 @@ class HoldingsOnDateServiceTest {
     }
 
     @Test
+    @DisplayName("quantityAt — REDEMPTION уменьшает количество как SELL, а не увеличивает (регрессия на баг «непокупка → плюс»)")
+    void quantityAt_redemptionReducesQuantity_likeSell() {
+        List<Transaction> journal = List.of(
+                buy("SU26219RMFS4", "71", "2025-01-10"),
+                redemption("SU26219RMFS4", "71", "2026-09-16")
+        );
+
+        BigDecimal result = service.quantityAt(service.groupSortedByTicker(journal), "SU26219RMFS4", LocalDate.of(2026, 12, 1));
+
+        assertThat(result).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
     @DisplayName("groupSortedByTicker — раскладывает журнал по тикерам, каждая бумага — по дате сделки")
     void groupSortedByTicker_groupsByTickerAndSortsByExecutedAt() {
         Transaction sberLater = buy("SBER", "10", "2025-06-01");
@@ -184,6 +197,10 @@ class HoldingsOnDateServiceTest {
 
     private Transaction sell(String ticker, String quantity, String executedAtDate) {
         return transaction(ticker, quantity, LocalDate.parse(executedAtDate), LocalTime.NOON, TransactionType.SELL);
+    }
+
+    private Transaction redemption(String ticker, String quantity, String executedAtDate) {
+        return transaction(ticker, quantity, LocalDate.parse(executedAtDate), LocalTime.NOON, TransactionType.REDEMPTION);
     }
 
     private Transaction buyAt(String ticker, String quantity, LocalDate executedAtDate, LocalTime executedAtTime) {

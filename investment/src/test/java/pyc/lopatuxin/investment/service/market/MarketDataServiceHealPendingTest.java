@@ -87,7 +87,7 @@ class MarketDataServiceHealPendingTest {
     void healPendingSecurities_moexAvailable_becomesReadyWithSector() {
         when(securityRepository.findAllByHistoryStatus(HistoryStatus.PENDING)).thenReturn(List.of(pending));
         when(securityRepository.findById("SBER")).thenReturn(Optional.of(pending));
-        MoexSecurityDto moexDto = new MoexSecurityDto("SBER", "TQBR", "Сбербанк", SecurityType.STOCK, "Финансы", "RUB");
+        MoexSecurityDto moexDto = new MoexSecurityDto("SBER", "TQBR", "Сбербанк", SecurityType.STOCK, "Финансы", "RUB", null);
         when(moexIssClient.fetchSecurity("SBER")).thenReturn(Optional.of(moexDto));
         MoexCandleDto candle = new MoexCandleDto("SBER", LocalDate.now(), null, null, null, null, null);
         when(moexIssClient.fetchHistory(anyString(), any(), any())).thenReturn(List.of(candle));
@@ -119,7 +119,7 @@ class MarketDataServiceHealPendingTest {
     void healPendingSecurities_dictionaryHealedButHistoryFails_notCountedAsHealed() {
         when(securityRepository.findAllByHistoryStatus(HistoryStatus.PENDING)).thenReturn(List.of(pending));
         when(securityRepository.findById("SBER")).thenReturn(Optional.of(pending));
-        MoexSecurityDto moexDto = new MoexSecurityDto("SBER", "TQBR", "Сбербанк", SecurityType.STOCK, "Финансы", "RUB");
+        MoexSecurityDto moexDto = new MoexSecurityDto("SBER", "TQBR", "Сбербанк", SecurityType.STOCK, "Финансы", "RUB", null);
         when(moexIssClient.fetchSecurity("SBER")).thenReturn(Optional.of(moexDto));
         when(moexIssClient.fetchHistory(anyString(), any(), any())).thenThrow(new MoexUnavailableException("MOEX down"));
 
@@ -140,7 +140,7 @@ class MarketDataServiceHealPendingTest {
         when(securityRepository.findAllByHistoryStatus(HistoryStatus.PENDING)).thenReturn(List.of(pending, other));
         when(moexIssClient.fetchSecurity("SBER")).thenThrow(new RuntimeException("unexpected parsing failure"));
         when(securityRepository.findById("SU26238RMFS4")).thenReturn(Optional.of(other));
-        MoexSecurityDto moexDto = new MoexSecurityDto("SU26238RMFS4", "TQOB", "ОФЗ 26238", SecurityType.OFZ, "Государственные облигации", "RUB");
+        MoexSecurityDto moexDto = new MoexSecurityDto("SU26238RMFS4", "TQOB", "ОФЗ 26238", SecurityType.OFZ, "Государственные облигации", "RUB", null);
         when(moexIssClient.fetchSecurity("SU26238RMFS4")).thenReturn(Optional.of(moexDto));
         MoexCandleDto candle = new MoexCandleDto("SU26238RMFS4", LocalDate.now(), null, null, null, null, null);
         when(moexIssClient.fetchHistory(eq("SU26238RMFS4"), any(), any())).thenReturn(List.of(candle));

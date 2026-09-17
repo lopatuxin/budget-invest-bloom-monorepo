@@ -83,7 +83,7 @@ class MarketDataServiceBackfillBoardsTest {
         Security sber = readyWithoutBoard("SBER");
         when(securityRepository.findByBoardIdIsNullAndHistoryStatus(HistoryStatus.READY)).thenReturn(List.of(sber));
         when(securityRepository.findById("SBER")).thenReturn(Optional.of(sber));
-        MoexSecurityDto moexDto = new MoexSecurityDto("SBER", "TQBR", "Сбербанк", SecurityType.STOCK, "Финансы", "RUB");
+        MoexSecurityDto moexDto = new MoexSecurityDto("SBER", "TQBR", "Сбербанк", SecurityType.STOCK, "Финансы", "RUB", null);
         when(moexIssClient.fetchSecurity("SBER")).thenReturn(Optional.of(moexDto));
 
         marketDataService.backfillMissingBoards();
@@ -114,7 +114,7 @@ class MarketDataServiceBackfillBoardsTest {
         when(securityRepository.findByBoardIdIsNullAndHistoryStatus(HistoryStatus.READY)).thenReturn(List.of(sber, gazp));
         when(moexIssClient.fetchSecurity("SBER")).thenThrow(new RuntimeException("unexpected parsing failure"));
         when(securityRepository.findById("GAZP")).thenReturn(Optional.of(gazp));
-        MoexSecurityDto moexDto = new MoexSecurityDto("GAZP", "TQBR", "Газпром", SecurityType.STOCK, "Энергетика", "RUB");
+        MoexSecurityDto moexDto = new MoexSecurityDto("GAZP", "TQBR", "Газпром", SecurityType.STOCK, "Энергетика", "RUB", null);
         when(moexIssClient.fetchSecurity("GAZP")).thenReturn(Optional.of(moexDto));
 
         assertThatCode(() -> marketDataService.backfillMissingBoards()).doesNotThrowAnyException();
@@ -140,7 +140,7 @@ class MarketDataServiceBackfillBoardsTest {
     void backfillMissingBoards_nullBoardIdInResponse_skipped() {
         Security sber = readyWithoutBoard("SBER");
         when(securityRepository.findByBoardIdIsNullAndHistoryStatus(HistoryStatus.READY)).thenReturn(List.of(sber));
-        MoexSecurityDto moexDto = new MoexSecurityDto("SBER", null, "Сбербанк", SecurityType.STOCK, "Финансы", "RUB");
+        MoexSecurityDto moexDto = new MoexSecurityDto("SBER", null, "Сбербанк", SecurityType.STOCK, "Финансы", "RUB", null);
         when(moexIssClient.fetchSecurity("SBER")).thenReturn(Optional.of(moexDto));
 
         marketDataService.backfillMissingBoards();

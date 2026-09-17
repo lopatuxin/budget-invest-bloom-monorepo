@@ -56,15 +56,18 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                 .build());
     }
 
-    // ─── Overview: свободные деньги капитала (lifetime, non-transfer only) ────
+    // ─── Overview: свободные деньги капитала (lifetime, transfers included) ───
     // The overview page no longer has a categories widget or per-month income/expenses fields
     // (redesigned into a capital page — see docs/plans/overview-page-redesign.md); transfer
-    // filtering on the overview endpoint is now checked through capital.freeMoney instead,
-    // which is the lifetime non-transfer income-minus-expenses total shown on that page.
+    // filtering on the overview endpoint is now checked through capital.freeMoney instead.
+    // Unlike every other statistic, capital.freeMoney DOES include isTransfer=true records:
+    // an investment purchase/sale moves money between free cash and the portfolio, it does not
+    // create or destroy it, so excluding transfers here would make capital wrong (see the bond
+    // redemption bug this behaviour fixes).
 
     @Test
-    @DisplayName("Overview capital.freeMoney: transfer-расходы не учитываются")
-    void overview_freeMoney_shouldExcludeTransferExpenses() throws Exception {
+    @DisplayName("Overview capital.freeMoney: transfer-расходы снижают свободные деньги")
+    void overview_freeMoney_shouldIncludeTransferExpenses() throws Exception {
         LocalDate date = LocalDate.of(2025, 5, 15);
 
         // Non-transfer расход 20000
@@ -76,7 +79,7 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                 .isTransfer(false)
                 .build());
 
-        // Transfer-расход 80000 — не должен входить в freeMoney
+        // Transfer-расход (покупка бумаги) 80000 — тоже входит в freeMoney
         expenseRepository.save(Expense.builder()
                 .userId(userId)
                 .category(systemInvestCategory)
@@ -98,13 +101,13 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                         .content(buildOverviewRequest(userId))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                // freeMoney = 50000 - 20000 = 30000 (transfer-расход 80000 исключён)
-                .andExpect(jsonPath("$.body.capital.freeMoney", comparesEqualTo(30000.0)));
+                // freeMoney = 50000 - 20000 - 80000 = -50000 (transfer-расход 80000 учтён)
+                .andExpect(jsonPath("$.body.capital.freeMoney", comparesEqualTo(-50000.0)));
     }
 
     @Test
-    @DisplayName("Overview capital.freeMoney: transfer-доходы не учитываются")
-    void overview_freeMoney_shouldExcludeTransferIncome() throws Exception {
+    @DisplayName("Overview capital.freeMoney: transfer-доходы повышают свободные деньги")
+    void overview_freeMoney_shouldIncludeTransferIncome() throws Exception {
         LocalDate date = LocalDate.of(2025, 6, 10);
 
         // Non-transfer доход 100000
@@ -116,7 +119,7 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                 .isTransfer(false)
                 .build());
 
-        // Transfer-доход (продажа активов) 30000 — не должен входить в freeMoney
+        // Transfer-доход (продажа активов) 30000 — тоже входит в freeMoney
         incomeRepository.save(Income.builder()
                 .userId(userId)
                 .source(IncomeSource.INVESTMENTS)
@@ -129,8 +132,8 @@ class TransferFilterIntegrationTest extends AbstractIntegrationTest {
                         .content(buildOverviewRequest(userId))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                // freeMoney = 100000 (transfer-доход 30000 исключён)
-                .andExpect(jsonPath("$.body.capital.freeMoney", comparesEqualTo(100000.0)));
+                // freeMoney = 100000 + 30000 = 130000 (transfer-доход 30000 учтён)
+                .andExpect(jsonPath("$.body.capital.freeMoney", comparesEqualTo(130000.0)));
     }
 
     // ─── Analytics: помесячная разбивка сбережений исключает transfer ─────────

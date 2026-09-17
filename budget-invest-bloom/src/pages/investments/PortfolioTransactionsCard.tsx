@@ -62,6 +62,8 @@ export function PortfolioTransactionsCard({ recentTransactions, transactionsTota
         <div className="flex flex-col divide-y divide-app-border">
           {items.map((tx) => {
             const isBuy = tx.type === 'BUY';
+            const label = isBuy ? 'Покупка' : tx.type === 'REDEMPTION' ? 'Погашение' : 'Продажа';
+            const canDelete = tx.type !== 'REDEMPTION';
             return (
               <div key={tx.id} className="group flex items-center gap-2.5 h-11">
                 <span
@@ -69,10 +71,10 @@ export function PortfolioTransactionsCard({ recentTransactions, transactionsTota
                     isBuy ? 'bg-app-good-soft text-app-good' : 'bg-app-bad-soft text-app-bad'
                   }`}
                 >
-                  {isBuy ? 'Покупка' : 'Продажа'}
+                  {label}
                 </span>
                 <SecurityLogo ticker={tx.ticker} size={28} />
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 truncate">
                   <span className="font-mono text-sm font-semibold text-app-text">{tx.ticker}</span>
                   <span className="text-app-text-muted text-xs ml-2">
                     {formatQuantity(tx.quantity)} × {formatUnitPrice(tx.price)}
@@ -80,14 +82,18 @@ export function PortfolioTransactionsCard({ recentTransactions, transactionsTota
                 </div>
                 <span className="font-mono text-[13px] text-app-text shrink-0">{formatCurrency(tx.amount)}</span>
                 <span className="text-app-text-dim text-xs w-[92px] text-right shrink-0">{formatInstantDayMonth(tx.executedAt)}</span>
-                <button
-                  type="button"
-                  aria-label="Удалить сделку"
-                  onClick={() => setPendingDelete({ id: tx.id, ticker: tx.ticker, label: `${formatCurrency(tx.amount)} · ${tx.ticker}` })}
-                  className="shrink-0 flex items-center justify-center w-8 h-8 -mr-1 rounded-lg text-app-text-muted opacity-100 lg:opacity-0 lg:group-hover:opacity-100 hover:text-app-bad hover:bg-app-bad-soft transition-opacity"
-                >
-                  <Trash2 aria-hidden="true" className="w-4 h-4" />
-                </button>
+                {canDelete ? (
+                  <button
+                    type="button"
+                    aria-label="Удалить сделку"
+                    onClick={() => setPendingDelete({ id: tx.id, ticker: tx.ticker, label: `${formatCurrency(tx.amount)} · ${tx.ticker}` })}
+                    className="shrink-0 flex items-center justify-center w-8 h-8 -mr-1 rounded-lg text-app-text-muted opacity-100 lg:opacity-0 lg:group-hover:opacity-100 hover:text-app-bad hover:bg-app-bad-soft transition-opacity"
+                  >
+                    <Trash2 aria-hidden="true" className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <span aria-hidden="true" className="shrink-0 w-8 h-8 -mr-1" />
+                )}
               </div>
             );
           })}

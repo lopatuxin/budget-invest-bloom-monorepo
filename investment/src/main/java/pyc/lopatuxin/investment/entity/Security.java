@@ -7,6 +7,7 @@ import pyc.lopatuxin.investment.entity.enums.SecurityType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "securities")
@@ -53,4 +54,9 @@ public class Security {
     // BondPricing. Null for STOCK/ETF and for a bond MOEX has not yet returned FACEVALUE for.
     @Column(precision = 15, scale = 2)
     private BigDecimal nominal;
+
+    // Bond/OFZ redemption date from MOEX description (MATDATE) — see BondRedemptionService.
+    // Null for STOCK/ETF, for a bond MOEX has not returned MATDATE for yet, and for a perpetual
+    // bond (no maturity date at all).
+    private LocalDate maturityDate;
 }

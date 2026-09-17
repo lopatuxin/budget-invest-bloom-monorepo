@@ -201,40 +201,82 @@ class ExpenseRepositoryTransferTest extends AbstractIntegrationTest {
         assertThat(result.get()).isEqualByComparingTo(new BigDecimal("8000.00"));
     }
 
-    // ─── sumNonTransferByUserId (lifetime, only non-transfer expenses) ───────
+    // ─── sumByUserId (lifetime, includes transfer expenses) ──────────────────
 
     @Test
-    @DisplayName("sumNonTransferByUserId: исключает transfer-расходы из lifetime-суммы")
-    void sumNonTransferByUserId_shouldExcludeTransferEntries() {
+    @DisplayName("sumByUserId: включает transfer-расходы в lifetime-сумму (используется для капитала на обзоре)")
+    void sumByUserId_shouldIncludeTransferEntries() {
         saveExpense(new BigDecimal("10000.00"), LocalDate.of(2025, 1, 5), false);
-        saveExpense(new BigDecimal("5000.00"),  LocalDate.of(2025, 1, 6), true);   // transfer — не учитывается
+        saveExpense(new BigDecimal("5000.00"),  LocalDate.of(2025, 1, 6), true);   // transfer — учитывается
 
-        BigDecimal total = expenseRepository.sumNonTransferByUserId(userId);
+        BigDecimal total = expenseRepository.sumByUserId(userId);
 
-        assertThat(total).isEqualByComparingTo(new BigDecimal("10000.00"));
+        assertThat(total).isEqualByComparingTo(new BigDecimal("15000.00"));
     }
 
     @Test
-    @DisplayName("sumNonTransferByUserId: возвращает 0 если все расходы transfer")
-    void sumNonTransferByUserId_allTransfer_shouldReturnZero() {
-        saveExpense(new BigDecimal("200000.00"), LocalDate.of(2025, 2, 1), true);
-        saveExpense(new BigDecimal("150000.00"), LocalDate.of(2025, 3, 5), true);
-
-        BigDecimal total = expenseRepository.sumNonTransferByUserId(userId);
+    @DisplayName("sumByUserId: возвращает 0 если у пользователя нет расходов")
+    void sumByUserId_noRecords_shouldReturnZero() {
+        BigDecimal total = expenseRepository.sumByUserId(userId);
 
         assertThat(total).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     @Test
-    @DisplayName("sumNonTransferByUserId: суммирует все non-transfer расходы за всё время")
-    void sumNonTransferByUserId_multipleDates_shouldSumAllNonTransfer() {
+    @DisplayName("sumByUserId: не учитывает записи другого пользователя")
+    void sumByUserId_shouldExcludeOtherUsersEntries() {
+        UUID otherUserId = UUID.randomUUID();
         saveExpense(new BigDecimal("25000.00"), LocalDate.of(2024, 3, 10), false);
-        saveExpense(new BigDecimal("15000.00"), LocalDate.of(2025, 1, 20), false);
-        saveExpense(new BigDecimal("999000.00"), LocalDate.of(2025, 4, 1), true);  // transfer — не учитывается
+        saveExpenseForUser(otherUserId, category, new BigDecimal("999000.00"), LocalDate.of(2025, 4, 1), true);
 
-        BigDecimal total = expenseRepository.sumNonTransferByUserId(userId);
+        BigDecimal total = expenseRepository.sumByUserId(userId);
 
-        assertThat(total).isEqualByComparingTo(new BigDecimal("40000.00"));
+        assertThat(total).isEqualByComparingTo(new BigDecimal("25000.00"));
+    }
+
+    // ─── sumByUserIdAndDateLessThanEqual (includes transfer expenses) ────────
+
+    @Test
+    @DisplayName("sumByUserIdAndDateLessThanEqual: включает transfer-записи с датой не позже указанной")
+    void sumByUserIdAndDateLessThanEqual_shouldIncludeTransferEntriesUpToDate() {
+        saveExpense(new BigDecimal("20000.00"), LocalDate.of(2025, 3, 1),  false);
+        saveExpense(new BigDecimal("50000.00"), LocalDate.of(2025, 3, 15), true);   // transfer, в пределах даты — учитывается
+        saveExpense(new BigDecimal("99999.00"), LocalDate.of(2025, 4, 1),  false);  // после даты — не учитывается
+
+        BigDecimal total = expenseRepository.sumByUserIdAndDateLessThanEqual(userId, LocalDate.of(2025, 3, 31));
+
+        assertThat(total).isEqualByComparingTo(new BigDecimal("70000.00"));
+    }
+
+    // ─── findMonthlyExpenseByUserIdAndDateBetween (includes transfer expenses) ─
+
+    @Test
+    @DisplayName("findMonthlyExpenseByUserIdAndDateBetween: суммирует transfer и non-transfer записи месяца вместе")
+    void findMonthlyExpense_shouldSumTransferAndNonTransferTogether() {
+        saveExpense(new BigDecimal("8000.00"), LocalDate.of(2025, 1, 10), false);
+        saveExpense(new BigDecimal("2000.00"), LocalDate.of(2025, 1, 20), true);
+
+        List<Object[]> result = expenseRepository.findMonthlyExpenseByUserIdAndDateBetween(
+                userId, LocalDate.of(2025, 1, 1), LocalDate.of(2025, 1, 31));
+
+        assertThat(result).hasSize(1);
+        assertThat(((Number) result.get(0)[0]).intValue()).isEqualTo(2025);
+        assertThat(((Number) result.get(0)[1]).intValue()).isEqualTo(1);
+        assertThat((BigDecimal) result.get(0)[2]).isEqualByComparingTo(new BigDecimal("10000.00"));
+    }
+
+    @Test
+    @DisplayName("findMonthlyExpenseByUserIdAndDateBetween: не учитывает записи другого пользователя")
+    void findMonthlyExpense_shouldExcludeOtherUsersEntries() {
+        UUID otherUserId = UUID.randomUUID();
+        saveExpense(new BigDecimal("8000.00"), LocalDate.of(2025, 1, 10), false);
+        saveExpenseForUser(otherUserId, category, new BigDecimal("777777.00"), LocalDate.of(2025, 1, 15), true);
+
+        List<Object[]> result = expenseRepository.findMonthlyExpenseByUserIdAndDateBetween(
+                userId, LocalDate.of(2025, 1, 1), LocalDate.of(2025, 1, 31));
+
+        assertThat(result).hasSize(1);
+        assertThat((BigDecimal) result.get(0)[2]).isEqualByComparingTo(new BigDecimal("8000.00"));
     }
 
     // ─── findMonthlyNonTransferExpenseByCategoryAndDateBetween ───────────────
@@ -272,9 +314,13 @@ class ExpenseRepositoryTransferTest extends AbstractIntegrationTest {
     // ─── helpers ─────────────────────────────────────────────────────────────
 
     private void saveExpense(BigDecimal amount, LocalDate date, boolean isTransfer) {
+        saveExpenseForUser(userId, category, amount, date, isTransfer);
+    }
+
+    private void saveExpenseForUser(UUID forUserId, Category forCategory, BigDecimal amount, LocalDate date, boolean isTransfer) {
         expenseRepository.save(Expense.builder()
-                .userId(userId)
-                .category(category)
+                .userId(forUserId)
+                .category(forCategory)
                 .amount(amount)
                 .date(date)
                 .isTransfer(isTransfer)

@@ -506,6 +506,60 @@ class TransactionServiceUnitTest {
     }
 
     @Test
+    @DisplayName("create(): type=REDEMPTION — отклоняется с IllegalArgumentException (маппится в 400)")
+    void create_shouldRejectRedemptionType() {
+        CreateTransactionDto dto = CreateTransactionDto.builder()
+                .ticker("SU26219RMFS4").type(TransactionType.REDEMPTION).securityType(SecurityType.OFZ)
+                .quantity(new BigDecimal("71")).price(new BigDecimal("1000.00"))
+                .executedAt(Instant.now()).build();
+
+        assertThatThrownBy(() -> transactionService.create(userId, dto))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(transactionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createRedemption(): сохраняет REDEMPTION-транзакцию, пересчитывает позицию, создаёт доход в бюджете с типом REDEMPTION")
+    void createRedemption_shouldPersistTransactionRecalculatePositionAndSyncBudget() {
+        Security bond = Security.builder()
+                .ticker("SU26219RMFS4").name("ОФЗ 26219").type(SecurityType.OFZ)
+                .historyStatus(HistoryStatus.READY).nominal(new BigDecimal("1000.00"))
+                .build();
+        Instant executedAt = Instant.parse("2026-09-16T09:00:00Z");
+        UUID budgetEntryId = UUID.randomUUID();
+
+        Transaction buy = Transaction.builder()
+                .userId(userId).security(bond).type(TransactionType.BUY)
+                .quantity(new BigDecimal("71")).price(new BigDecimal("998.00"))
+                .executedAt(Instant.parse("2026-01-10T10:00:00Z")).createdAt(Instant.parse("2026-01-10T10:00:00Z"))
+                .build();
+        Transaction redemption = Transaction.builder()
+                .id(UUID.randomUUID()).userId(userId).security(bond).type(TransactionType.REDEMPTION)
+                .quantity(new BigDecimal("71")).price(new BigDecimal("1000.00")).executedAt(executedAt)
+                .build();
+
+        when(transactionRepository.save(any(Transaction.class))).thenReturn(redemption);
+        when(transactionRepository.findByUserIdAndSecurity_Ticker(userId, "SU26219RMFS4"))
+                .thenReturn(List.of(buy, redemption));
+        when(positionRepository.findByUserIdAndSecurity_Ticker(userId, "SU26219RMFS4"))
+                .thenReturn(Optional.empty());
+        when(investmentBudgetSync.createEntry(
+                eq(userId), eq(EntryType.REDEMPTION), eq(new BigDecimal("71000.00")), eq(executedAt)))
+                .thenReturn(budgetEntryId);
+
+        transactionService.createRedemption(userId, bond, new BigDecimal("71"), new BigDecimal("1000.00"), executedAt);
+
+        ArgumentCaptor<Transaction> txCaptor = ArgumentCaptor.forClass(Transaction.class);
+        verify(transactionRepository, org.mockito.Mockito.times(2)).save(txCaptor.capture());
+        assertThat(txCaptor.getAllValues().get(0).getType()).isEqualTo(TransactionType.REDEMPTION);
+
+        verify(investmentBudgetSync).createEntry(userId, EntryType.REDEMPTION, new BigDecimal("71000.00"), executedAt);
+        // Позиция закрыта (qty=71, редемпция забирает все 71 → 0) — position удаляется, не сохраняется.
+        verify(positionRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("delete(): tx.budgetEntryId == null — investmentBudgetSync не вызывается")
     void delete_shouldNotCallBudgetClientWhenBudgetEntryIdIsNull() {
         UUID txId = UUID.randomUUID();

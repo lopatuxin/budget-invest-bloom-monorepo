@@ -82,8 +82,25 @@ public final class MoexResponseParser {
 
         String sector = resolveSector(ticker, descMap, securityType);
         String currency = descMap.get("CURRENCYID");
+        LocalDate maturityDate = parseMaturityDate(descMap, ticker);
 
-        return Optional.of(new MoexSecurityDto(ticker, boardId, name, securityType, sector, currency));
+        return Optional.of(new MoexSecurityDto(ticker, boardId, name, securityType, sector, currency, maturityDate));
+    }
+
+    // Absent for a perpetual bond and for anything that is not a bond at all — both cases leave
+    // the security's maturityDate null (plan point 1) rather than failing the whole security
+    // parse, which parseSafely's outer catch would otherwise do for one malformed field.
+    private static LocalDate parseMaturityDate(Map<String, String> descMap, String ticker) {
+        String matDate = descMap.get("MATDATE");
+        if (matDate == null) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(matDate);
+        } catch (DateTimeParseException e) {
+            log.warn("Failed to parse MATDATE '{}' for {}: {}", matDate, ticker, e.getMessage());
+            return null;
+        }
     }
 
     private static List<MoexCandleDto> doParseHistoryPage(JsonNode root, String ticker) {
@@ -272,7 +289,7 @@ public final class MoexResponseParser {
             }
             String boardId = IssTable.stringAt(row, boardIdx);
             String name    = IssTable.stringAt(row, nameIdx);
-            result.add(new MoexSecurityDto(secid, boardId, name, securityType, null, null));
+            result.add(new MoexSecurityDto(secid, boardId, name, securityType, null, null, null));
         }
         return result;
     }
@@ -301,7 +318,7 @@ public final class MoexResponseParser {
             String secid   = IssTable.stringAt(row, secidIdx);
             String boardId = IssTable.stringAt(row, boardIdx);
             String name    = IssTable.stringAt(row, nameIdx);
-            result.add(new MoexSecurityDto(secid, boardId, name, typeOpt.get(), null, null));
+            result.add(new MoexSecurityDto(secid, boardId, name, typeOpt.get(), null, null, null));
         }
         return result;
     }

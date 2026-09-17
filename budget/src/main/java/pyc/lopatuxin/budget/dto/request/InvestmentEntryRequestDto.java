@@ -27,7 +27,7 @@ import java.time.Instant;
 public class InvestmentEntryRequestDto {
 
     @NotNull(message = "Тип операции обязателен")
-    @Schema(description = "Тип операции: BUY — покупка, SELL — продажа", example = "BUY")
+    @Schema(description = "Тип операции: BUY — покупка, SELL — продажа, REDEMPTION — погашение облигации", example = "BUY")
     private EntryType type;
 
     @NotNull(message = "Сумма операции обязательна")

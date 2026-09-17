@@ -135,47 +135,93 @@ class IncomeRepositoryTransferTest extends AbstractIntegrationTest {
         assertThat(result.get()).isEqualByComparingTo(new BigDecimal("100000.00"));
     }
 
-    // ─── sumNonTransferByUserId (lifetime, only non-transfer incomes) ────────
+    // ─── sumByUserId (lifetime, includes transfer incomes) ────────────────────
 
     @Test
-    @DisplayName("sumNonTransferByUserId: исключает transfer-записи из lifetime-суммы")
-    void sumNonTransferByUserId_shouldExcludeTransferEntries() {
+    @DisplayName("sumByUserId: включает transfer-записи в lifetime-сумму (используется для капитала на обзоре)")
+    void sumByUserId_shouldIncludeTransferEntries() {
         saveIncome(new BigDecimal("80000.00"), LocalDate.of(2025, 1, 5), false);
-        saveIncome(new BigDecimal("20000.00"), LocalDate.of(2025, 1, 6), true);   // transfer — не учитывается
+        saveIncome(new BigDecimal("20000.00"), LocalDate.of(2025, 1, 6), true);   // transfer — учитывается
 
-        BigDecimal total = incomeRepository.sumNonTransferByUserId(userId);
+        BigDecimal total = incomeRepository.sumByUserId(userId);
 
-        assertThat(total).isEqualByComparingTo(new BigDecimal("80000.00"));
+        assertThat(total).isEqualByComparingTo(new BigDecimal("100000.00"));
     }
 
     @Test
-    @DisplayName("sumNonTransferByUserId: возвращает 0 если все записи transfer")
-    void sumNonTransferByUserId_allTransfer_shouldReturnZero() {
-        saveIncome(new BigDecimal("50000.00"), LocalDate.of(2025, 2, 1), true);
-        saveIncome(new BigDecimal("30000.00"), LocalDate.of(2025, 3, 1), true);
-
-        BigDecimal total = incomeRepository.sumNonTransferByUserId(userId);
+    @DisplayName("sumByUserId: возвращает 0 если у пользователя нет записей")
+    void sumByUserId_noRecords_shouldReturnZero() {
+        BigDecimal total = incomeRepository.sumByUserId(userId);
 
         assertThat(total).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     @Test
-    @DisplayName("sumNonTransferByUserId: суммирует все non-transfer доходы за всё время")
-    void sumNonTransferByUserId_multipleDates_shouldSumAllNonTransfer() {
+    @DisplayName("sumByUserId: не учитывает записи другого пользователя")
+    void sumByUserId_shouldExcludeOtherUsersEntries() {
+        UUID otherUserId = UUID.randomUUID();
         saveIncome(new BigDecimal("60000.00"), LocalDate.of(2024, 6, 1),  false);
-        saveIncome(new BigDecimal("40000.00"), LocalDate.of(2025, 1, 15), false);
-        saveIncome(new BigDecimal("99999.00"), LocalDate.of(2025, 5, 10), true);   // transfer — не учитывается
+        saveIncomeForUser(otherUserId, new BigDecimal("999999.00"), LocalDate.of(2025, 1, 15), true);
 
-        BigDecimal total = incomeRepository.sumNonTransferByUserId(userId);
+        BigDecimal total = incomeRepository.sumByUserId(userId);
 
-        assertThat(total).isEqualByComparingTo(new BigDecimal("100000.00"));
+        assertThat(total).isEqualByComparingTo(new BigDecimal("60000.00"));
+    }
+
+    // ─── sumByUserIdAndDateLessThanEqual (includes transfer incomes) ─────────
+
+    @Test
+    @DisplayName("sumByUserIdAndDateLessThanEqual: включает transfer-записи с датой не позже указанной")
+    void sumByUserIdAndDateLessThanEqual_shouldIncludeTransferEntriesUpToDate() {
+        saveIncome(new BigDecimal("50000.00"), LocalDate.of(2025, 3, 1),  false);
+        saveIncome(new BigDecimal("30000.00"), LocalDate.of(2025, 3, 15), true);   // transfer, в пределах даты — учитывается
+        saveIncome(new BigDecimal("99999.00"), LocalDate.of(2025, 4, 1),  false);  // после даты — не учитывается
+
+        BigDecimal total = incomeRepository.sumByUserIdAndDateLessThanEqual(userId, LocalDate.of(2025, 3, 31));
+
+        assertThat(total).isEqualByComparingTo(new BigDecimal("80000.00"));
+    }
+
+    // ─── findMonthlyIncomeByUserIdAndDateBetween (includes transfer incomes) ─
+
+    @Test
+    @DisplayName("findMonthlyIncomeByUserIdAndDateBetween: суммирует transfer и non-transfer записи месяца вместе")
+    void findMonthlyIncome_shouldSumTransferAndNonTransferTogether() {
+        saveIncome(new BigDecimal("50000.00"), LocalDate.of(2025, 1, 5),  false);
+        saveIncome(new BigDecimal("15000.00"), LocalDate.of(2025, 1, 20), true);
+
+        List<Object[]> result = incomeRepository.findMonthlyIncomeByUserIdAndDateBetween(
+                userId, LocalDate.of(2025, 1, 1), LocalDate.of(2025, 1, 31));
+
+        assertThat(result).hasSize(1);
+        assertThat(((Number) result.get(0)[0]).intValue()).isEqualTo(2025);
+        assertThat(((Number) result.get(0)[1]).intValue()).isEqualTo(1);
+        assertThat((BigDecimal) result.get(0)[2]).isEqualByComparingTo(new BigDecimal("65000.00"));
+    }
+
+    @Test
+    @DisplayName("findMonthlyIncomeByUserIdAndDateBetween: не учитывает записи другого пользователя")
+    void findMonthlyIncome_shouldExcludeOtherUsersEntries() {
+        UUID otherUserId = UUID.randomUUID();
+        saveIncome(new BigDecimal("50000.00"), LocalDate.of(2025, 1, 5), false);
+        saveIncomeForUser(otherUserId, new BigDecimal("777777.00"), LocalDate.of(2025, 1, 6), true);
+
+        List<Object[]> result = incomeRepository.findMonthlyIncomeByUserIdAndDateBetween(
+                userId, LocalDate.of(2025, 1, 1), LocalDate.of(2025, 1, 31));
+
+        assertThat(result).hasSize(1);
+        assertThat((BigDecimal) result.get(0)[2]).isEqualByComparingTo(new BigDecimal("50000.00"));
     }
 
     // ─── helpers ─────────────────────────────────────────────────────────────
 
     private void saveIncome(BigDecimal amount, LocalDate date, boolean isTransfer) {
+        saveIncomeForUser(userId, amount, date, isTransfer);
+    }
+
+    private void saveIncomeForUser(UUID forUserId, BigDecimal amount, LocalDate date, boolean isTransfer) {
         incomeRepository.save(Income.builder()
-                .userId(userId)
+                .userId(forUserId)
                 .source(IncomeSource.SALARY)
                 .amount(amount)
                 .date(date)

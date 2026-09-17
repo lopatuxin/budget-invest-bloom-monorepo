@@ -30,3 +30,7 @@ databaseChangeLog:
       file: db/changelog/investment/v1.0.0/015-add-dividend-kind.yml
   - include:
       file: db/changelog/investment/v1.0.0/016-add-snapshot-accrued-interest.yml
+  - include:
+      file: db/changelog/investment/v1.0.0/017-add-security-maturity-date.yml
+  - include:
+      file: db/changelog/investment/v1.0.0/018-allow-transaction-type-redemption.yml

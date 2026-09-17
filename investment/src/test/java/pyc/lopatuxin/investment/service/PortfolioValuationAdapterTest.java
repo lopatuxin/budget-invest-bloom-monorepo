@@ -10,6 +10,7 @@ import pyc.lopatuxin.investment.dto.response.PortfolioSummaryDto;
 import pyc.lopatuxin.investment.dto.response.UpcomingDividendDto;
 import pyc.lopatuxin.shared.port.PortfolioCurrentValuation;
 import pyc.lopatuxin.shared.port.PortfolioNextDividend;
+import pyc.lopatuxin.shared.port.PortfolioReceivedPayout;
 import pyc.lopatuxin.shared.port.PortfolioValueAt;
 import pyc.lopatuxin.shared.port.PortfolioValueSeries;
 
@@ -197,6 +198,36 @@ class PortfolioValuationAdapterTest {
 
         assertThat(result).isSameAs(expected);
         verify(analyticsService).valueAtDates(userId, dates);
+    }
+
+    @Test
+    @DisplayName("receivedPayouts — дата получения берётся из даты выплаты, если она есть, иначе из даты отсечки")
+    void receivedPayouts_receivedDate_prefersPaymentDateOverRecordDate() {
+        userId = UUID.randomUUID();
+        UpcomingDividendDto withPaymentDate = UpcomingDividendDto.builder()
+                .ticker("SBER").recordDate(LocalDate.of(2026, 1, 1)).paymentDate(LocalDate.of(2026, 1, 15))
+                .totalAmount(new BigDecimal("1740.00")).currency("RUB").build();
+        UpcomingDividendDto withoutPaymentDate = UpcomingDividendDto.builder()
+                .ticker("LKOH").recordDate(LocalDate.of(2025, 6, 1))
+                .totalAmount(new BigDecimal("691.00")).currency("RUB").build();
+        when(portfolioService.getReceivedPayouts(userId)).thenReturn(List.of(withPaymentDate, withoutPaymentDate));
+
+        List<PortfolioReceivedPayout> result = adapter.receivedPayouts(userId);
+
+        assertThat(result).containsExactlyInAnyOrder(
+                new PortfolioReceivedPayout(LocalDate.of(2026, 1, 15), new BigDecimal("1740.00")),
+                new PortfolioReceivedPayout(LocalDate.of(2025, 6, 1), new BigDecimal("691.00")));
+    }
+
+    @Test
+    @DisplayName("receivedPayouts — без выплат возвращает пустой список")
+    void receivedPayouts_noPayouts_returnsEmptyList() {
+        userId = UUID.randomUUID();
+        when(portfolioService.getReceivedPayouts(userId)).thenReturn(List.of());
+
+        List<PortfolioReceivedPayout> result = adapter.receivedPayouts(userId);
+
+        assertThat(result).isEmpty();
     }
 
     private UpcomingDividendDto buildDividend(String ticker, String securityName, LocalDate recordDate, BigDecimal totalAmount) {

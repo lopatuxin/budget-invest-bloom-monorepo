@@ -22,7 +22,8 @@ import java.util.UUID;
  * Service for registering investment-related budget entries on behalf of the investment service.
  *
  * <p>BUY operations are recorded as Expense in the system category «Инвестиции».
- * SELL operations are recorded as Income with source INVESTMENTS.</p>
+ * SELL and REDEMPTION operations are recorded as Income with source INVESTMENTS, with a
+ * description that tells a sale from a bond redemption.</p>
  */
 @Slf4j
 @Service
@@ -32,6 +33,7 @@ public class InvestmentEntryService {
     private static final String INVESTMENT_CATEGORY_NAME = "Инвестиции";
     private static final String INVESTMENT_CATEGORY_EMOJI = "💎";
     private static final String SELL_DESCRIPTION = "Продажа активов";
+    private static final String REDEMPTION_DESCRIPTION = "Погашение облигаций";
 
     private final CategoryService categoryService;
     private final ExpenseService expenseService;
@@ -42,7 +44,7 @@ public class InvestmentEntryService {
     /**
      * Creates a budget entry for an investment operation.
      * BUY → Expense in system category «Инвестиции».
-     * SELL → Income with source INVESTMENTS.
+     * SELL / REDEMPTION → Income with source INVESTMENTS, described as a sale or a redemption.
      *
      * @param userId identifier of the user
      * @param dto    investment entry data
@@ -52,11 +54,11 @@ public class InvestmentEntryService {
     public InvestmentEntryResponseDto create(UUID userId, InvestmentEntryRequestDto dto) {
         LocalDate date = dto.getExecutedAt().atZone(ZoneId.systemDefault()).toLocalDate();
 
-        if (dto.getType() == EntryType.BUY) {
-            return createBuyEntry(userId, dto, date);
-        } else {
-            return createSellEntry(userId, dto, date);
-        }
+        return switch (dto.getType()) {
+            case BUY -> createBuyEntry(userId, dto, date);
+            case SELL -> createIncomeEntry(userId, dto, date, SELL_DESCRIPTION);
+            case REDEMPTION -> createIncomeEntry(userId, dto, date, REDEMPTION_DESCRIPTION);
+        };
     }
 
     /**
@@ -65,14 +67,14 @@ public class InvestmentEntryService {
      *
      * @param userId  identifier of the user
      * @param entryId UUID of the Expense or Income to delete
-     * @param type    BUY (Expense) or SELL (Income)
+     * @param type    BUY (Expense) or SELL/REDEMPTION (Income)
      */
     @Transactional("budgetTransactionManager")
     public void delete(UUID userId, UUID entryId, EntryType type) {
         if (type == EntryType.BUY) {
             deleteBuyEntry(userId, entryId);
         } else {
-            deleteSellEntry(userId, entryId);
+            deleteIncomeEntry(userId, entryId, type);
         }
     }
 
@@ -83,9 +85,10 @@ public class InvestmentEntryService {
         return InvestmentEntryResponseDto.builder().entryId(expense.getId()).build();
     }
 
-    private InvestmentEntryResponseDto createSellEntry(UUID userId, InvestmentEntryRequestDto dto, LocalDate date) {
+    private InvestmentEntryResponseDto createIncomeEntry(UUID userId, InvestmentEntryRequestDto dto, LocalDate date,
+                                                          String description) {
         Income income = incomeService.createInternal(userId, IncomeSource.INVESTMENTS,
-                dto.getAmount(), date, SELL_DESCRIPTION, true);
+                dto.getAmount(), date, description, true);
         return InvestmentEntryResponseDto.builder().entryId(income.getId()).build();
     }
 
@@ -104,18 +107,18 @@ public class InvestmentEntryService {
         );
     }
 
-    private void deleteSellEntry(UUID userId, UUID entryId) {
+    private void deleteIncomeEntry(UUID userId, UUID entryId, EntryType type) {
         incomeRepository.findById(entryId).ifPresentOrElse(
                 income -> {
                     if (!income.getUserId().equals(userId)) {
-                        log.info("Investment SELL entry {} does not belong to user {} — skipping delete",
-                                entryId, userId);
+                        log.info("Investment {} entry {} does not belong to user {} — skipping delete",
+                                type, entryId, userId);
                         return;
                     }
                     incomeRepository.delete(income);
-                    log.info("Deleted investment SELL income {} for user {}", entryId, userId);
+                    log.info("Deleted investment {} income {} for user {}", type, entryId, userId);
                 },
-                () -> log.info("Investment SELL income {} not found — skipping delete", entryId)
+                () -> log.info("Investment {} income {} not found — skipping delete", type, entryId)
         );
     }
 }

@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import pyc.lopatuxin.investment.client.moex.MoexUnavailableException;
 import pyc.lopatuxin.investment.repository.PositionRepository;
+import pyc.lopatuxin.investment.service.BondRedemptionService;
 import pyc.lopatuxin.investment.service.market.DividendSyncService;
 import pyc.lopatuxin.investment.service.market.MarketDataService;
 
@@ -19,6 +20,7 @@ public class MarketDataRefreshScheduler {
     private final PositionRepository positionRepository;
     private final MarketDataService marketDataService;
     private final DividendSyncService dividendSyncService;
+    private final BondRedemptionService bondRedemptionService;
 
     // every 5 min during MSK trading hours Mon-Fri
     @Scheduled(cron = "0 */5 10-18 * * MON-FRI", zone = "Europe/Moscow")
@@ -45,6 +47,11 @@ public class MarketDataRefreshScheduler {
             marketDataService.healPendingSecurities();
         } catch (Exception e) {
             log.warn("Самолечение PENDING в ночном задании не выполнено: {}", e.getMessage());
+        }
+        try {
+            bondRedemptionService.redeemMatured();
+        } catch (Exception e) {
+            log.warn("Погашение облигаций в ночном задании не выполнено: {}", e.getMessage());
         }
         List<String> tickers = positionRepository.findActiveTickers();
         if (!tickers.isEmpty()) {

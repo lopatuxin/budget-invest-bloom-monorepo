@@ -90,9 +90,10 @@ export function describeEvent(event: SecurityEvent): EventDisplay {
     };
   }
 
-  if (event.kind === 'SELL') {
+  if (event.kind === 'SELL' || event.kind === 'REDEMPTION') {
+    const verb = event.kind === 'REDEMPTION' ? 'Погашение' : 'Продажа';
     return {
-      title: `Продажа ${formatQuantity(event.quantity)} шт по ${formatUnitPrice(event.price)}`,
+      title: `${verb} ${formatQuantity(event.quantity)} шт по ${formatUnitPrice(event.price)}`,
       subtitle: `позиция ${formatQuantity(event.positionAfter.quantity)} шт, вложено ${formatCurrency(event.positionAfter.invested)} · результат сделки ${formatSignedCurrency(event.realizedPnl)}`,
       amountText: `+${formatCurrency(event.amount)}`,
       amountVariant: 'plain',

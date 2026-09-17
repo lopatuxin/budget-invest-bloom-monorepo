@@ -37,6 +37,14 @@ public interface DividendRepository extends JpaRepository<Dividend, UUID> {
            "ORDER BY COALESCE(d.paymentDate, d.recordDate) DESC")
     List<Dividend> findByTickerInAndReceivedDateBetweenWithSecurity(@Param("tickers") Collection<String> tickers, @Param("from") LocalDate from, @Param("to") LocalDate to);
 
+    // Same received-date and CANCELLED rules as the query above, but with no lower bound — used
+    // by the "capital" page's all-time received payouts, unlike the 12-month dividends12m tile.
+    @Query("SELECT d FROM Dividend d JOIN FETCH d.security " +
+           "WHERE d.security.ticker IN :tickers " +
+           "AND COALESCE(d.paymentDate, d.recordDate) < :to " +
+           "AND d.status <> pyc.lopatuxin.investment.entity.enums.DividendStatus.CANCELLED")
+    List<Dividend> findByTickerInAndReceivedDateBeforeWithSecurity(@Param("tickers") Collection<String> tickers, @Param("to") LocalDate to);
+
     // One atomic UPDATE instead of loading every due ANNOUNCED row as an entity just to flip
     // one field and save it back — no N+1, no lost-update race against a concurrent read.
     @Modifying

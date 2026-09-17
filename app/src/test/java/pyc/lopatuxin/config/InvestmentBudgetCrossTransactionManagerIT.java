@@ -32,6 +32,7 @@ import pyc.lopatuxin.budget.dto.response.InvestmentEntryResponseDto;
 import pyc.lopatuxin.budget.service.InvestmentEntryService;
 import pyc.lopatuxin.shared.port.EntryType;
 import pyc.lopatuxin.shared.port.PortfolioCurrentValuation;
+import pyc.lopatuxin.shared.port.PortfolioReceivedPayout;
 import pyc.lopatuxin.shared.port.PortfolioValuation;
 import pyc.lopatuxin.shared.port.PortfolioValueAt;
 import pyc.lopatuxin.shared.port.PortfolioValueSeries;
@@ -120,6 +121,11 @@ class InvestmentBudgetCrossTransactionManagerIT {
                     return new PortfolioValueSeries(
                             dates.stream().map(date -> new PortfolioValueAt(date, BigDecimal.ZERO)).toList(),
                             false, false, List.of());
+                }
+
+                @Override
+                public List<PortfolioReceivedPayout> receivedPayouts(UUID userId) {
+                    return List.of();
                 }
             };
         }

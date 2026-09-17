@@ -381,9 +381,11 @@ public class AnalyticsService {
 
     private void applyTransaction(Map<String, BigDecimal> quantities, Transaction transaction) {
         String ticker = transaction.getSecurity().getTicker();
-        BigDecimal signedQuantity = transaction.getType() == TransactionType.SELL
-                ? transaction.getQuantity().negate()
-                : transaction.getQuantity();
+        // BUY grows the holding; SELL and REDEMPTION (bond closed at maturity, which reduces
+        // quantity exactly like a sale) both shrink it.
+        BigDecimal signedQuantity = transaction.getType() == TransactionType.BUY
+                ? transaction.getQuantity()
+                : transaction.getQuantity().negate();
         quantities.merge(ticker, signedQuantity, BigDecimal::add);
     }
 

@@ -8,6 +8,7 @@ import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 import pyc.lopatuxin.budget.service.OverviewPageService;
 import pyc.lopatuxin.shared.port.PortfolioCurrentValuation;
+import pyc.lopatuxin.shared.port.PortfolioReceivedPayout;
 import pyc.lopatuxin.shared.port.PortfolioValuation;
 import pyc.lopatuxin.shared.port.PortfolioValueAt;
 import pyc.lopatuxin.shared.port.PortfolioValueSeries;
@@ -64,6 +65,11 @@ public class TestApplication {
                 return new PortfolioValueSeries(
                         dates.stream().map(date -> new PortfolioValueAt(date, BigDecimal.ZERO)).toList(),
                         false, false, List.of());
+            }
+
+            @Override
+            public List<PortfolioReceivedPayout> receivedPayouts(UUID userId) {
+                return List.of();
             }
         };
     }

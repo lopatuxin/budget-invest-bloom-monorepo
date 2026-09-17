@@ -522,6 +522,27 @@ class SecurityPageServiceTest {
         assertThat(sellEvent.getRealizedPnl()).isEqualByComparingTo("500.00");
     }
 
+    @Test
+    @DisplayName("погашение облигации: событие с kind=REDEMPTION, позиция закрыта, прибыль входит в итоговую реализованную")
+    void getSecurityPage_redemption_eventKindAndRealizedPnl() {
+        Transaction buy = tx(TransactionType.BUY, "71", "998.00", "2025-01-10T10:00:00Z", "2025-01-10T10:00:00Z");
+        Transaction redemption = tx(TransactionType.REDEMPTION, "71", "1000.00", "2026-09-16T12:00:00Z", "2026-09-16T12:00:00Z");
+        stubJournal(buy, redemption);
+        stubNoDividends();
+        stubNoPositions();
+
+        SecurityPageResponseDto page = securityPageService.getSecurityPage(userId, TICKER, TODAY);
+
+        SecurityEventDto redemptionEvent = eventByTransactionId(page, redemption.getId());
+        assertThat(redemptionEvent.getKind()).isEqualTo(SecurityEventKind.REDEMPTION);
+        assertThat(redemptionEvent.getQuantity()).isEqualByComparingTo("71");
+        assertThat(redemptionEvent.getPrice()).isEqualByComparingTo("1000.00");
+        assertThat(redemptionEvent.getRealizedPnl()).isEqualByComparingTo("142.00"); // (1000-998)*71
+        assertThat(redemptionEvent.getPositionAfter().getQuantity()).isEqualByComparingTo(BigDecimal.ZERO);
+
+        assertThat(page.getResult().getRealizedPnl()).isEqualByComparingTo("142.00");
+    }
+
     private SecurityEventDto eventByTransactionId(SecurityPageResponseDto page, UUID transactionId) {
         return page.getEvents().stream()
                 .filter(e -> transactionId.equals(e.getTransactionId()))

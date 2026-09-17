@@ -55,9 +55,11 @@ public class HoldingsOnDateService {
             if (!transaction.getExecutedAt().isBefore(cutoff)) {
                 break;
             }
-            quantity = transaction.getType() == TransactionType.SELL
-                    ? quantity.subtract(transaction.getQuantity())
-                    : quantity.add(transaction.getQuantity());
+            // BUY grows the holding; SELL and REDEMPTION (bond closed at maturity, which reduces
+            // quantity exactly like a sale) both shrink it.
+            quantity = transaction.getType() == TransactionType.BUY
+                    ? quantity.add(transaction.getQuantity())
+                    : quantity.subtract(transaction.getQuantity());
         }
         if (quantity.signum() < 0) {
             log.warn("Negative holdings computed for ticker={} on date={}: {} — treating as zero", ticker, date, quantity);
